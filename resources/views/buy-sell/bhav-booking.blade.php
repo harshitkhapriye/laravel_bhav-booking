@@ -3,10 +3,10 @@
 @section('title', 'Bhav Booking - Just Udhari')
 
 @section('content')
-<div class="container-fluid px-2 px-md-4 py-3">
+<div class="container-fluid px-2 px-md-3 py-2">
 
     <!-- A) Page Title Bar -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 page-header-bar">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 page-header-bar">
         <!-- Title with Orange Dot -->
         <div class="d-flex align-items-center gap-2">
             <span class="title-orange-dot"></span>
@@ -20,19 +20,19 @@
             </button>
 
             <div class="dropdown d-inline-block">
-                <button type="button" class="btn btn-navy-list rounded-pill px-3 py-1 dropdown-toggle" data-bs-toggle="dropdown">
+                <button type="button" class="btn btn-navy-list rounded-pill px-3 py-1 dropdown-toggle" data-bs-toggle="dropdown" id="dropdownListBtn">
                     <i class="fa-solid fa-bars me-1"></i> LIST
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm" id="listDropdownMenu">
                     <li>
-                        <a class="dropdown-item d-flex align-items-center justify-content-between active-list-item" href="#" id="menuCurrentList">
+                        <a class="dropdown-item d-flex align-items-center justify-content-between active-list-item" href="{{ route('bhav-booking.index') }}" id="menuCurrentList">
                             <span><i class="fa-solid fa-list-ul text-warning me-2"></i> Current List</span>
-                            <i class="fa-solid fa-lock text-muted small ms-3"></i>
+                            <i class="fa-solid fa-check text-success small ms-3" id="iconCurrentCheck"></i>
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item d-flex align-items-center" href="#" id="menuOldBooking">
-                            <i class="fa-solid fa-clock-rotate-left me-2 text-muted"></i> Old Booking
+                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ route('bhav-booking.old') }}" id="menuOldBooking">
+                            <span><i class="fa-solid fa-clock-rotate-left me-2 text-muted"></i> Old Booking</span>
                         </a>
                     </li>
                 </ul>
@@ -49,16 +49,31 @@
     </div>
 
     <!-- Main Content Grid (Two Cards: Left Form & Right List) -->
-    <div class="row g-4">
+    <div class="row g-2 g-xl-3">
 
         <!-- B) Left Card: Form -->
         <div class="col-12 col-xl-6">
             <div class="card custom-content-card h-100 shadow-sm border-0">
-                <div class="card-body p-3 p-md-4">
+                <div class="card-body p-2 p-md-3">
+
+                    <!-- Editing Mode Indicator Banner -->
+                    <div class="edit-mode-indicator alert alert-warning align-items-center justify-content-between py-1 px-3 mb-2 rounded-pill shadow-sm d-none" id="editModeIndicator">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square text-warning-emphasis"></i>
+                            <span class="small fw-bold text-dark">Editing <span id="editingBookingNoLabel">BB-000001</span></span>
+                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle ms-2" style="font-size: 10px; padding: 2px 6px;">
+                                <i class="fa-solid fa-lock me-1"></i> Customer cannot be changed
+                            </span>
+                        </div>
+                        <a href="#" id="linkCancelEditTop" class="text-danger fw-bold small text-decoration-none">
+                            <i class="fa-solid fa-xmark me-1"></i> Cancel
+                        </a>
+                    </div>
 
                     <!-- BUY / SELL Toggle Switch -->
-                    <div class="d-flex justify-content-center mb-4">
-                        <div class="trade-toggle-container" id="tradeToggle">
+                    <div class="d-flex justify-content-center mb-2">
+                        <div class="trade-toggle-container mode-sell" id="tradeToggle" data-mode="SELL">
+                            <div class="trade-toggle-pill" id="tradeTogglePill"></div>
                             <button type="button" class="trade-toggle-option" id="btnBuy" data-type="BUY">
                                 <i class="fa-solid fa-arrow-down me-1"></i> BUY
                             </button>
@@ -77,21 +92,21 @@
                         <input type="hidden" name="amount" id="hiddenAmount" value="0.00">
 
                         <!-- CUSTOMER NO / NAME -->
-                        <div class="row mb-3 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-center form-row-group">
                             <label class="col-12 col-sm-4 text-sm-end form-label-label" for="customerSearchInput">
                                 CUSTOMER NO / NAME :
                             </label>
                             <div class="col-12 col-sm-8">
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="input-with-icon flex-grow-1 position-relative" id="customerSearchWrapper">
-                                        <i class="fa-solid fa-user field-icon"></i>
+                                        <i class="fa-solid fa-user field-icon" id="customerFieldIcon"></i>
                                         <input type="text"
                                                class="form-control form-input-pill ps-5 pe-5"
                                                id="customerSearchInput"
                                                placeholder="Select Customer..."
                                                autocomplete="off">
                                         <button type="button"
-                                                class="btn-customer-clear"
+                                                class="btn-customer-clear btn-clear-input"
                                                 id="customerClearBtn"
                                                 style="display: none;"
                                                 title="Clear selected customer"
@@ -99,7 +114,7 @@
                                         <!-- Autocomplete Results Dropdown -->
                                         <div class="customer-dropdown-menu shadow" id="customerSearchResults" style="display: none;"></div>
                                     </div>
-                                    <button type="button" class="btn btn-round-navy flex-shrink-0" id="btnOpenAddCustomerModal" title="Add Customer" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                                    <button type="button" class="btn btn-round-navy flex-shrink-0" id="btnOpenAddCustomerModal" title="Add Customer">
                                         <i class="fa-solid fa-user-plus"></i>
                                     </button>
                                 </div>
@@ -111,7 +126,7 @@
                         </div>
 
                         <!-- TYPE -->
-                        <div class="row mb-3 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-center form-row-group">
                             <label class="col-12 col-sm-4 text-sm-end form-label-label" for="typeSelect">
                                 TYPE :
                             </label>
@@ -127,7 +142,7 @@
                         </div>
 
                         <!-- CATEGORY -->
-                        <div class="row mb-3 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-center form-row-group">
                             <label class="col-12 col-sm-4 text-sm-end form-label-label" for="categorySelect">
                                 CATEGORY :
                             </label>
@@ -143,7 +158,7 @@
                         </div>
 
                         <!-- WEIGHT (Dynamic Label) -->
-                        <div class="row mb-3 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-center form-row-group">
                             <label class="col-12 col-sm-4 text-sm-end form-label-label" id="labelWeight" for="inputWeight">
                                 SELL WEIGHT :
                             </label>
@@ -162,7 +177,7 @@
                         </div>
 
                         <!-- RATE (Dynamic Label: Quoted per 10 Grams) -->
-                        <div class="row mb-3 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-center form-row-group">
                             <label class="col-12 col-sm-4 text-sm-end form-label-label" id="labelRate" for="inputRate">
                                 SELL RATE (/10GM) :
                             </label>
@@ -176,7 +191,7 @@
                         </div>
 
                         <!-- AMOUNT -->
-                        <div class="row mb-3 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-center form-row-group">
                             <label class="col-12 col-sm-4 text-sm-end form-label-label" for="inputAmount">
                                 AMOUNT :
                             </label>
@@ -190,7 +205,7 @@
                         </div>
 
                         <!-- ENTRIES MINI-TABLE (Multi-weight rows) -->
-                        <div class="row mb-3 form-row-group" id="entriesRowWrapper" style="display: none;">
+                        <div class="row mb-2 form-row-group" id="entriesRowWrapper" style="display: none;">
                             <label class="col-12 col-sm-4 text-sm-end form-label-label pt-1" id="labelEntries">
                                 ENTRIES (<span id="entriesCountBadge">0</span>) :
                             </label>
@@ -227,19 +242,19 @@
                         </div>
 
                         <!-- Dashed Divider -->
-                        <div class="dashed-line-divider my-4"></div>
+                        <div class="dashed-line-divider my-2"></div>
 
                         <!-- Narration / Remarks -->
-                        <div class="mb-4">
+                        <div class="mb-2">
                             <div class="remarks-input-wrapper">
                                 <i class="fa-solid fa-pen remarks-icon"></i>
                                 <textarea class="form-control remarks-textarea" id="inputNarration" rows="2" maxlength="255" placeholder="Enter narration or transaction remarks..."></textarea>
                             </div>
-                            <div id="narrationCounter" class="text-end small text-muted mt-1 pe-2">0/255</div>
+                            <div id="narrationCounter" class="text-end small text-muted mt-0 pe-2" style="font-size: 11px;">0/255</div>
                         </div>
 
                         <!-- WhatsApp Toggle Pill -->
-                        <div class="d-flex justify-content-center mb-4">
+                        <div class="d-flex justify-content-center mb-2">
                             <div class="whatsapp-pill-badge">
                                 <i class="fa-brands fa-whatsapp text-success whatsapp-icon"></i>
                                 <span class="whatsapp-text">Send on WhatsApp</span>
@@ -250,13 +265,18 @@
                         </div>
 
                         <!-- Action Buttons -->
-                        <div class="d-flex justify-content-center align-items-center gap-3">
+                        <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap">
                             <button type="button" class="btn btn-outline-print rounded-pill px-4 py-2" id="btnPrint">
                                 <i class="fa-solid fa-print me-2"></i> PRINT
                             </button>
-                            <button type="button" class="btn btn-gradient-save rounded-pill px-5 py-2" id="btnSave">
-                                <i class="fa-solid fa-floppy-disk me-2"></i> SAVE
-                            </button>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-gradient-save rounded-pill px-5 py-2" id="btnSave">
+                                    <i class="fa-solid fa-floppy-disk me-2"></i> SAVE
+                                </button>
+                                <a href="#" class="btn-cancel-edit text-muted text-decoration-underline small fw-semibold" id="linkCancelEdit" style="display: none;">
+                                    Cancel edit
+                                </a>
+                            </div>
                         </div>
 
                     </form>
@@ -268,20 +288,30 @@
         <!-- C) Right Card: List -->
         <div class="col-12 col-xl-6">
             <div class="card custom-content-card h-100 shadow-sm border-0">
-                <div class="card-body p-3 p-md-4 d-flex flex-column">
+                <div class="card-body p-2 p-md-3 d-flex flex-column">
 
-                    <!-- Filter Bar -->
-                    <div class="row g-2 align-items-center mb-3">
+                    <!-- List Header & View Badge -->
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge rounded-pill px-3 py-1 text-white d-inline-flex align-items-center gap-2" id="listHeadingBadge" style="background-color: var(--navy-dark); font-size: 13px; font-weight: 700; letter-spacing: 0.3px;">
+                                <i class="fa-solid fa-list-ul text-warning" id="listHeadingIcon"></i>
+                                <span id="listHeadingText">Current Bookings</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Filter Bar Row 1: Search Party & Date Range -->
+                    <div class="row g-2 align-items-center mb-2">
                         <!-- Search Party -->
-                        <div class="col-12 col-sm-5">
+                        <div class="col-12 col-md-6">
                             <div class="input-with-icon">
                                 <i class="fa-solid fa-magnifying-glass field-icon text-muted"></i>
-                                <input type="text" class="form-control form-input-pill ps-5" placeholder="Search Party...">
+                                <input type="text" class="form-control form-input-pill ps-5" id="filterPartyInput" placeholder="Search Party, Mobile, Booking No...">
                             </div>
                         </div>
 
                         <!-- Date Range -->
-                        <div class="col-8 col-sm-5 position-relative" id="dateRangePickerWrapper">
+                        <div class="col-12 col-md-6 position-relative" id="dateRangePickerWrapper">
                             <input type="hidden" name="date_from" id="dateFilterFrom" value="{{ date('Y-m-d') }}">
                             <input type="hidden" name="date_to" id="dateFilterTo" value="{{ date('Y-m-d') }}">
                             <div class="input-with-suffix cursor-pointer">
@@ -318,13 +348,34 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Filter Bar Row 2: Metal, Type, Page Size -->
+                    <div class="row g-2 align-items-center mb-3">
+                        <!-- Metal Filter -->
+                        <div class="col-4 col-sm-4">
+                            <select class="form-select form-input-pill text-center" id="filterMetalSelect">
+                                <option value="ALL" selected>Metal: All</option>
+                                <option value="GOLD">Gold</option>
+                                <option value="SILVER">Silver</option>
+                            </select>
+                        </div>
+
+                        <!-- Type Filter -->
+                        <div class="col-5 col-sm-5">
+                            <select class="form-select form-input-pill text-center" id="filterTypeSelect">
+                                <option value="ALL" selected>Type: All</option>
+                                <option value="ONLY_ENTRY">Only Entry</option>
+                                <option value="BHAV_CUT_LEDGER">Bhav Cut + Ledger</option>
+                            </select>
+                        </div>
 
                         <!-- Page Size Selector -->
-                        <div class="col-4 col-sm-2">
+                        <div class="col-3 col-sm-3">
                             <select class="form-select form-input-pill text-center" id="pageSizeSelect">
-                                <option value="10" selected>10</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
+                                <option value="10" selected>10 / page</option>
+                                <option value="50">50 / page</option>
+                                <option value="100">100 / page</option>
                             </select>
                         </div>
                     </div>
@@ -353,12 +404,14 @@
                                     <th class="sub-col">AMT</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <!-- Empty State -->
-                                <tr class="table-empty-row">
+                            <tbody id="bhavTableBody">
+                                <!-- Initial Loading State -->
+                                <tr class="table-loading-row">
                                     <td colspan="11" class="py-5 text-center text-muted">
-                                        <i class="fa-regular fa-folder-open fa-3x text-secondary opacity-50 mb-2 d-block"></i>
-                                        <span class="fw-semibold">No Records Found</span>
+                                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <span class="fw-semibold">Loading bookings...</span>
                                     </td>
                                 </tr>
                             </tbody>
@@ -367,18 +420,30 @@
                                     <td colspan="3" class="text-end fw-bold pe-3">TOTAL :-</td>
                                     <td class="text-success fw-bold" id="totalBuyWt">0.000 gm</td>
                                     <td></td>
-                                    <td class="text-success fw-bold" id="totalBuyAmt">₹0</td>
+                                    <td class="text-success fw-bold" id="totalBuyAmt">₹0.00</td>
                                     <td class="text-danger fw-bold" id="totalSellWt">0.000 gm</td>
                                     <td></td>
-                                    <td class="text-danger fw-bold" id="totalSellAmt">₹0</td>
+                                    <td class="text-danger fw-bold" id="totalSellAmt">₹0.00</td>
                                     <td>
-                                        <div class="text-danger fw-bold" id="totalGiven">G: ₹0</div>
-                                        <div class="text-success fw-bold" id="totalReceived">R: ₹0</div>
+                                        <div class="text-danger fw-bold" id="totalGiven">G: ₹0.00</div>
+                                        <div class="text-success fw-bold" id="totalReceived">R: ₹0.00</div>
                                     </td>
                                     <td></td>
                                 </tr>
                             </tfoot>
                         </table>
+                    </div>
+
+                    <!-- Pagination Bar -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 mt-auto border-top" id="listPaginationContainer">
+                        <div class="text-muted small" id="listPaginationInfo">
+                            Showing 0–0 of 0
+                        </div>
+                        <nav aria-label="Bookings pagination">
+                            <ul class="pagination pagination-sm m-0 gap-1" id="listPaginationLinks">
+                                <!-- Dynamic pagination buttons -->
+                            </ul>
+                        </nav>
                     </div>
 
                 </div>
@@ -389,77 +454,37 @@
 </div>
 
 <!-- =========================================================================
-     MODAL: ADD NEW CUSTOMER
+     MODAL: NEW PARTY DETAIL
      ========================================================================= -->
-<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow" style="border-radius: 20px; overflow: hidden;">
-            <div class="modal-header text-white" style="background-color: var(--navy-dark); padding: 18px 24px;">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="title-orange-dot"></span>
-                    <h5 class="modal-title fw-bold m-0" id="addCustomerModalLabel" style="font-size: 18px; letter-spacing: 0.3px;">Add New Customer</h5>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="addCustomerForm" autocomplete="off" onsubmit="return false;">
-                <div class="modal-body p-4">
-                    <!-- Customer Name -->
-                    <div class="mb-3">
-                        <label for="newCustomerName" class="form-label form-label-label mb-1">
-                            NAME <span class="text-danger">*</span>
-                        </label>
-                        <div class="input-with-icon">
-                            <i class="fa-solid fa-user field-icon"></i>
-                            <input type="text" class="form-control form-input-pill ps-5" id="newCustomerName" name="name" placeholder="Enter customer name" maxlength="100" required>
-                        </div>
-                        <div class="field-error-text text-danger small mt-1 ps-3" id="errorNewCustomerName" style="display: none;"></div>
-                    </div>
+@include('partials.new-party-modal')
 
-                    <!-- Customer Mobile -->
-                    <div class="mb-3">
-                        <label for="newCustomerMobile" class="form-label form-label-label mb-1">
-                            MOBILE NUMBER (10 DIGITS)
-                        </label>
-                        <div class="input-with-icon">
-                            <i class="fa-solid fa-phone field-icon"></i>
-                            <input type="tel" class="form-control form-input-pill ps-5" id="newCustomerMobile" name="mobile" placeholder="10-digit mobile number" maxlength="10">
-                        </div>
-                        <div class="field-error-text text-danger small mt-1 ps-3" id="errorNewCustomerMobile" style="display: none;"></div>
-                    </div>
-
-                    <!-- Customer City -->
-                    <div class="mb-2">
-                        <label for="newCustomerCity" class="form-label form-label-label mb-1">
-                            CITY
-                        </label>
-                        <div class="input-with-icon">
-                            <i class="fa-solid fa-location-dot field-icon"></i>
-                            <input type="text" class="form-control form-input-pill ps-5" id="newCustomerCity" name="city" placeholder="e.g. Indore, Bhopal" maxlength="50">
-                        </div>
-                        <div class="field-error-text text-danger small mt-1 ps-3" id="errorNewCustomerCity" style="display: none;"></div>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light px-4 py-3 border-0 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-bold" data-bs-dismiss="modal">
-                        Cancel
-                    </button>
-                    <button type="button" class="btn btn-gradient-save rounded-pill px-4 py-2" id="btnSaveNewCustomer">
-                        <i class="fa-solid fa-check me-1"></i> Save Customer
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Shared Modals -->
+@include('partials.bhav-view-modal')
+@include('partials.bhav-save-success-modal')
 
 <!-- Pass dynamic application route URLs & Bhav config to JavaScript -->
 <script>
     window.BHAV_CONFIG = @json(config('bhav'));
+    window.INDIA_LOCATIONS = @json(config('india_locations'));
     window.APP_ROUTES = {
         customerSearch: "{{ route('customers.search') }}",
+        customerRecent: "{{ route('customers.recent') }}",
         customerStore: "{{ route('customers.store') }}",
-        bhavBookingStore: "{{ route('bhav-bookings.store') }}"
+        bhavBookingIndex: "{{ route('bhav-booking.index') }}",
+        bhavBookingOld: "{{ route('bhav-booking.old') }}",
+        bhavBookingStore: "{{ route('bhav-bookings.store') }}",
+        bhavBookingList: "{{ route('bhav-bookings.list') }}",
+        bhavBookingShow: "{{ route('bhav-bookings.show', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingUpdate: "{{ route('bhav-bookings.update', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingDelete: "{{ route('bhav-bookings.destroy', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}"
     };
 </script>
 @endsection
+
+@section('scripts')
+    <script src="{{ asset('js/bhav-common.js') }}"></script>
+    <script src="{{ asset('js/bhav-booking.js') }}"></script>
+@endsection
+
 

@@ -51,7 +51,7 @@
     <!-- Bootstrap 5 Bundle JS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Custom JS via asset() -->
-    <script src="{{ asset('js/bhav-booking.js') }}"></script>
+    <!-- Page Specific Scripts -->
+    @yield('scripts')
 </body>
 </html>

@@ -41,6 +41,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // Unique request token for duplicate-save protection (idempotency)
     let currentRequestToken = generateRequestToken();
 
+    // Track last saved booking ID for the form PRINT button (Task C3)
+    let lastSavedBookingId = null;
+
+    // Track current booking being edited (null when in create mode) (Task C4)
+    let editingBookingId = null;
+    let editingBookingNo = null;
+
+    // Map of currently loaded bookings on the page by ID for action menu operations
+    let lastLoadedBookingsMap = {};
+
     // =========================================================================
     // 2. HELPERS
     // Small utility functions used throughout the application
@@ -142,6 +152,19 @@ document.addEventListener('DOMContentLoaded', function () {
     function getCsrfToken() {
         const metaTag = document.querySelector('meta[name="csrf-token"]');
         return metaTag ? metaTag.getAttribute('content') : '';
+    }
+
+    /**
+     * Resolve dynamic route URL from window.APP_ROUTES
+     * Replaces '__ID__' with the provided model ID
+     * Why: Eliminates hardcoded URLs in JavaScript and relies on Laravel route naming.
+     */
+    function getRoute(routeName, id = null) {
+        if (!window.APP_ROUTES || !window.APP_ROUTES[routeName]) {
+            return id !== null ? `/bhav-bookings/${id}` : '/bhav-bookings';
+        }
+        const url = window.APP_ROUTES[routeName];
+        return id !== null ? url.replace('__ID__', encodeURIComponent(id)) : url;
     }
 
     // =========================================================================
@@ -262,8 +285,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (whatsappSwitch && whatsappSwitch.checked) {
             whatsappSwitch.checked = false;
         }
-
-        customerSearchInput.focus();
     }
 
     function showCustomerError(message) {
@@ -288,6 +309,245 @@ document.addEventListener('DOMContentLoaded', function () {
         currentSearchResults = [];
     }
 
+    /**
+     * Lock customer selection in Edit Mode:
+     * - Make input readOnly with light grey look
+     * - Replace user icon with lock icon
+     * - Hide clear "×" button
+     * - Disable add-customer button
+     * - Close and prevent opening customer dropdown
+     */
+    function lockCustomerField() {
+        if (customerSearchInput) {
+            customerSearchInput.readOnly = true;
+            customerSearchInput.classList.add('customer-locked');
+        }
+        const customerFieldIcon = document.getElementById('customerFieldIcon');
+        if (customerFieldIcon) {
+            customerFieldIcon.classList.remove('fa-user');
+            customerFieldIcon.classList.add('fa-lock', 'text-secondary');
+        }
+        if (customerClearBtn) {
+            customerClearBtn.style.display = 'none';
+        }
+        if (btnOpenAddCustomerModal) {
+            btnOpenAddCustomerModal.disabled = true;
+            btnOpenAddCustomerModal.classList.add('disabled');
+        }
+        hideCustomerDropdown();
+    }
+
+    /**
+     * Unlock customer selection on exit from Edit Mode
+     */
+    function unlockCustomerField() {
+        if (customerSearchInput) {
+            customerSearchInput.readOnly = false;
+            customerSearchInput.classList.remove('customer-locked');
+        }
+        const customerFieldIcon = document.getElementById('customerFieldIcon');
+        if (customerFieldIcon) {
+            customerFieldIcon.classList.remove('fa-lock', 'text-secondary');
+            customerFieldIcon.classList.add('fa-user');
+        }
+        if (btnOpenAddCustomerModal) {
+            btnOpenAddCustomerModal.disabled = false;
+            btnOpenAddCustomerModal.classList.remove('disabled');
+        }
+        if (selectedCustomer && customerClearBtn) {
+            customerClearBtn.style.display = 'block';
+        }
+    }
+
+    // In-memory cache for recent customers and active in-flight request promise
+    let cachedRecentCustomers = null;
+    let recentCustomersPromise = null;
+
+    /**
+     * Fetch recent customers ordered by their latest Bhav Booking.
+     * Caches results in memory; forceRefresh=true forces a new backend call.
+     * Multiple concurrent calls share the same in-flight promise to prevent duplicate requests.
+     */
+    function fetchRecentCustomers(forceRefresh = false) {
+        if (cachedRecentCustomers !== null && !forceRefresh) {
+            return Promise.resolve(cachedRecentCustomers);
+        }
+
+        if (recentCustomersPromise !== null) {
+            return recentCustomersPromise;
+        }
+
+        const recentUrl = (window.APP_ROUTES && window.APP_ROUTES.customerRecent)
+            ? window.APP_ROUTES.customerRecent
+            : '/customers/recent';
+
+        recentCustomersPromise = fetch(recentUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to load recent customers');
+            return response.json();
+        })
+        .then(customers => {
+            cachedRecentCustomers = Array.isArray(customers) ? customers : [];
+
+            // If the dropdown is currently open AND customer input is empty or showing recent customers,
+            // re-render it with the fresh list.
+            if (customerSearchResults && customerSearchResults.style.display === 'block') {
+                const inputVal = customerSearchInput ? customerSearchInput.value.trim() : '';
+                const hasRecentHeader = customerSearchResults.querySelector('.customer-dropdown-header') !== null;
+                const isShowingRecent = hasRecentHeader || !inputVal || selectedCustomer !== null;
+
+                if (isShowingRecent) {
+                    renderRecentCustomersList(cachedRecentCustomers);
+                }
+            }
+
+            return cachedRecentCustomers;
+        })
+        .catch(err => {
+            console.warn('Recent customers fetch error:', err);
+            return [];
+        })
+        .finally(() => {
+            recentCustomersPromise = null;
+        });
+
+        return recentCustomersPromise;
+    }
+
+    /**
+     * Show the recent customers dropdown list under customer search input.
+     * Reuses in-flight promise if a fetch or refresh is already in progress.
+     */
+    function showRecentCustomersDropdown() {
+        if (!customerSearchResults || editingBookingId !== null) return;
+
+        // Abort any active search query fetch
+        if (currentSearchAbortController) {
+            currentSearchAbortController.abort();
+            currentSearchAbortController = null;
+        }
+
+        // If a request is in progress OR cache is empty, ensure loading UI and wait for in-flight promise
+        if (recentCustomersPromise !== null || cachedRecentCustomers === null) {
+            if (customerSearchResults.style.display !== 'block' || !cachedRecentCustomers) {
+                customerSearchResults.innerHTML = `
+                    <div class="customer-dropdown-header">
+                        <i class="fa-solid fa-clock-rotate-left text-primary"></i> Recent customers
+                    </div>
+                    <div class="p-3 text-center text-muted small">
+                        <i class="fa-solid fa-spinner fa-spin me-2"></i> Loading recent customers...
+                    </div>
+                `;
+                customerSearchResults.style.display = 'block';
+            }
+
+            fetchRecentCustomers().then(customers => {
+                if (customerSearchResults && customerSearchResults.style.display === 'block') {
+                    const inputVal = customerSearchInput ? customerSearchInput.value.trim() : '';
+                    const hasRecentHeader = customerSearchResults.querySelector('.customer-dropdown-header') !== null;
+                    if (!inputVal || selectedCustomer !== null || hasRecentHeader) {
+                        renderRecentCustomersList(customers);
+                    }
+                }
+            });
+            return;
+        }
+
+        renderRecentCustomersList(cachedRecentCustomers);
+    }
+
+    /**
+     * Render recent customers list into dropdown container
+     */
+    function renderRecentCustomersList(customers) {
+        if (!customerSearchResults) return;
+
+        if (!customers || customers.length === 0) {
+            customerSearchResults.innerHTML = `
+                <div class="customer-dropdown-header">
+                    <i class="fa-solid fa-clock-rotate-left text-primary"></i> Recent customers
+                </div>
+                <div class="p-3 text-center text-muted small">
+                    No recent customers found &nbsp;
+                    <a href="#" id="linkAddNewCustomer" class="text-primary fw-bold text-decoration-none">
+                        + Add New Customer
+                    </a>
+                </div>
+            `;
+            const linkAddNew = document.getElementById('linkAddNewCustomer');
+            if (linkAddNew) {
+                linkAddNew.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    hideCustomerDropdown();
+                    openAddCustomerModal();
+                });
+            }
+            customerSearchResults.style.display = 'block';
+            currentSearchResults = [];
+            activeCustomerIndex = -1;
+            return;
+        }
+
+        currentSearchResults = customers;
+        activeCustomerIndex = -1;
+
+        let listHtml = `
+            <div class="customer-dropdown-header">
+                <i class="fa-solid fa-clock-rotate-left text-primary"></i> Recent customers
+            </div>
+        `;
+
+        customers.forEach((c, index) => {
+            const escapedName = escapeHtml(c.name);
+            const escapedNo = escapeHtml(c.customer_no);
+            const escapedMobile = c.mobile ? escapeHtml(c.mobile) : '<span class="text-muted fst-italic">No mobile</span>';
+
+            const avatarHtml = c.profile_image_url
+                ? `<img src="${escapeHtml(c.profile_image_url)}" alt="${escapedName}" class="dropdown-party-avatar me-2">`
+                : `<div class="dropdown-party-avatar-default me-2"><i class="fa-solid fa-user"></i></div>`;
+
+            const supplierBadge = (c.party_type === 'SUPPLIER')
+                ? `<span class="party-supplier-badge ms-2"><i class="fa-solid fa-truck me-1"></i>Supplier</span>`
+                : '';
+
+            listHtml += `
+                <div class="customer-search-item d-flex align-items-center" data-index="${index}">
+                    ${avatarHtml}
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="fw-bold text-dark customer-item-name d-flex align-items-center">
+                            <span class="text-truncate">${escapedName}</span>
+                            ${supplierBadge}
+                        </div>
+                        <div class="small text-muted d-flex justify-content-between mt-1">
+                            <span><i class="fa-solid fa-id-badge me-1"></i>${escapedNo}</span>
+                            <span><i class="fa-solid fa-phone me-1"></i>${escapedMobile}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        customerSearchResults.innerHTML = listHtml;
+        customerSearchResults.style.display = 'block';
+
+        const itemEls = customerSearchResults.querySelectorAll('.customer-search-item');
+        itemEls.forEach(itemEl => {
+            itemEl.addEventListener('click', function () {
+                const idx = parseInt(this.getAttribute('data-index'), 10);
+                if (currentSearchResults[idx]) {
+                    selectCustomer(currentSearchResults[idx]);
+                    const typeSelect = document.getElementById('typeSelect');
+                    if (typeSelect) typeSelect.focus();
+                }
+            });
+        });
+    }
+
     function updateActiveDropdownItem() {
         const items = customerSearchResults.querySelectorAll('.customer-search-item');
         items.forEach((item, idx) => {
@@ -301,6 +561,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function performCustomerSearch(query) {
+        if (editingBookingId !== null) return;
         const searchUrl = window.APP_ROUTES ? window.APP_ROUTES.customerSearch : '/customers/search';
 
         if (currentSearchAbortController) {
@@ -356,12 +617,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 const highlightedNo = highlightMatch(c.customer_no, query);
                 const highlightedMobile = c.mobile ? highlightMatch(c.mobile, query) : '<span class="text-muted fst-italic">No mobile</span>';
 
+                const avatarHtml = c.profile_image_url
+                    ? `<img src="${escapeHtml(c.profile_image_url)}" alt="${escapeHtml(c.name)}" class="dropdown-party-avatar me-2">`
+                    : `<div class="dropdown-party-avatar-default me-2"><i class="fa-solid fa-user"></i></div>`;
+
+                const supplierBadge = (c.party_type === 'SUPPLIER')
+                    ? `<span class="party-supplier-badge ms-2"><i class="fa-solid fa-truck me-1"></i>Supplier</span>`
+                    : '';
+
                 listHtml += `
-                    <div class="customer-search-item" data-index="${index}">
-                        <div class="fw-bold text-dark customer-item-name">${highlightedName}</div>
-                        <div class="small text-muted d-flex justify-content-between mt-1">
-                            <span><i class="fa-solid fa-id-badge me-1"></i>${highlightedNo}</span>
-                            <span><i class="fa-solid fa-phone me-1"></i>${highlightedMobile}</span>
+                    <div class="customer-search-item d-flex align-items-center" data-index="${index}">
+                        ${avatarHtml}
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="fw-bold text-dark customer-item-name d-flex align-items-center">
+                                <span class="text-truncate">${highlightedName}</span>
+                                ${supplierBadge}
+                            </div>
+                            <div class="small text-muted d-flex justify-content-between mt-1">
+                                <span><i class="fa-solid fa-id-badge me-1"></i>${highlightedNo}</span>
+                                <span><i class="fa-solid fa-phone me-1"></i>${highlightedMobile}</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -392,7 +667,23 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (customerSearchInput) {
+        // Show recent customers on focus or click when input is empty OR a customer is already selected
+        customerSearchInput.addEventListener('focus', function () {
+            if (editingBookingId !== null) return;
+            if (!this.value.trim() || selectedCustomer) {
+                showRecentCustomersDropdown();
+            }
+        });
+
+        customerSearchInput.addEventListener('click', function () {
+            if (editingBookingId !== null) return;
+            if (!this.value.trim() || selectedCustomer) {
+                showRecentCustomersDropdown();
+            }
+        });
+
         customerSearchInput.addEventListener('input', function () {
+            if (editingBookingId !== null) return;
             const query = this.value.trim();
 
             if (selectedCustomer) {
@@ -406,8 +697,8 @@ document.addEventListener('DOMContentLoaded', function () {
             clearTimeout(searchDebounceTimer);
 
             if (query.length < 1) {
-                hideCustomerDropdown();
                 customerClearBtn.style.display = 'none';
+                showRecentCustomersDropdown();
                 return;
             }
 
@@ -437,12 +728,15 @@ document.addEventListener('DOMContentLoaded', function () {
             } else if (e.key === 'Enter') {
                 if (isDropdownVisible) {
                     e.preventDefault();
-                    const targetIndex = activeCustomerIndex >= 0 ? activeCustomerIndex : 0;
-                    if (currentSearchResults[targetIndex]) {
-                        selectCustomer(currentSearchResults[targetIndex]);
-                        const typeSelect = document.getElementById('typeSelect');
-                        if (typeSelect) typeSelect.focus();
+                    if (activeCustomerIndex >= 0 && currentSearchResults[activeCustomerIndex]) {
+                        selectCustomer(currentSearchResults[activeCustomerIndex]);
+                    } else if (!selectedCustomer && currentSearchResults[0]) {
+                        selectCustomer(currentSearchResults[0]);
+                    } else {
+                        hideCustomerDropdown();
                     }
+                    const typeSelect = document.getElementById('typeSelect');
+                    if (typeSelect) typeSelect.focus();
                 } else {
                     e.preventDefault();
                     const typeSelect = document.getElementById('typeSelect');
@@ -457,35 +751,451 @@ document.addEventListener('DOMContentLoaded', function () {
     if (customerClearBtn) {
         customerClearBtn.addEventListener('click', function (e) {
             e.preventDefault();
+            if (editingBookingId !== null) return;
             clearCustomerSelection();
+            if (customerSearchInput) {
+                customerSearchInput.focus();
+                showRecentCustomersDropdown();
+            }
         });
     }
 
     document.addEventListener('click', function (e) {
+        // Prevent closing dropdown if user clicked on trade toggle buttons
+        const tradeToggle = document.getElementById('tradeToggle') || document.getElementById('tradeToggleContainer');
+        if (tradeToggle && tradeToggle.contains(e.target)) {
+            return;
+        }
+
         if (customerSearchWrapper && !customerSearchWrapper.contains(e.target)) {
             hideCustomerDropdown();
         }
     });
 
     // =========================================================================
-    // 5. ADD CUSTOMER MODAL
-    // Open modal, validation error rendering, saving via AJAX, and auto-select
+    // 5. ADD CUSTOMER / NEW PARTY DETAIL MODAL
+    // Multipart form submission, image previews, family subprofile, dynamic locations
     // =========================================================================
 
     const addCustomerModalEl = document.getElementById('addCustomerModal');
     const addCustomerForm = document.getElementById('addCustomerForm');
+    const btnOpenAddCustomerModal = document.getElementById('btnOpenAddCustomerModal');
+    const btnSaveNewCustomer = document.getElementById('btnSaveNewCustomer');
+
+    // Primary Core Inputs
     const newCustomerName = document.getElementById('newCustomerName');
     const newCustomerMobile = document.getElementById('newCustomerMobile');
-    const newCustomerCity = document.getElementById('newCustomerCity');
-    const btnSaveNewCustomer = document.getElementById('btnSaveNewCustomer');
-    const btnOpenAddCustomerModal = document.getElementById('btnOpenAddCustomerModal');
+    const newCustomerEmail = document.getElementById('newCustomerEmail');
+    const newCustomerAddress = document.getElementById('newCustomerAddress');
 
-    const errorNewCustomerName = document.getElementById('errorNewCustomerName');
-    const errorNewCustomerMobile = document.getElementById('errorNewCustomerMobile');
-    const errorNewCustomerCity = document.getElementById('errorNewCustomerCity');
+    // Party Type Toggle
+    const partySegmentedToggle = document.getElementById('partySegmentedToggle');
+    const btnToggleCustomer = document.getElementById('btnToggleCustomer');
+    const btnToggleSupplier = document.getElementById('btnToggleSupplier');
+    const newPartyTypeInput = document.getElementById('newPartyTypeInput');
 
+    // Profile Image Elements
+    const partyProfileCameraInput = document.getElementById('partyProfileCameraInput');
+    const partyProfileFolderInput = document.getElementById('partyProfileFolderInput');
+    const btnProfileCamera = document.getElementById('btnProfileCamera');
+    const btnProfileFolder = document.getElementById('btnProfileFolder');
+    const partyProfilePreview = document.getElementById('partyProfilePreview');
+    const partyProfilePlaceholder = document.getElementById('partyProfilePlaceholder');
+    const btnRemoveProfileImage = document.getElementById('btnRemoveProfileImage');
+
+    // Family Sub-Profile Elements
+    const checkFamilySubProfile = document.getElementById('checkFamilySubProfile');
+    const familySubProfileDrawer = document.getElementById('familySubProfileDrawer');
+    const parentCustomerSearchInput = document.getElementById('parentCustomerSearchInput');
+    const hiddenParentCustomerId = document.getElementById('hiddenParentCustomerId');
+    const parentCustomerSearchResults = document.getElementById('parentCustomerSearchResults');
+    const parentCustomerClearBtn = document.getElementById('parentCustomerClearBtn');
+    const parentCustomerSelectedBadge = document.getElementById('parentCustomerSelectedBadge');
+
+    // Additional Information Section Elements
+    const btnToggleAdditionalInfo = document.getElementById('btnToggleAdditionalInfo');
+    const additionalInfoSection = document.getElementById('additionalInfoSection');
+    const newPartyBirthday = document.getElementById('newPartyBirthday');
+    const newPartyAnniversary = document.getElementById('newPartyAnniversary');
+    const newPartyAadhaar = document.getElementById('newPartyAadhaar');
+    const newPartyPan = document.getElementById('newPartyPan');
+    const newPartyGst = document.getElementById('newPartyGst');
+    const newPartyLicNo = document.getElementById('newPartyLicNo');
+    const newPartyRegNo = document.getElementById('newPartyRegNo');
+    const newPartyLogoTitle = document.getElementById('newPartyLogoTitle');
+    const newPartyShopName = document.getElementById('newPartyShopName');
+    const newPartyState = document.getElementById('newPartyState');
+    const newPartyArea = document.getElementById('newPartyArea');
+    const newPartyShopAddress = document.getElementById('newPartyShopAddress');
+
+    // Shop Logo Elements
+    const partyShopLogoCameraInput = document.getElementById('partyShopLogoCameraInput');
+    const partyShopLogoFolderInput = document.getElementById('partyShopLogoFolderInput');
+    const btnShopLogoCamera = document.getElementById('btnShopLogoCamera');
+    const btnShopLogoFolder = document.getElementById('btnShopLogoFolder');
+    const shopLogoPreview = document.getElementById('shopLogoPreview');
+    const shopLogoPlaceholder = document.getElementById('shopLogoPlaceholder');
+    const btnRemoveShopLogo = document.getElementById('btnRemoveShopLogo');
+
+    // State Tracking
+    let selectedProfileImageFile = null;
+    let selectedShopLogoFile = null;
+    let isAdditionalSectionExpanded = false;
+    let selectedParentCustomer = null;
+    let parentSearchDebounceTimer = null;
+    let parentSearchAbortController = null;
+
+    /**
+     * Set active party type (CUSTOMER or SUPPLIER)
+     */
+    function setPartyType(type) {
+        if (newPartyTypeInput) newPartyTypeInput.value = type;
+        if (partySegmentedToggle) {
+            partySegmentedToggle.setAttribute('data-type', type);
+        }
+        if (btnToggleCustomer && btnToggleSupplier) {
+            if (type === 'CUSTOMER') {
+                btnToggleCustomer.classList.add('active');
+                btnToggleSupplier.classList.remove('active');
+            } else {
+                btnToggleSupplier.classList.add('active');
+                btnToggleCustomer.classList.remove('active');
+            }
+        }
+    }
+
+    if (btnToggleCustomer) {
+        btnToggleCustomer.addEventListener('click', function () {
+            setPartyType('CUSTOMER');
+        });
+    }
+
+    if (btnToggleSupplier) {
+        btnToggleSupplier.addEventListener('click', function () {
+            setPartyType('SUPPLIER');
+        });
+    }
+
+    /**
+     * Profile Image Selection & Removal
+     */
+    function handleProfileImageSelected(file) {
+        if (!file) return;
+        selectedProfileImageFile = file;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            if (partyProfilePreview && partyProfilePlaceholder && btnRemoveProfileImage) {
+                partyProfilePreview.src = e.target.result;
+                partyProfilePreview.style.display = 'block';
+                partyProfilePlaceholder.style.display = 'none';
+                btnRemoveProfileImage.style.display = 'inline-flex';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function clearProfileImageSelection() {
+        selectedProfileImageFile = null;
+        if (partyProfileCameraInput) partyProfileCameraInput.value = '';
+        if (partyProfileFolderInput) partyProfileFolderInput.value = '';
+        if (partyProfilePreview) {
+            partyProfilePreview.src = '';
+            partyProfilePreview.style.display = 'none';
+        }
+        if (partyProfilePlaceholder) partyProfilePlaceholder.style.display = 'block';
+        if (btnRemoveProfileImage) btnRemoveProfileImage.style.display = 'none';
+    }
+
+    if (btnProfileCamera && partyProfileCameraInput) {
+        btnProfileCamera.addEventListener('click', () => partyProfileCameraInput.click());
+        partyProfileCameraInput.addEventListener('change', function () {
+            if (this.files && this.files[0]) handleProfileImageSelected(this.files[0]);
+        });
+    }
+
+    if (btnProfileFolder && partyProfileFolderInput) {
+        btnProfileFolder.addEventListener('click', () => partyProfileFolderInput.click());
+        partyProfileFolderInput.addEventListener('change', function () {
+            if (this.files && this.files[0]) handleProfileImageSelected(this.files[0]);
+        });
+    }
+
+    if (btnRemoveProfileImage) {
+        btnRemoveProfileImage.addEventListener('click', clearProfileImageSelection);
+    }
+
+    /**
+     * Shop Logo Selection & Removal
+     */
+    function handleShopLogoSelected(file) {
+        if (!file) return;
+        selectedShopLogoFile = file;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            if (shopLogoPreview && shopLogoPlaceholder && btnRemoveShopLogo) {
+                shopLogoPreview.src = e.target.result;
+                shopLogoPreview.style.display = 'block';
+                shopLogoPlaceholder.style.display = 'none';
+                btnRemoveShopLogo.style.display = 'inline-flex';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function clearShopLogoSelection() {
+        selectedShopLogoFile = null;
+        if (partyShopLogoCameraInput) partyShopLogoCameraInput.value = '';
+        if (partyShopLogoFolderInput) partyShopLogoFolderInput.value = '';
+        if (shopLogoPreview) {
+            shopLogoPreview.src = '';
+            shopLogoPreview.style.display = 'none';
+        }
+        if (shopLogoPlaceholder) shopLogoPlaceholder.style.display = 'block';
+        if (btnRemoveShopLogo) btnRemoveShopLogo.style.display = 'none';
+    }
+
+    if (btnShopLogoCamera && partyShopLogoCameraInput) {
+        btnShopLogoCamera.addEventListener('click', () => partyShopLogoCameraInput.click());
+        partyShopLogoCameraInput.addEventListener('change', function () {
+            if (this.files && this.files[0]) handleShopLogoSelected(this.files[0]);
+        });
+    }
+
+    if (btnShopLogoFolder && partyShopLogoFolderInput) {
+        btnShopLogoFolder.addEventListener('click', () => partyShopLogoFolderInput.click());
+        partyShopLogoFolderInput.addEventListener('change', function () {
+            if (this.files && this.files[0]) handleShopLogoSelected(this.files[0]);
+        });
+    }
+
+    if (btnRemoveShopLogo) {
+        btnRemoveShopLogo.addEventListener('click', clearShopLogoSelection);
+    }
+
+    /**
+     * Family Sub-Profile Drawer & Parent Customer Selection
+     */
+    if (checkFamilySubProfile) {
+        checkFamilySubProfile.addEventListener('change', function () {
+            if (this.checked) {
+                if (familySubProfileDrawer) familySubProfileDrawer.style.display = 'block';
+                if (parentCustomerSearchInput) parentCustomerSearchInput.focus();
+            } else {
+                if (familySubProfileDrawer) familySubProfileDrawer.style.display = 'none';
+                clearParentCustomerSelection();
+            }
+        });
+    }
+
+    function clearParentCustomerSelection() {
+        selectedParentCustomer = null;
+        if (hiddenParentCustomerId) hiddenParentCustomerId.value = '';
+        if (parentCustomerSearchInput) parentCustomerSearchInput.value = '';
+        if (parentCustomerClearBtn) parentCustomerClearBtn.style.display = 'none';
+        if (parentCustomerSelectedBadge) {
+            parentCustomerSelectedBadge.style.display = 'none';
+            parentCustomerSelectedBadge.innerHTML = '';
+        }
+        if (parentCustomerSearchResults) {
+            parentCustomerSearchResults.style.display = 'none';
+            parentCustomerSearchResults.innerHTML = '';
+        }
+    }
+
+    if (parentCustomerClearBtn) {
+        parentCustomerClearBtn.addEventListener('click', function () {
+            clearParentCustomerSelection();
+            if (parentCustomerSearchInput) parentCustomerSearchInput.focus();
+        });
+    }
+
+    if (parentCustomerSearchInput) {
+        parentCustomerSearchInput.addEventListener('input', function () {
+            const query = this.value.trim();
+            clearTimeout(parentSearchDebounceTimer);
+
+            if (selectedParentCustomer) {
+                selectedParentCustomer = null;
+                if (hiddenParentCustomerId) hiddenParentCustomerId.value = '';
+                if (parentCustomerSelectedBadge) parentCustomerSelectedBadge.style.display = 'none';
+            }
+
+            if (query.length < 1) {
+                if (parentCustomerClearBtn) parentCustomerClearBtn.style.display = 'none';
+                if (parentCustomerSearchResults) parentCustomerSearchResults.style.display = 'none';
+                return;
+            }
+
+            if (parentCustomerClearBtn) parentCustomerClearBtn.style.display = 'block';
+
+            parentSearchDebounceTimer = setTimeout(() => {
+                performParentCustomerSearch(query);
+            }, 300);
+        });
+    }
+
+    function performParentCustomerSearch(query) {
+        if (!parentCustomerSearchResults) return;
+        const searchUrl = window.APP_ROUTES ? window.APP_ROUTES.customerSearch : '/customers/search';
+
+        if (parentSearchAbortController) {
+            parentSearchAbortController.abort();
+        }
+        parentSearchAbortController = new AbortController();
+
+        parentCustomerSearchResults.innerHTML = `
+            <div class="p-2 text-center text-muted small">
+                <i class="fa-solid fa-spinner fa-spin me-2"></i> Searching...
+            </div>
+        `;
+        parentCustomerSearchResults.style.display = 'block';
+
+        fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            signal: parentSearchAbortController.signal
+        })
+        .then(res => res.json())
+        .then(customers => {
+            if (!customers || customers.length === 0) {
+                parentCustomerSearchResults.innerHTML = `
+                    <div class="p-2 text-center text-muted small">No customer found</div>
+                `;
+                return;
+            }
+
+            let html = '';
+            customers.forEach((c, idx) => {
+                const escapedName = escapeHtml(c.name);
+                const escapedNo = escapeHtml(c.customer_no);
+                const escapedMobile = c.mobile ? escapeHtml(c.mobile) : 'No mobile';
+
+                html += `
+                    <div class="customer-search-item py-1 px-2" data-parent-index="${idx}">
+                        <div class="fw-bold small text-dark">${escapedName} (${escapedNo})</div>
+                        <div class="text-muted" style="font-size: 11px;"><i class="fa-solid fa-phone me-1"></i>${escapedMobile}</div>
+                    </div>
+                `;
+            });
+
+            parentCustomerSearchResults.innerHTML = html;
+
+            parentCustomerSearchResults.querySelectorAll('.customer-search-item').forEach(el => {
+                el.addEventListener('click', function () {
+                    const idx = parseInt(this.getAttribute('data-parent-index'), 10);
+                    const chosen = customers[idx];
+                    if (chosen) {
+                        selectedParentCustomer = chosen;
+                        if (hiddenParentCustomerId) hiddenParentCustomerId.value = chosen.id;
+                        if (parentCustomerSearchInput) parentCustomerSearchInput.value = `${chosen.name} (${chosen.customer_no})`;
+                        if (parentCustomerClearBtn) parentCustomerClearBtn.style.display = 'block';
+                        if (parentCustomerSearchResults) parentCustomerSearchResults.style.display = 'none';
+
+                        if (parentCustomerSelectedBadge) {
+                            parentCustomerSelectedBadge.innerHTML = `
+                                <i class="fa-solid fa-check-circle text-success me-1"></i> Linked Main Customer: <strong>${escapeHtml(chosen.name)}</strong> (Mobile: ${escapeHtml(chosen.mobile || 'N/A')})
+                            `;
+                            parentCustomerSelectedBadge.style.display = 'block';
+                        }
+
+                        // Auto-fill mobile if currently empty
+                        if (newCustomerMobile && !newCustomerMobile.value.trim() && chosen.mobile) {
+                            newCustomerMobile.value = chosen.mobile;
+                        }
+                    }
+                });
+            });
+        })
+        .catch(err => {
+            if (err.name === 'AbortError') return;
+            parentCustomerSearchResults.innerHTML = `
+                <div class="p-2 text-center text-danger small">Search failed</div>
+            `;
+        });
+    }
+
+    /**
+     * State & Dynamic District Population
+     */
+    function initStatesDropdown() {
+        if (!newPartyState || newPartyState.options.length > 1) return;
+        const locations = window.INDIA_LOCATIONS;
+        if (locations && Array.isArray(locations.states)) {
+            locations.states.forEach(state => {
+                const opt = document.createElement('option');
+                opt.value = state;
+                opt.textContent = state;
+                newPartyState.appendChild(opt);
+            });
+        }
+    }
+
+    function renderDistrictField(stateName) {
+        const districtContainer = document.getElementById('districtContainer');
+        if (!districtContainer) return;
+
+        const locations = window.INDIA_LOCATIONS;
+        const districtList = (locations && locations.districts && locations.districts[stateName])
+            ? locations.districts[stateName]
+            : null;
+
+        if (districtList && Array.isArray(districtList) && districtList.length > 0) {
+            let optionsHtml = '<option value="">Select District</option>';
+            districtList.forEach(d => {
+                optionsHtml += `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`;
+            });
+            districtContainer.innerHTML = `
+                <select class="form-select party-input-pill" id="newPartyDistrict" name="district">
+                    ${optionsHtml}
+                </select>
+            `;
+        } else {
+            districtContainer.innerHTML = `
+                <input type="text" class="form-control party-input-pill" id="newPartyDistrict" name="district" placeholder="Enter District" maxlength="60">
+            `;
+        }
+    }
+
+    if (newPartyState) {
+        newPartyState.addEventListener('change', function () {
+            renderDistrictField(this.value);
+        });
+    }
+
+    /**
+     * Expand / Collapse Additional Information Section
+     */
+    function expandAdditionalSection() {
+        if (!additionalInfoSection || !btnToggleAdditionalInfo) return;
+        additionalInfoSection.style.display = 'block';
+        isAdditionalSectionExpanded = true;
+        btnToggleAdditionalInfo.innerHTML = '<i class="fa-solid fa-minus me-1" id="iconToggleAdditional"></i> Additional Information';
+    }
+
+    function collapseAdditionalSection() {
+        if (!additionalInfoSection || !btnToggleAdditionalInfo) return;
+        additionalInfoSection.style.display = 'none';
+        isAdditionalSectionExpanded = false;
+        btnToggleAdditionalInfo.innerHTML = '<i class="fa-solid fa-plus me-1" id="iconToggleAdditional"></i> Additional Information';
+    }
+
+    if (btnToggleAdditionalInfo) {
+        btnToggleAdditionalInfo.addEventListener('click', function () {
+            if (isAdditionalSectionExpanded) {
+                collapseAdditionalSection();
+            } else {
+                expandAdditionalSection();
+            }
+        });
+    }
+
+    /**
+     * Open & Reset Add Customer / Party Modal
+     */
     function openAddCustomerModal(prefillName = '') {
+        if (editingBookingId !== null) return;
         resetAddCustomerModalErrors();
+        initStatesDropdown();
 
         if (!selectedCustomer) {
             if (prefillName && typeof prefillName === 'string') {
@@ -504,19 +1214,30 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function resetAddCustomerModalErrors() {
-        [errorNewCustomerName, errorNewCustomerMobile, errorNewCustomerCity].forEach(el => {
-            if (el) {
-                el.textContent = '';
-                el.style.display = 'none';
-            }
+        const errorEls = document.querySelectorAll('#addCustomerForm .field-error-text');
+        errorEls.forEach(el => {
+            el.textContent = '';
+            el.style.display = 'none';
         });
-        [newCustomerName, newCustomerMobile, newCustomerCity].forEach(input => {
-            if (input) input.classList.remove('is-invalid');
-        });
+
+        const invalidInputs = document.querySelectorAll('#addCustomerForm .is-invalid');
+        invalidInputs.forEach(input => input.classList.remove('is-invalid'));
+    }
+
+    function resetAddCustomerModalComplete() {
+        if (addCustomerForm) addCustomerForm.reset();
+        resetAddCustomerModalErrors();
+        clearProfileImageSelection();
+        clearShopLogoSelection();
+        clearParentCustomerSelection();
+        setPartyType('CUSTOMER');
+        collapseAdditionalSection();
+        renderDistrictField('');
     }
 
     if (btnOpenAddCustomerModal) {
         btnOpenAddCustomerModal.addEventListener('click', function () {
+            if (editingBookingId !== null) return;
             const queryToPrefill = !selectedCustomer && customerSearchInput ? customerSearchInput.value.trim() : '';
             openAddCustomerModal(queryToPrefill);
         });
@@ -524,6 +1245,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (addCustomerModalEl) {
         addCustomerModalEl.addEventListener('shown.bs.modal', function () {
+            initStatesDropdown();
             if (selectedCustomer) {
                 newCustomerName.value = '';
             }
@@ -536,30 +1258,180 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Input formatters
     if (newCustomerMobile) {
         newCustomerMobile.addEventListener('input', function () {
             this.value = this.value.replace(/\D/g, '').slice(0, 10);
         });
     }
 
+    if (newPartyAadhaar) {
+        newPartyAadhaar.addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '').slice(0, 12);
+        });
+    }
+
+    if (newPartyPan) {
+        newPartyPan.addEventListener('input', function () {
+            this.value = this.value.toUpperCase().slice(0, 10);
+        });
+    }
+
+    if (newPartyGst) {
+        newPartyGst.addEventListener('input', function () {
+            this.value = this.value.toUpperCase().slice(0, 15);
+        });
+    }
+
+    /**
+     * Submit New Party Detail via AJAX (multipart/form-data)
+     */
     if (btnSaveNewCustomer) {
         btnSaveNewCustomer.addEventListener('click', function () {
             resetAddCustomerModalErrors();
 
             const nameVal = newCustomerName ? newCustomerName.value.trim() : '';
             const mobileVal = newCustomerMobile ? newCustomerMobile.value.trim() : '';
-            const cityVal = newCustomerCity ? newCustomerCity.value.trim() : '';
+            const isFamily = checkFamilySubProfile && checkFamilySubProfile.checked;
+            const parentIdVal = hiddenParentCustomerId ? hiddenParentCustomerId.value.trim() : '';
+            const aadhaarVal = newPartyAadhaar ? newPartyAadhaar.value.trim() : '';
+            const panVal = newPartyPan ? newPartyPan.value.trim().toUpperCase() : '';
 
+            // Frontend validation checks before sending
             if (!nameVal) {
-                if (errorNewCustomerName) {
-                    errorNewCustomerName.textContent = 'Customer name is required.';
-                    errorNewCustomerName.style.display = 'block';
+                const err = document.getElementById('errorNewCustomerName');
+                if (err) {
+                    err.textContent = 'Party name is required';
+                    err.style.display = 'block';
                 }
                 newCustomerName.classList.add('is-invalid');
                 newCustomerName.focus();
                 return;
             }
 
+            if (!mobileVal) {
+                const err = document.getElementById('errorNewCustomerMobile');
+                if (err) {
+                    err.textContent = 'Mobile number is required';
+                    err.style.display = 'block';
+                }
+                newCustomerMobile.classList.add('is-invalid');
+                newCustomerMobile.focus();
+                return;
+            }
+
+            if (!/^\d{10}$/.test(mobileVal)) {
+                const err = document.getElementById('errorNewCustomerMobile');
+                if (err) {
+                    err.textContent = 'Mobile number must be 10 digits';
+                    err.style.display = 'block';
+                }
+                newCustomerMobile.classList.add('is-invalid');
+                newCustomerMobile.focus();
+                return;
+            }
+
+            if (isFamily && !parentIdVal) {
+                const err = document.getElementById('errorParentCustomerId');
+                if (err) {
+                    err.textContent = 'Please select the main customer for this family sub-profile';
+                    err.style.display = 'block';
+                }
+                if (parentCustomerSearchInput) {
+                    parentCustomerSearchInput.classList.add('is-invalid');
+                    parentCustomerSearchInput.focus();
+                }
+                return;
+            }
+
+            if (aadhaarVal && !/^\d{12}$/.test(aadhaarVal)) {
+                expandAdditionalSection();
+                const err = document.getElementById('errorNewPartyAadhaar');
+                if (err) {
+                    err.textContent = 'Aadhaar number must be 12 digits';
+                    err.style.display = 'block';
+                }
+                newPartyAadhaar.classList.add('is-invalid');
+                newPartyAadhaar.focus();
+                return;
+            }
+
+            if (panVal && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panVal)) {
+                expandAdditionalSection();
+                const err = document.getElementById('errorNewPartyPan');
+                if (err) {
+                    err.textContent = 'Invalid PAN format (e.g. ABCDE1234F)';
+                    err.style.display = 'block';
+                }
+                newPartyPan.classList.add('is-invalid');
+                newPartyPan.focus();
+                return;
+            }
+
+            // Construct FormData payload
+            const formData = new FormData();
+            formData.append('name', nameVal);
+            formData.append('mobile', mobileVal);
+            formData.append('party_type', newPartyTypeInput ? newPartyTypeInput.value : 'CUSTOMER');
+            formData.append('is_family_sub_profile', isFamily ? '1' : '0');
+
+            if (isFamily && parentIdVal) {
+                formData.append('parent_customer_id', parentIdVal);
+            }
+
+            const emailVal = newCustomerEmail ? newCustomerEmail.value.trim() : '';
+            if (emailVal) formData.append('email', emailVal);
+
+            const addressVal = newCustomerAddress ? newCustomerAddress.value.trim() : '';
+            if (addressVal) formData.append('address', addressVal);
+
+            // Additional section fields
+            const birthdayVal = newPartyBirthday ? newPartyBirthday.value : '';
+            if (birthdayVal) formData.append('birthday', birthdayVal);
+
+            const anniversaryVal = newPartyAnniversary ? newPartyAnniversary.value : '';
+            if (anniversaryVal) formData.append('anniversary', anniversaryVal);
+
+            if (aadhaarVal) formData.append('aadhaar_no', aadhaarVal);
+            if (panVal) formData.append('pan_no', panVal);
+
+            const gstVal = newPartyGst ? newPartyGst.value.trim().toUpperCase() : '';
+            if (gstVal) formData.append('gst_no', gstVal);
+
+            const licVal = newPartyLicNo ? newPartyLicNo.value.trim() : '';
+            if (licVal) formData.append('lic_no', licVal);
+
+            const regVal = newPartyRegNo ? newPartyRegNo.value.trim() : '';
+            if (regVal) formData.append('reg_no', regVal);
+
+            const logoTitleVal = newPartyLogoTitle ? newPartyLogoTitle.value.trim() : '';
+            if (logoTitleVal) formData.append('logo_title', logoTitleVal);
+
+            const shopNameVal = newPartyShopName ? newPartyShopName.value.trim() : '';
+            if (shopNameVal) formData.append('shop_name', shopNameVal);
+
+            const stateVal = newPartyState ? newPartyState.value : '';
+            if (stateVal) formData.append('state', stateVal);
+
+            const districtInputEl = document.getElementById('newPartyDistrict');
+            const districtVal = districtInputEl ? districtInputEl.value.trim() : '';
+            if (districtVal) formData.append('district', districtVal);
+
+            const areaVal = newPartyArea ? newPartyArea.value.trim() : '';
+            if (areaVal) formData.append('area', areaVal);
+
+            const shopAddressVal = newPartyShopAddress ? newPartyShopAddress.value.trim() : '';
+            if (shopAddressVal) formData.append('shop_address', shopAddressVal);
+
+            // Append image files if selected
+            if (selectedProfileImageFile) {
+                formData.append('profile_image', selectedProfileImageFile);
+            }
+            if (selectedShopLogoFile) {
+                formData.append('shop_logo', selectedShopLogoFile);
+            }
+
+            // Loading state
             btnSaveNewCustomer.disabled = true;
             const originalButtonHtml = btnSaveNewCustomer.innerHTML;
             btnSaveNewCustomer.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
@@ -569,37 +1441,75 @@ document.addEventListener('DOMContentLoaded', function () {
             fetch(storeUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': getCsrfToken()
                 },
-                body: JSON.stringify({
-                    name: nameVal,
-                    mobile: mobileVal || null,
-                    city: cityVal || null
-                })
+                body: formData
             })
             .then(async response => {
                 const data = await response.json();
                 if (!response.ok) {
                     if (response.status === 422 && data.errors) {
-                        if (data.errors.name && errorNewCustomerName) {
-                            errorNewCustomerName.textContent = data.errors.name[0];
-                            errorNewCustomerName.style.display = 'block';
-                            newCustomerName.classList.add('is-invalid');
+                        let hasAdditionalError = false;
+                        let firstErrorField = null;
+
+                        const errorTargetMap = {
+                            name: { id: 'errorNewCustomerName', input: newCustomerName, inAdditional: false },
+                            mobile: { id: 'errorNewCustomerMobile', input: newCustomerMobile, inAdditional: false },
+                            email: { id: 'errorNewCustomerEmail', input: newCustomerEmail, inAdditional: false },
+                            address: { id: 'errorNewCustomerAddress', input: newCustomerAddress, inAdditional: false },
+                            parent_customer_id: { id: 'errorParentCustomerId', input: parentCustomerSearchInput, inAdditional: false },
+                            is_family_sub_profile: { id: 'errorParentCustomerId', input: parentCustomerSearchInput, inAdditional: false },
+                            profile_image: { id: 'errorPartyProfileImage', input: null, inAdditional: false },
+                            birthday: { id: 'errorNewPartyBirthday', input: newPartyBirthday, inAdditional: true },
+                            anniversary: { id: 'errorNewPartyAnniversary', input: newPartyAnniversary, inAdditional: true },
+                            aadhaar_no: { id: 'errorNewPartyAadhaar', input: newPartyAadhaar, inAdditional: true },
+                            pan_no: { id: 'errorNewPartyPan', input: newPartyPan, inAdditional: true },
+                            gst_no: { id: 'errorNewPartyGst', input: newPartyGst, inAdditional: true },
+                            lic_no: { id: 'errorNewPartyLicNo', input: newPartyLicNo, inAdditional: true },
+                            reg_no: { id: 'errorNewPartyRegNo', input: newPartyRegNo, inAdditional: true },
+                            logo_title: { id: 'errorNewPartyLogoTitle', input: newPartyLogoTitle, inAdditional: true },
+                            shop_name: { id: 'errorNewPartyShopName', input: newPartyShopName, inAdditional: true },
+                            state: { id: 'errorNewPartyState', input: newPartyState, inAdditional: true },
+                            district: { id: 'errorNewPartyDistrict', input: document.getElementById('newPartyDistrict'), inAdditional: true },
+                            area: { id: 'errorNewPartyArea', input: newPartyArea, inAdditional: true },
+                            shop_address: { id: 'errorNewPartyShopAddress', input: newPartyShopAddress, inAdditional: true },
+                            shop_logo: { id: 'errorPartyShopLogo', input: null, inAdditional: true },
+                        };
+
+                        Object.keys(data.errors).forEach(fieldKey => {
+                            const mapping = errorTargetMap[fieldKey];
+                            if (mapping) {
+                                const errEl = document.getElementById(mapping.id);
+                                if (errEl) {
+                                    errEl.textContent = data.errors[fieldKey][0];
+                                    errEl.style.display = 'block';
+                                }
+                                if (mapping.input) {
+                                    mapping.input.classList.add('is-invalid');
+                                }
+                                if (mapping.inAdditional) {
+                                    hasAdditionalError = true;
+                                }
+                                if (!firstErrorField && mapping.input) {
+                                    firstErrorField = mapping.input;
+                                }
+                            }
+                        });
+
+                        // If error is in a collapsed field, auto-expand the section and scroll to it
+                        if (hasAdditionalError && !isAdditionalSectionExpanded) {
+                            expandAdditionalSection();
                         }
-                        if (data.errors.mobile && errorNewCustomerMobile) {
-                            errorNewCustomerMobile.textContent = data.errors.mobile[0];
-                            errorNewCustomerMobile.style.display = 'block';
-                            newCustomerMobile.classList.add('is-invalid');
-                        }
-                        if (data.errors.city && errorNewCustomerCity) {
-                            errorNewCustomerCity.textContent = data.errors.city[0];
-                            errorNewCustomerCity.style.display = 'block';
-                            newCustomerCity.classList.add('is-invalid');
+
+                        if (firstErrorField) {
+                            setTimeout(() => {
+                                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                firstErrorField.focus();
+                            }, 100);
                         }
                     } else {
-                        showToast(data.message || 'Failed to create customer.', 'error');
+                        showToast(data.message || 'Failed to create party.', 'error');
                     }
                     throw new Error('Validation failed');
                 }
@@ -610,13 +1520,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     const modalInstance = bootstrap.Modal.getInstance(addCustomerModalEl);
                     if (modalInstance) modalInstance.hide();
                 }
-                if (addCustomerForm) addCustomerForm.reset();
 
+                resetAddCustomerModalComplete();
                 selectCustomer(newCustomer);
-                showToast('Customer added', 'success');
+                showToast('Party added', 'success');
+
+                // Refresh recent customers cache after creating a new party
+                fetchRecentCustomers(true);
             })
             .catch(err => {
-                console.warn('Customer store response:', err);
+                console.warn('Party store response:', err);
             })
             .finally(() => {
                 btnSaveNewCustomer.disabled = false;
@@ -632,12 +1545,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const btnBuy = document.getElementById('btnBuy');
     const btnSell = document.getElementById('btnSell');
+    const tradeToggleContainer = document.getElementById('tradeToggle') || document.getElementById('tradeToggleContainer');
     const hiddenTradeType = document.getElementById('hiddenTradeType');
     const labelWeight = document.getElementById('labelWeight');
     const labelRate = document.getElementById('labelRate');
 
+    /**
+     * Set active trade mode in UI and form hidden input.
+     * Updates sliding pill container data-mode/classes (green for BUY, coral/red for SELL).
+     * Why: Safe to call programmatically from edit mode without triggering auto-focus or dropdown.
+     */
     function setTradeMode(mode) {
         if (hiddenTradeType) hiddenTradeType.value = mode;
+
+        if (tradeToggleContainer) {
+            tradeToggleContainer.setAttribute('data-mode', mode);
+            if (mode === 'BUY') {
+                tradeToggleContainer.classList.add('mode-buy');
+                tradeToggleContainer.classList.remove('mode-sell');
+            } else {
+                tradeToggleContainer.classList.add('mode-sell');
+                tradeToggleContainer.classList.remove('mode-buy');
+            }
+        }
 
         if (mode === 'BUY') {
             btnBuy.classList.add('active');
@@ -652,13 +1582,31 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    /**
+     * User clicks trade toggle: switches mode, focuses customer input, selects text,
+     * and opens recent customers dropdown while keeping existing customer selection.
+     */
+    function handleTradeToggleSwitch(mode) {
+        setTradeMode(mode);
+
+        if (editingBookingId !== null) {
+            return;
+        }
+
+        if (customerSearchInput) {
+            customerSearchInput.focus();
+            customerSearchInput.select();
+            showRecentCustomersDropdown();
+        }
+    }
+
     if (btnBuy && btnSell) {
         btnBuy.addEventListener('click', function () {
-            setTradeMode('BUY');
+            handleTradeToggleSwitch('BUY');
         });
 
         btnSell.addEventListener('click', function () {
-            setTradeMode('SELL');
+            handleTradeToggleSwitch('SELL');
         });
     }
 
@@ -1125,11 +2073,87 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const btnSave = document.getElementById('btnSave');
     const btnPrint = document.getElementById('btnPrint');
+    const linkCancelEdit = document.getElementById('linkCancelEdit');
+    const linkCancelEditTop = document.getElementById('linkCancelEditTop');
+    const editModeIndicator = document.getElementById('editModeIndicator');
+    const editingBookingNoLabel = document.getElementById('editingBookingNoLabel');
 
+    // Form PRINT button: prints the last saved booking in this session
+    // If none, displays toast: "Save the booking first"
     if (btnPrint) {
         btnPrint.addEventListener('click', function () {
-            showToast('Coming soon', 'info');
+            if (!lastSavedBookingId) {
+                showToast('Save the booking first', 'warning');
+                return;
+            }
+            window.open(getRoute('bhavBookingPrint', lastSavedBookingId), '_blank');
         });
+    }
+
+    // Cancel edit click handlers (both top banner link and bottom button link)
+    if (linkCancelEdit) {
+        linkCancelEdit.addEventListener('click', function (e) {
+            e.preventDefault();
+            exitEditMode();
+        });
+    }
+
+    if (linkCancelEditTop) {
+        linkCancelEditTop.addEventListener('click', function (e) {
+            e.preventDefault();
+            exitEditMode();
+        });
+    }
+
+    /**
+     * Enter Edit Mode in UI:
+     * - Shows "Editing BB-000001" banner
+     * - Changes SAVE button text to "UPDATE"
+     * - Shows "Cancel edit" link
+     */
+    function enterEditMode(booking) {
+        editingBookingId = booking.id;
+        editingBookingNo = booking.booking_no;
+
+        if (editingBookingNoLabel) editingBookingNoLabel.textContent = booking.booking_no;
+        if (editModeIndicator) {
+            editModeIndicator.classList.remove('d-none');
+            editModeIndicator.classList.add('d-flex');
+        }
+        if (linkCancelEdit) linkCancelEdit.style.display = 'inline-block';
+
+        if (btnSave) {
+            btnSave.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i> UPDATE';
+        }
+
+        // Lock customer field and prevent changing in Edit Mode
+        lockCustomerField();
+    }
+
+    /**
+     * Exit Edit Mode in UI:
+     * - Hides "Editing BB-000001" banner
+     * - Restores SAVE button text
+     * - Hides "Cancel edit" link
+     * - Unlocks customer field
+     * - Resets form state
+     */
+    function exitEditMode(skipFocus = false) {
+        editingBookingId = null;
+        editingBookingNo = null;
+
+        if (editModeIndicator) {
+            editModeIndicator.classList.remove('d-flex');
+            editModeIndicator.classList.add('d-none');
+        }
+        if (linkCancelEdit) linkCancelEdit.style.display = 'none';
+
+        if (btnSave) {
+            btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
+        }
+
+        unlockCustomerField();
+        resetFormAfterSave(skipFocus);
     }
 
     /**
@@ -1168,7 +2192,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * - Generate new request_token
      * - Focus customer input
      */
-    function resetFormAfterSave() {
+    function resetFormAfterSave(skipFocus = false) {
         clearCustomerSelection();
         bookingItems = [];
         renderEntriesTable();
@@ -1184,9 +2208,104 @@ document.addEventListener('DOMContentLoaded', function () {
         // Update totals (will show 0.00)
         updateAllTotals();
 
-        // Focus customer search
-        if (customerSearchInput) {
-            customerSearchInput.focus();
+        if (!skipFocus) {
+            // Focus customer search and auto-open recent customers dropdown
+            if (customerSearchInput) {
+                customerSearchInput.focus();
+                showRecentCustomersDropdown();
+            }
+        }
+    }
+
+    /**
+     * Display the Save / Update Success Centered Popup Modal
+     */
+    function showSaveSuccessModal(savedBooking, isEditMode) {
+        const modalEl = document.getElementById('saveSuccessModal');
+        if (!modalEl) {
+            showToast(`Booking ${savedBooking.booking_no || ''} ${isEditMode ? 'updated' : 'saved'}`, 'success');
+            return;
+        }
+
+        const titleEl = document.getElementById('saveSuccessModalTitle');
+        const bNoEl = document.getElementById('successBookingNo');
+        const custEl = document.getElementById('successCustomerName');
+        const tradeBadge = document.getElementById('successTradeBadge');
+        const metalBadge = document.getElementById('successMetalBadge');
+        const wtEl = document.getElementById('successTotalWeight');
+        const amtEl = document.getElementById('successTotalAmount');
+        const btnPrint = document.getElementById('btnSuccessPrint');
+        const btnOk = document.getElementById('btnSuccessOk');
+
+        if (titleEl) {
+            titleEl.textContent = isEditMode ? 'Transaction Updated Successfully!' : 'Transaction Saved Successfully!';
+        }
+
+        if (bNoEl) {
+            bNoEl.textContent = savedBooking.booking_no || (isEditMode ? editingBookingNo : '-');
+        }
+
+        const customerName = (savedBooking.customer && savedBooking.customer.name)
+            ? savedBooking.customer.name
+            : (selectedCustomer ? selectedCustomer.name : '-');
+        if (custEl) custEl.textContent = customerName;
+
+        const isBuy = (savedBooking.trade_type || '').toUpperCase() === 'BUY';
+        if (tradeBadge) {
+            tradeBadge.textContent = isBuy ? 'BUY' : 'SELL';
+            tradeBadge.className = `badge rounded-pill px-2 py-1 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
+        }
+
+        const isGold = (savedBooking.metal || '').toUpperCase() === 'GOLD';
+        if (metalBadge) {
+            metalBadge.textContent = isGold ? 'GOLD' : 'SILVER';
+            metalBadge.className = `badge rounded-pill px-2 py-1 fw-bold ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
+        }
+
+        if (wtEl) {
+            wtEl.textContent = `${(parseFloat(savedBooking.total_weight) || 0).toFixed(3)} gm`;
+        }
+
+        if (amtEl) {
+            amtEl.textContent = `₹${formatIndianCurrency(savedBooking.total_amount || 0)}`;
+        }
+
+        if (btnPrint) {
+            btnPrint.onclick = function () {
+                window.open(getRoute('bhavBookingPrint', savedBooking.id), '_blank');
+            };
+        }
+
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+            const onModalShown = function () {
+                if (btnOk) btnOk.focus();
+                modalEl.removeEventListener('shown.bs.modal', onModalShown);
+            };
+            modalEl.addEventListener('shown.bs.modal', onModalShown);
+
+            const onModalKeydown = function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    modalInstance.hide();
+                }
+            };
+            modalEl.addEventListener('keydown', onModalKeydown);
+
+            const onModalHidden = function () {
+                modalEl.removeEventListener('keydown', onModalKeydown);
+                modalEl.removeEventListener('hidden.bs.modal', onModalHidden);
+
+                // Focus customer search and open recent customers dropdown after modal closes
+                if (customerSearchInput) {
+                    customerSearchInput.focus();
+                    showRecentCustomersDropdown();
+                }
+            };
+            modalEl.addEventListener('hidden.bs.modal', onModalHidden);
+
+            modalInstance.show();
         }
     }
 
@@ -1248,13 +2367,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            const isEditMode = Boolean(editingBookingId);
+
             // Disable save button + show spinner to prevent double submission
             btnSave.disabled = true;
-            const originalBtnHtml = btnSave.innerHTML;
-            btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
+            btnSave.innerHTML = isEditMode
+                ? '<i class="fa-solid fa-spinner fa-spin me-2"></i> Updating...'
+                : '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
 
             const payload = {
-                customer_id: parseInt(hiddenCustomerId.value, 10),
                 trade_type: hiddenTradeType ? hiddenTradeType.value : 'SELL',
                 entry_type: typeSelect ? typeSelect.value : 'ONLY_ENTRY',
                 metal: categorySelect ? categorySelect.value : 'GOLD',
@@ -1263,16 +2384,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     rate: parseFloat(item.rate)
                 })),
                 narration: inputNarration ? inputNarration.value.trim() : null,
-                send_whatsapp: whatsappSwitch ? whatsappSwitch.checked : false,
-                request_token: currentRequestToken
+                send_whatsapp: whatsappSwitch ? whatsappSwitch.checked : false
             };
 
-            const storeUrl = window.APP_ROUTES && window.APP_ROUTES.bhavBookingStore
-                ? window.APP_ROUTES.bhavBookingStore
-                : '/bhav-bookings';
+            // Only send customer_id and request_token on CREATE (store). Updates do not change customer or request_token.
+            if (!isEditMode) {
+                payload.customer_id = parseInt(hiddenCustomerId.value, 10);
+                payload.request_token = currentRequestToken;
+            }
 
-            fetch(storeUrl, {
-                method: 'POST',
+            const targetUrl = isEditMode
+                ? getRoute('bhavBookingUpdate', editingBookingId)
+                : (window.APP_ROUTES && window.APP_ROUTES.bhavBookingStore ? window.APP_ROUTES.bhavBookingStore : '/bhav-bookings');
+
+            const targetMethod = isEditMode ? 'PUT' : 'POST';
+
+            fetch(targetUrl, {
+                method: targetMethod,
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
@@ -1284,31 +2412,48 @@ document.addEventListener('DOMContentLoaded', function () {
                 const data = await response.json();
 
                 if (!response.ok) {
-                    // Handle Laravel 422 validation errors
+                    // Handle Laravel 422 validation errors or business rule rejection
                     if (response.status === 422 && data.errors) {
                         handleValidationErrors(data.errors);
                     } else {
-                        showToast(data.message || 'Failed to save booking.', 'error');
+                        showToast(data.message || (isEditMode ? 'Failed to update booking.' : 'Failed to save booking.'), 'error');
                     }
-                    throw new Error('Save failed');
+                    throw new Error(isEditMode ? 'Update failed' : 'Save failed');
                 }
 
                 return data;
             })
             .then(savedBooking => {
-                // Success: Toast "Booking BB-000001 saved"
-                const bookingNo = savedBooking.booking_no || 'Booking';
-                showToast(`Booking ${bookingNo} saved`, 'success');
+                const bookingNo = savedBooking.booking_no || (isEditMode ? editingBookingNo : 'Booking');
 
-                // Reset form state keeping mode, metal and rate
-                resetFormAfterSave();
+                // Remember last saved booking ID for the form PRINT button
+                lastSavedBookingId = savedBooking.id;
+
+                // Refresh recent customers cache after booking save
+                fetchRecentCustomers(true);
+
+                if (isEditMode) {
+                    exitEditMode(true);
+                    // Stay on current page when editing
+                    fetchBookingList(currentListPage);
+                    showSaveSuccessModal(savedBooking, true);
+                } else {
+                    resetFormAfterSave(true);
+                    // Reload list from page 1 after new creation
+                    fetchBookingList(1);
+                    showSaveSuccessModal(savedBooking, false);
+                }
             })
             .catch(err => {
-                console.warn('Booking save error:', err);
+                console.warn(isEditMode ? 'Booking update error:' : 'Booking save error:', err);
             })
             .finally(() => {
                 btnSave.disabled = false;
-                btnSave.innerHTML = originalBtnHtml;
+                if (editingBookingId) {
+                    btnSave.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i> UPDATE';
+                } else {
+                    btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
+                }
             });
         });
     }
@@ -1414,17 +2559,29 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // =========================================================================
-    // 10. DATE RANGE FILTER & LIST MENU
-    // Dropdown with presets (Today, Yesterday, Last 7/30 days, Month, Custom)
+    // 10. BOOKING LIST, FILTERS & PAGINATION (Task B2)
+    // Server-side filtered & paginated booking table with dynamic aggregates
     // =========================================================================
 
+    // List State
+    let currentListView = 'current'; // 'current' or 'old'
+    let currentListPage = 1;
+    let listAbortController = null;
+    let partySearchDebounceTimer = null;
+
+    // DOM Elements: Header List Menu
+    const menuCurrentList = document.getElementById('menuCurrentList');
     const menuOldBooking = document.getElementById('menuOldBooking');
-    if (menuOldBooking) {
-        menuOldBooking.addEventListener('click', function (e) {
-            e.preventDefault();
-            showToast('Coming soon', 'info');
-        });
-    }
+    const iconCurrentCheck = document.getElementById('iconCurrentCheck');
+    const iconOldCheck = document.getElementById('iconOldCheck');
+    const listHeadingText = document.getElementById('listHeadingText');
+    const listHeadingIcon = document.getElementById('listHeadingIcon');
+
+    // DOM Elements: Filters
+    const filterPartyInput = document.getElementById('filterPartyInput');
+    const filterMetalSelect = document.getElementById('filterMetalSelect');
+    const filterTypeSelect = document.getElementById('filterTypeSelect');
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
 
     const dateRangePickerWrapper = document.getElementById('dateRangePickerWrapper');
     const dateRangeInput = document.getElementById('dateRangeInput');
@@ -1437,6 +2594,483 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnApplyCustomDate = document.getElementById('btnApplyCustomDate');
     const customDateError = document.getElementById('customDateError');
 
+    // DOM Elements: Table & Totals & Pagination
+    const bhavTableBody = document.getElementById('bhavTableBody');
+    const listPaginationInfo = document.getElementById('listPaginationInfo');
+    const listPaginationLinks = document.getElementById('listPaginationLinks');
+
+    const totalBuyWt = document.getElementById('totalBuyWt');
+    const totalBuyAmt = document.getElementById('totalBuyAmt');
+    const totalSellWt = document.getElementById('totalSellWt');
+    const totalSellAmt = document.getElementById('totalSellAmt');
+    const totalGiven = document.getElementById('totalGiven');
+    const totalReceived = document.getElementById('totalReceived');
+
+    /**
+     * Format server ISO/SQL datetime string as DD-MM-YYYY hh:mm AM/PM
+     * Why: Consistent 12-hour Indian date-time format for readability
+     */
+    function formatDateTimeDisplay(dateString) {
+        if (!dateString) return '-';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return escapeHtml(dateString);
+
+        const day = pad2(d.getDate());
+        const month = pad2(d.getMonth() + 1);
+        const year = d.getFullYear();
+
+        let hours = d.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // 0 hour converts to 12
+        const minutes = pad2(d.getMinutes());
+
+        return `${day}-${month}-${year} ${pad2(hours)}:${minutes} ${ampm}`;
+    }
+
+    /**
+     * Format metal weights for totals footer:
+     * Never add Gold and Silver weights together!
+     * If only one metal has weight: "x gm"
+     * If both have weight: "G: x gm" and "S: y gm"
+     */
+    function formatMetalWeightTotal(goldWeight, silverWeight) {
+        const g = parseFloat(goldWeight) || 0;
+        const s = parseFloat(silverWeight) || 0;
+
+        if (g > 0 && s > 0) {
+            return `<div>G: ${g.toFixed(3)} gm</div><div>S: ${s.toFixed(3)} gm</div>`;
+        } else if (g > 0) {
+            return `${g.toFixed(3)} gm`;
+        } else if (s > 0) {
+            return `${s.toFixed(3)} gm`;
+        } else {
+            return `0.000 gm`;
+        }
+    }
+
+    /**
+     * Reset table footer aggregate totals to zero
+     */
+    function resetTotalsToZero() {
+        if (totalBuyWt) totalBuyWt.textContent = '0.000 gm';
+        if (totalBuyAmt) totalBuyAmt.textContent = '₹0.00';
+        if (totalSellWt) totalSellWt.textContent = '0.000 gm';
+        if (totalSellAmt) totalSellAmt.textContent = '₹0.00';
+        if (totalGiven) totalGiven.textContent = 'G: ₹0.00';
+        if (totalReceived) totalReceived.textContent = 'R: ₹0.00';
+    }
+
+    /**
+     * Render footer aggregate totals using strictly allowed keys
+     * Keys: buy_weight_gold, buy_weight_silver, buy_amount, sell_weight_gold,
+     *       sell_weight_silver, sell_amount, given_total, received_total
+     */
+    function renderTotals(totals) {
+        if (!totals) {
+            resetTotalsToZero();
+            return;
+        }
+
+        if (totalBuyWt) {
+            totalBuyWt.innerHTML = formatMetalWeightTotal(totals.buy_weight_gold, totals.buy_weight_silver);
+        }
+        if (totalBuyAmt) {
+            totalBuyAmt.textContent = '₹' + formatIndianCurrency(totals.buy_amount || 0);
+        }
+        if (totalSellWt) {
+            totalSellWt.innerHTML = formatMetalWeightTotal(totals.sell_weight_gold, totals.sell_weight_silver);
+        }
+        if (totalSellAmt) {
+            totalSellAmt.textContent = '₹' + formatIndianCurrency(totals.sell_amount || 0);
+        }
+        if (totalGiven) {
+            totalGiven.textContent = 'G: ₹' + formatIndianCurrency(totals.given_total || 0);
+        }
+        if (totalReceived) {
+            totalReceived.textContent = 'R: ₹' + formatIndianCurrency(totals.received_total || 0);
+        }
+    }
+
+    /**
+     * Render spinner row while request is in flight
+     */
+    function renderLoadingState() {
+        if (!bhavTableBody) return;
+        bhavTableBody.innerHTML = `
+            <tr class="table-loading-row">
+                <td colspan="11" class="py-5 text-center text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <span class="fw-semibold">Loading bookings...</span>
+                </td>
+            </tr>
+        `;
+    }
+
+    /**
+     * Render friendly error row with retry button
+     */
+    function renderErrorState(message) {
+        if (!bhavTableBody) return;
+        resetTotalsToZero();
+        renderPagination({ current_page: 1, per_page: 10, total: 0, last_page: 1, from: 0, to: 0 });
+
+        bhavTableBody.innerHTML = `
+            <tr class="table-error-row">
+                <td colspan="11" class="py-4 text-center text-danger">
+                    <i class="fa-solid fa-triangle-exclamation fa-2x mb-2 d-block opacity-75"></i>
+                    <div class="fw-semibold mb-2">${escapeHtml(message || 'Failed to load bookings.')}</div>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" id="btnRetryList">
+                        <i class="fa-solid fa-rotate-right me-1"></i> Retry
+                    </button>
+                </td>
+            </tr>
+        `;
+
+        const btnRetry = document.getElementById('btnRetryList');
+        if (btnRetry) {
+            btnRetry.addEventListener('click', function () {
+                fetchBookingList(currentListPage);
+            });
+        }
+    }
+
+    /**
+     * Render empty state matching existing design when rows is empty
+     */
+    function renderEmptyState() {
+        if (!bhavTableBody) return;
+        resetTotalsToZero();
+        bhavTableBody.innerHTML = `
+            <tr class="table-empty-row">
+                <td colspan="11" class="py-5 text-center text-muted">
+                    <i class="fa-regular fa-folder-open fa-3x text-secondary opacity-50 mb-2 d-block"></i>
+                    <span class="fw-semibold">No Records Found</span>
+                </td>
+            </tr>
+        `;
+    }
+
+    /**
+     * Render booking table rows using strictly allowed response keys
+     */
+    function renderTableRows(rows, pagination) {
+        if (!bhavTableBody) return;
+
+        if (!rows || rows.length === 0) {
+            renderEmptyState();
+            return;
+        }
+
+        const startFrom = (pagination && typeof pagination.from === 'number') ? pagination.from : 1;
+        lastLoadedBookingsMap = {};
+
+        let html = '';
+        rows.forEach((booking, index) => {
+            lastLoadedBookingsMap[booking.id] = booking;
+            const sn = startFrom + index;
+            const dateTimeStr = formatDateTimeDisplay(booking.booked_at);
+
+            // Customer details & badges
+            const customer = booking.customer || {};
+            const customerName = customer.name || 'Unknown Customer';
+            const customerNo = customer.customer_no || '-';
+            const bookingNo = booking.booking_no || '-';
+
+            const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
+            const metalBadge = isGold
+                ? `<span class="badge-metal-gold">Gold</span>`
+                : `<span class="badge-metal-silver">Silver</span>`;
+
+            const isOnlyEntry = (booking.entry_type || '').toUpperCase() === 'ONLY_ENTRY';
+            const typeBadge = isOnlyEntry
+                ? `<span class="badge-type-entry">Only Entry</span>`
+                : `<span class="badge-type-ledger">Bhav Cut + Ledger</span>`;
+
+            const statusUpper = (booking.status || 'PENDING').toUpperCase();
+            let statusBadgeClass = 'badge-status-pending';
+            if (statusUpper === 'PARTIAL') statusBadgeClass = 'badge-status-partial';
+            else if (statusUpper === 'DELIVERED') statusBadgeClass = 'badge-status-delivered';
+            else if (statusUpper === 'CANCELLED') statusBadgeClass = 'badge-status-cancelled';
+
+            const statusBadge = `<span class="${statusBadgeClass}">${escapeHtml(statusUpper)}</span>`;
+
+            // Rate cell: single rate or "Multiple" with breakdown tooltip
+            const items = Array.isArray(booking.items) ? booking.items : [];
+            let rateDisplay = '-';
+
+            if (items.length === 1) {
+                const singleRate = parseFloat(items[0].rate) || 0;
+                rateDisplay = `₹${formatIndianCurrency(singleRate)}`;
+            } else if (items.length > 1) {
+                const lines = items.map((it, i) => {
+                    const w = (parseFloat(it.weight) || 0).toFixed(3);
+                    const r = formatIndianCurrency(it.rate || 0);
+                    const a = formatIndianCurrency(it.amount || 0);
+                    return `#${i + 1}: ${w} gm × ₹${r} = ₹${a}`;
+                });
+                const tooltipContent = lines.join('\n');
+                rateDisplay = `<span class="badge bg-light text-dark border cursor-help" title="${escapeHtml(tooltipContent)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(tooltipContent)}"><i class="fa-solid fa-layer-group text-primary me-1"></i>Multiple</span>`;
+            }
+
+            // BUY booking fills BUY DETAILS, SELL booking fills SELL DETAILS
+            const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
+            const wtFormatted = (parseFloat(booking.total_weight) || 0).toFixed(3) + ' gm';
+            const amtFormatted = '₹' + formatIndianCurrency(booking.total_amount || 0);
+
+            let buyWt = '-', buyRate = '-', buyAmt = '-';
+            let sellWt = '-', sellRate = '-', sellAmt = '-';
+
+            if (isBuy) {
+                buyWt = `<span class="text-success fw-bold">${wtFormatted}</span>`;
+                buyRate = `<span class="text-success">${rateDisplay}</span>`;
+                buyAmt = `<span class="text-success fw-bold">${amtFormatted}</span>`;
+            } else {
+                sellWt = `<span class="text-danger fw-bold">${wtFormatted}</span>`;
+                sellRate = `<span class="text-danger">${rateDisplay}</span>`;
+                sellAmt = `<span class="text-danger fw-bold">${amtFormatted}</span>`;
+            }
+
+            // Given / Received
+            const givenAmt = parseFloat(booking.given_amount) || 0;
+            const receivedAmt = parseFloat(booking.received_amount) || 0;
+            const givenHtml = `<div class="text-danger fw-bold" style="font-size: 11px;">G: ₹${formatIndianCurrency(givenAmt)}</div>`;
+            const receivedHtml = `<div class="text-success fw-bold" style="font-size: 11px;">R: ₹${formatIndianCurrency(receivedAmt)}</div>`;
+
+            // Action column: 3-dot Kebab menu (View, Edit, Print, Share, WhatsApp, Delete, Silent Delete)
+            const actionHtml = renderActionKebabMenu(booking);
+
+            html += `
+                <tr>
+                    <td class="fw-semibold text-muted py-1">${sn}</td>
+                    <td class="text-nowrap py-1" style="font-size: 11px;">${dateTimeStr}</td>
+                    <td class="text-start px-2 py-1">
+                        <div class="fw-bold text-dark text-truncate" style="font-size: 12px; line-height: 1.25;" title="${escapeHtml(customerName)}">${escapeHtml(customerName)}</div>
+                        <div class="text-muted" style="font-size: 10px; line-height: 1.2;">
+                            <span class="text-secondary">${escapeHtml(customerNo)}</span> • <span class="fw-semibold text-dark">${escapeHtml(bookingNo)}</span>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                            ${metalBadge}
+                            ${typeBadge}
+                            ${statusBadge}
+                        </div>
+                    </td>
+                    <td>${buyWt}</td>
+                    <td>${buyRate}</td>
+                    <td>${buyAmt}</td>
+                    <td>${sellWt}</td>
+                    <td>${sellRate}</td>
+                    <td>${sellAmt}</td>
+                    <td>${givenHtml}${receivedHtml}</td>
+                    <td>${actionHtml}</td>
+                </tr>
+            `;
+        });
+
+        bhavTableBody.innerHTML = html;
+
+        // Initialize tooltips if Bootstrap Tooltip is loaded
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const tooltipElements = bhavTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltipElements.forEach(el => new bootstrap.Tooltip(el));
+        }
+    }
+
+    /**
+     * Render pagination info and page links (max 5 visible page numbers)
+     * Keys: current_page, per_page, total, last_page, from, to
+     */
+    function renderPagination(pagination) {
+        if (!listPaginationInfo || !listPaginationLinks) return;
+
+        if (!pagination || pagination.total === 0 || !pagination.from) {
+            listPaginationInfo.textContent = 'Showing 0–0 of 0';
+            listPaginationLinks.innerHTML = '';
+            return;
+        }
+
+        const total = pagination.total || 0;
+        const from = pagination.from || 0;
+        const to = pagination.to || 0;
+        const currentPage = pagination.current_page || 1;
+        const lastPage = Math.max(1, pagination.last_page || 1);
+
+        listPaginationInfo.textContent = `Showing ${from}–${to} of ${total}`;
+
+        // Build window of at most 5 page numbers centered on currentPage
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(lastPage, startPage + 4);
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        let linksHtml = '';
+
+        // Previous button
+        const isPrevDisabled = currentPage <= 1;
+        linksHtml += `
+            <li class="page-item ${isPrevDisabled ? 'disabled' : ''}">
+                <button type="button" class="page-link bhav-pagination-btn px-2" data-page="${currentPage - 1}" ${isPrevDisabled ? 'disabled tabindex="-1" aria-disabled="true"' : ''}>
+                    <i class="fa-solid fa-chevron-left small"></i> Prev
+                </button>
+            </li>
+        `;
+
+        // Numbered page buttons
+        for (let p = startPage; p <= endPage; p++) {
+            const isActive = p === currentPage;
+            linksHtml += `
+                <li class="page-item ${isActive ? 'active' : ''}">
+                    <button type="button" class="page-link bhav-pagination-btn" data-page="${p}" ${isActive ? 'aria-current="page"' : ''}>
+                        ${p}
+                    </button>
+                </li>
+            `;
+        }
+
+        // Next button
+        const isNextDisabled = currentPage >= lastPage;
+        linksHtml += `
+            <li class="page-item ${isNextDisabled ? 'disabled' : ''}">
+                <button type="button" class="page-link bhav-pagination-btn px-2" data-page="${currentPage + 1}" ${isNextDisabled ? 'disabled tabindex="-1" aria-disabled="true"' : ''}>
+                    Next <i class="fa-solid fa-chevron-right small"></i>
+                </button>
+            </li>
+        `;
+
+        listPaginationLinks.innerHTML = linksHtml;
+
+        // Attach click handlers to pagination buttons
+        const pageButtons = listPaginationLinks.querySelectorAll('button[data-page]');
+        pageButtons.forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (this.disabled) return;
+                const targetPage = parseInt(this.getAttribute('data-page'), 10);
+                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= lastPage) {
+                    fetchBookingList(targetPage);
+                }
+            });
+        });
+    }
+
+    /**
+     * Fetch booking list from backend GET /bhav-bookings/list
+     * Handles AbortController cancellation of prior requests
+     */
+    function fetchBookingList(page = 1) {
+        currentListPage = page;
+
+        // Cancel previous request if still running
+        if (listAbortController) {
+            listAbortController.abort();
+        }
+        listAbortController = new AbortController();
+        const signal = listAbortController.signal;
+
+        renderLoadingState();
+
+        const baseUrl = (window.APP_ROUTES && window.APP_ROUTES.bhavBookingList)
+            ? window.APP_ROUTES.bhavBookingList
+            : '/bhav-bookings/list';
+
+        const params = new URLSearchParams();
+        params.set('view', currentListView);
+        params.set('page', page);
+
+        const perPageVal = pageSizeSelect ? pageSizeSelect.value : '10';
+        params.set('per_page', perPageVal);
+
+        if (filterPartyInput && filterPartyInput.value.trim() !== '') {
+            params.set('party', filterPartyInput.value.trim());
+        }
+
+        if (dateFilterFrom && dateFilterFrom.value) {
+            params.set('date_from', dateFilterFrom.value);
+        }
+
+        if (dateFilterTo && dateFilterTo.value) {
+            params.set('date_to', dateFilterTo.value);
+        }
+
+        if (filterMetalSelect && filterMetalSelect.value) {
+            params.set('metal', filterMetalSelect.value);
+        }
+
+        if (filterTypeSelect && filterTypeSelect.value) {
+            params.set('entry_type', filterTypeSelect.value);
+        }
+
+        const fullUrl = `${baseUrl}?${params.toString()}`;
+
+        fetch(fullUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            },
+            signal: signal
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to load booking list.');
+            }
+            return data;
+        })
+        .then(data => {
+            // Use strictly allowed keys: rows, pagination, totals
+            const rows = data.rows || [];
+            const pagination = data.pagination || null;
+            const totals = data.totals || null;
+
+            renderTableRows(rows, pagination);
+            renderPagination(pagination);
+            renderTotals(totals);
+        })
+        .catch(error => {
+            if (error.name === 'AbortError') {
+                // Ignore aborted requests
+                return;
+            }
+            console.warn('Booking list fetch error:', error);
+            renderErrorState(error.message);
+        });
+    }
+
+    // Party Search Input: 400ms debounce
+    if (filterPartyInput) {
+        filterPartyInput.addEventListener('input', function () {
+            clearTimeout(partySearchDebounceTimer);
+            partySearchDebounceTimer = setTimeout(() => {
+                fetchBookingList(1);
+            }, 400);
+        });
+    }
+
+    // Metal Filter Change
+    if (filterMetalSelect) {
+        filterMetalSelect.addEventListener('change', function () {
+            fetchBookingList(1);
+        });
+    }
+
+    // Type Filter Change
+    if (filterTypeSelect) {
+        filterTypeSelect.addEventListener('change', function () {
+            fetchBookingList(1);
+        });
+    }
+
+    // Page Size Selector Change
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function () {
+            fetchBookingList(1);
+        });
+    }
+
+    // Date Range Helpers & Events
     function applyDateRange(from, to, presetName = '') {
         if (!dateRangeInput || !dateFilterFrom || !dateFilterTo) return;
 
@@ -1454,6 +3088,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         }
+
+        // Trigger reload from page 1 on date change
+        fetchBookingList(1);
     }
 
     if (dateRangeInput && dateRangeDropdown) {
@@ -1555,5 +3192,346 @@ document.addEventListener('DOMContentLoaded', function () {
             if (dateRangeDropdown) dateRangeDropdown.style.display = 'none';
         }
     });
+
+    // =========================================================================
+    // 11. ACTION COLUMN HANDLERS: VIEW, PRINT, EDIT, DELETE (Task C)
+    // =========================================================================
+
+    /**
+     * View Booking Details in Bootstrap Modal:
+     * Fetches fresh booking with items and customer from GET /bhav-bookings/{bhavBooking}
+     */
+    function viewBookingDetails(bookingId) {
+        const showUrl = getRoute('bhavBookingShow', bookingId);
+
+        fetch(showUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                showToast(data.message || 'Booking not found', 'error');
+                throw new Error(data.message || 'View failed');
+            }
+            return data;
+        })
+        .then(booking => {
+            // Populate Modal Fields
+            const viewBookingNo = document.getElementById('viewBookingNo');
+            const viewBookingDateTime = document.getElementById('viewBookingDateTime');
+            const viewTradeTypeBadge = document.getElementById('viewTradeTypeBadge');
+            const viewMetalBadge = document.getElementById('viewMetalBadge');
+            const viewTypeBadge = document.getElementById('viewTypeBadge');
+            const viewStatusBadge = document.getElementById('viewStatusBadge');
+
+            const viewCustomerName = document.getElementById('viewCustomerName');
+            const viewCustomerNo = document.getElementById('viewCustomerNo');
+            const viewCustomerMobile = document.getElementById('viewCustomerMobile');
+            const viewCustomerCity = document.getElementById('viewCustomerCity');
+
+            const viewItemsTableBody = document.getElementById('viewItemsTableBody');
+            const viewTotalWeight = document.getElementById('viewTotalWeight');
+            const viewTotalAmount = document.getElementById('viewTotalAmount');
+            const viewDeliveredWeight = document.getElementById('viewDeliveredWeight');
+            const viewPendingWeight = document.getElementById('viewPendingWeight');
+            const viewNarration = document.getElementById('viewNarration');
+            const btnViewModalPrint = document.getElementById('btnViewModalPrint');
+
+            if (viewBookingNo) viewBookingNo.textContent = booking.booking_no || '-';
+            if (viewBookingDateTime) viewBookingDateTime.textContent = formatDateTimeDisplay(booking.booked_at);
+
+            // Trade Type Badge
+            if (viewTradeTypeBadge) {
+                const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
+                viewTradeTypeBadge.textContent = booking.trade_type;
+                viewTradeTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
+            }
+
+            // Metal Badge
+            if (viewMetalBadge) {
+                const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
+                viewMetalBadge.textContent = booking.metal;
+                viewMetalBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
+            }
+
+            // Type Badge
+            if (viewTypeBadge) {
+                const isEntry = (booking.entry_type || '').toUpperCase() === 'ONLY_ENTRY';
+                viewTypeBadge.textContent = isEntry ? 'Only Entry' : 'Bhav Cut + Ledger';
+                viewTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isEntry ? 'badge-type-entry' : 'badge-type-ledger'}`;
+            }
+
+            // Status Badge
+            if (viewStatusBadge) {
+                const st = (booking.status || 'PENDING').toUpperCase();
+                viewStatusBadge.textContent = st;
+                let stClass = 'badge-status-pending';
+                if (st === 'PARTIAL') stClass = 'badge-status-partial';
+                else if (st === 'DELIVERED') stClass = 'badge-status-delivered';
+                else if (st === 'CANCELLED') stClass = 'badge-status-cancelled';
+                viewStatusBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${stClass}`;
+            }
+
+            // Customer Details
+            const customer = booking.customer || {};
+            if (viewCustomerName) viewCustomerName.textContent = customer.name || '-';
+            if (viewCustomerNo) viewCustomerNo.textContent = customer.customer_no || '-';
+            if (viewCustomerMobile) viewCustomerMobile.textContent = customer.mobile || 'N/A';
+            if (viewCustomerCity) viewCustomerCity.textContent = customer.city || 'N/A';
+
+            // Items Table
+            if (viewItemsTableBody) {
+                const items = Array.isArray(booking.items) ? booking.items : [];
+                if (items.length === 0) {
+                    viewItemsTableBody.innerHTML = '<tr><td colspan="4" class="py-3 text-muted text-center">No items recorded</td></tr>';
+                } else {
+                    let itemsHtml = '';
+                    items.forEach((it, idx) => {
+                        const sn = it.sort_order || (idx + 1);
+                        const w = (parseFloat(it.weight) || 0).toFixed(3);
+                        const r = formatIndianCurrency(it.rate || 0);
+                        const a = formatIndianCurrency(it.amount || 0);
+                        itemsHtml += `
+                            <tr>
+                                <td class="text-center fw-bold text-muted">${sn}</td>
+                                <td class="text-end fw-semibold">${w} gm</td>
+                                <td class="text-end">₹${r}</td>
+                                <td class="text-end fw-bold text-dark">₹${a}</td>
+                            </tr>
+                        `;
+                    });
+                    viewItemsTableBody.innerHTML = itemsHtml;
+                }
+            }
+
+            // Totals
+            if (viewTotalWeight) viewTotalWeight.textContent = `${(parseFloat(booking.total_weight) || 0).toFixed(3)} gm`;
+            if (viewTotalAmount) viewTotalAmount.textContent = `₹${formatIndianCurrency(booking.total_amount || 0)}`;
+            if (viewDeliveredWeight) viewDeliveredWeight.textContent = `${(parseFloat(booking.delivered_weight) || 0).toFixed(3)} gm`;
+            if (viewPendingWeight) viewPendingWeight.textContent = `${(parseFloat(booking.pending_weight) || 0).toFixed(3)} gm`;
+
+            // Narration
+            if (viewNarration) viewNarration.textContent = booking.narration || 'None';
+
+            // Wire print button inside view modal
+            if (btnViewModalPrint) {
+                btnViewModalPrint.onclick = function () {
+                    window.open(getRoute('bhavBookingPrint', booking.id), '_blank');
+                };
+            }
+
+            // Open Bootstrap Modal
+            const modalEl = document.getElementById('viewBookingModal');
+            if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modalInstance.show();
+            }
+        })
+        .catch(err => {
+            console.warn('View details error:', err);
+        });
+    }
+
+    /**
+     * Load an existing booking into the left form for editing (Task C4)
+     * Fetches booking with customer + items from GET /bhav-bookings/{bhavBooking}
+     */
+    function loadBookingForEdit(bookingId) {
+        const showUrl = getRoute('bhavBookingShow', bookingId);
+
+        fetch(showUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                showToast(data.message || 'Booking not found', 'error');
+                throw new Error(data.message || 'Edit load failed');
+            }
+            return data;
+        })
+        .then(booking => {
+            // Restriction check: only PENDING with 0 delivered and 0 payments can be edited
+            const statusUpper = (booking.status || '').toUpperCase();
+            const isModifiable = statusUpper === 'PENDING'
+                && (parseFloat(booking.delivered_weight) || 0) === 0
+                && (parseFloat(booking.given_amount) || 0) === 0
+                && (parseFloat(booking.received_amount) || 0) === 0;
+
+            if (!isModifiable) {
+                showToast('This booking has delivery/payment and cannot be edited', 'warning');
+                return;
+            }
+
+            // Clear any lingering validation errors
+            resetValidationErrors();
+
+            // 1. Customer
+            if (booking.customer) {
+                selectCustomer(booking.customer);
+            }
+
+            // 2. Trade mode (BUY / SELL)
+            setTradeMode(booking.trade_type || 'SELL');
+
+            // 3. Type
+            if (typeSelect) {
+                typeSelect.value = booking.entry_type || 'ONLY_ENTRY';
+            }
+
+            // 4. Metal (Update currentMetal before select to avoid triggering confirmation prompt)
+            currentMetal = booking.metal || 'GOLD';
+            if (categorySelect) {
+                categorySelect.value = currentMetal;
+            }
+
+            // 5. Multi-weight Items
+            bookingItems = [];
+            if (Array.isArray(booking.items) && booking.items.length > 0) {
+                booking.items.forEach(it => {
+                    const w = parseFloat(it.weight) || 0;
+                    const r = parseFloat(it.rate) || 0;
+                    const a = parseFloat(it.amount) || calculateRowAmount(w, r);
+                    bookingItems.push({
+                        id: nextItemId++,
+                        weight: w,
+                        rate: r,
+                        amount: a
+                    });
+                });
+            }
+            renderEntriesTable();
+
+            // 6. Current entry line inputs
+            if (inputWeight) inputWeight.value = '';
+            if (inputRate) {
+                if (booking.items && booking.items.length > 0) {
+                    inputRate.value = parseFloat(booking.items[0].rate).toFixed(2);
+                } else if (BHAV_CONFIG.default_rates && BHAV_CONFIG.default_rates[currentMetal]) {
+                    inputRate.value = BHAV_CONFIG.default_rates[currentMetal];
+                }
+            }
+
+            // 7. Narration
+            if (inputNarration) {
+                inputNarration.value = booking.narration || '';
+            }
+            if (narrationCounter) {
+                narrationCounter.textContent = `${(booking.narration || '').length}/255`;
+            }
+
+            // 8. WhatsApp switch
+            if (whatsappSwitch) {
+                whatsappSwitch.checked = Boolean(booking.send_whatsapp);
+            }
+
+            // 9. Update grand totals
+            updateAllTotals();
+
+            // 10. Switch UI to Edit Mode
+            enterEditMode(booking);
+
+            // Smoothly scroll to the form and focus weight input
+            const formEl = document.getElementById('bhavBookingForm');
+            if (formEl) {
+                formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            if (inputWeight) {
+                inputWeight.focus();
+            }
+        })
+        .catch(err => {
+            console.warn('Booking edit load error:', err);
+        });
+    }
+
+    /**
+     * Delete an existing booking (Task C5)
+     * Soft deletes via DELETE /bhav-bookings/{bhavBooking}
+     */
+    function deleteBooking(bookingId, bookingNo, amount) {
+        const formattedAmt = formatIndianCurrency(amount || 0);
+        const confirmed = window.confirm(`Are you sure you want to delete booking ${bookingNo} for ₹${formattedAmt}?`);
+        if (!confirmed) return;
+
+        const deleteUrl = getRoute('bhavBookingDelete', bookingId);
+
+        fetch(deleteUrl, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken()
+            }
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                showToast(data.message || 'Failed to delete booking.', 'error');
+                throw new Error(data.message || 'Delete failed');
+            }
+            return data;
+        })
+        .then(() => {
+            showToast(`Booking ${bookingNo} deleted`, 'success');
+
+            // If the deleted booking was currently being edited, exit edit mode immediately
+            if (editingBookingId === bookingId) {
+                exitEditMode();
+            }
+
+            // Reload the list staying on the current page
+            fetchBookingList(currentListPage);
+        })
+        .catch(err => {
+            console.warn('Booking delete error:', err);
+        });
+    }
+
+    // Attach Event Delegation to Table Body for Action 3-Dot Kebab Menu
+    if (bhavTableBody) {
+        bhavTableBody.addEventListener('click', function (e) {
+            handleActionKebabMenuClick(e, lastLoadedBookingsMap, {
+                onEdit: function (booking) {
+                    loadBookingForEdit(booking.id);
+                },
+                onDeleted: function (bookingId, bookingNo) {
+                    if (editingBookingId === bookingId) {
+                        exitEditMode();
+                    }
+                    fetchBookingList(currentListPage);
+                }
+            });
+        });
+    }
+
+    // =========================================================================
+    // INITIALIZATION: Load Booking List & Auto-open Customer Field on Page Load
+    // =========================================================================
+    fetchBookingList(1);
+
+    // Auto-load booking for edit if ?edit={id} query parameter is present in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const editIdParam = urlParams.get('edit');
+    if (editIdParam) {
+        const editId = parseInt(editIdParam, 10);
+        if (editId) {
+            window.history.replaceState({}, '', window.location.pathname);
+            loadBookingForEdit(editId);
+        }
+    } else {
+        // Auto-focus customer input and open recent customers dropdown on page load
+        if (customerSearchInput) {
+            customerSearchInput.focus();
+            if (!customerSearchResults || customerSearchResults.style.display !== 'block') {
+                showRecentCustomersDropdown();
+            }
+        }
+    }
 
 });

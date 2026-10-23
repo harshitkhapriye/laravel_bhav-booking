@@ -318,19 +318,19 @@ body {
    Page Title Bar
    -------------------------------------------------------------------------- */
 .page-header-bar {
-    padding-top: 6px;
+    padding-top: 2px;
 }
 
 .title-orange-dot {
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background-color: var(--primary-orange);
     display: inline-block;
 }
 
 .page-main-heading {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: 700;
     color: #b85718;
     letter-spacing: -0.3px;
@@ -340,9 +340,10 @@ body {
     background-color: transparent;
     border: 1.5px solid var(--navy-dark);
     color: var(--navy-dark);
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    padding: 3px 10px;
     transition: all 0.2s ease;
 }
 
@@ -355,9 +356,10 @@ body {
     background-color: var(--navy-dark);
     color: #ffffff;
     border: none;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    padding: 3px 10px;
     transition: all 0.2s ease;
 }
 
@@ -369,8 +371,8 @@ body {
 
 .btn-home-link {
     color: var(--navy-dark);
-    font-size: 17px;
-    padding: 4px 8px;
+    font-size: 15px;
+    padding: 2px 6px;
     text-decoration: none;
     transition: color 0.2s ease;
 }
@@ -382,8 +384,9 @@ body {
 .badge-bhav-breadcrumb {
     background-color: var(--primary-orange);
     color: #ffffff;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
+    padding: 3px 10px;
     display: inline-flex;
     align-items: center;
 }
@@ -393,32 +396,70 @@ body {
    -------------------------------------------------------------------------- */
 .custom-content-card {
     background-color: var(--card-bg);
-    border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
 /* --------------------------------------------------------------------------
-   BUY / SELL Toggle Switch
+   BUY / SELL Toggle Switch (with Sliding Pill Indicator)
    -------------------------------------------------------------------------- */
 .trade-toggle-container {
     background-color: #f1f4f8;
     border-radius: 50px;
-    padding: 4px;
+    padding: 2px;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    position: relative;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+/* Sliding indicator pill */
+.trade-toggle-pill {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    width: 95px;
+    border-radius: 50px;
+    transition: transform 250ms ease, background 250ms ease, box-shadow 250ms ease;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* When BUY is active (pill on left): green gradient + soft green shadow */
+.trade-toggle-container[data-mode="BUY"] .trade-toggle-pill,
+.trade-toggle-container.mode-buy .trade-toggle-pill {
+    transform: translateX(0);
+    background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+    box-shadow: 0 3px 10px rgba(34, 197, 94, 0.35);
+}
+
+/* When SELL is active (pill on right): coral/red gradient + soft red shadow */
+.trade-toggle-container[data-mode="SELL"] .trade-toggle-pill,
+.trade-toggle-container.mode-sell .trade-toggle-pill {
+    transform: translateX(95px);
+    background: var(--coral-red-gradient);
+    box-shadow: 0 3px 10px rgba(230, 57, 70, 0.35);
 }
 
 .trade-toggle-option {
     border: none;
-    background: transparent;
-    padding: 8px 34px;
-    font-size: 14px;
+    background: transparent !important;
+    padding: 5px 12px;
+    font-size: 12px;
     font-weight: 700;
     border-radius: 50px;
     color: #718096;
     cursor: pointer;
-    transition: all 0.25s ease;
+    position: relative;
+    z-index: 2;
+    flex: 1 1 0;
+    width: 95px;
+    min-width: 95px;
+    text-align: center;
+    transition: color 250ms ease;
+    box-shadow: none !important;
 }
 
 .trade-toggle-option:hover:not(.active) {
@@ -426,51 +467,87 @@ body {
 }
 
 .trade-toggle-option.active {
-    background: var(--coral-red-gradient);
-    color: #ffffff;
-    box-shadow: 0 4px 14px rgba(230, 57, 70, 0.35);
+    color: #ffffff !important;
 }
 
 /* --------------------------------------------------------------------------
-   Form Controls & Labels
+   Form Controls & Active Field Highlight
    -------------------------------------------------------------------------- */
 .form-label-label {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: #4a5568;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     margin-bottom: 0;
+    transition: color 0.2s ease;
+}
+
+/* Highlight label of the focused row group */
+.form-row-group:focus-within .form-label-label {
+    color: var(--primary-orange);
+}
+
+.form-row-group {
+    margin-bottom: 8px;
+}
+
+.form-input-pill,
+.remarks-textarea,
+.entry-cell-input,
+.form-control,
+.form-select {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .form-input-pill {
     background-color: #f8fafc;
     border: 1px solid var(--border-light);
     border-radius: 50px;
-    height: 42px;
+    height: 34px;
     font-size: 13px;
     font-weight: 600;
     color: var(--text-dark);
-    transition: all 0.2s ease;
+    padding: 4px 12px;
 }
 
-.form-input-pill:focus {
+/* Active field orange border + soft glow for all inputs/selects in form and modal */
+.form-input-pill:focus:not(.is-invalid),
+.remarks-textarea:focus:not(.is-invalid),
+.entry-cell-input:focus:not(.is-invalid),
+#bhavBookingForm .form-control:focus:not(.is-invalid),
+#bhavBookingForm .form-select:focus:not(.is-invalid),
+#addCustomerModal .form-control:focus:not(.is-invalid),
+#addCustomerModal .form-select:focus:not(.is-invalid) {
     background-color: #ffffff;
-    border-color: var(--primary-orange);
-    box-shadow: 0 0 0 3px rgba(245, 124, 0, 0.12);
+    border-color: #f57c00 !important;
+    box-shadow: 0 0 0 3px rgba(245, 124, 0, 0.18) !important;
     outline: none;
+}
+
+/* Readonly & Locked Customer Field in Edit Mode */
+.form-input-pill.customer-locked {
+    background-color: #f1f5f9 !important;
+    color: #475569 !important;
+    cursor: not-allowed !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
 }
 
 .input-with-icon {
     position: relative;
 }
 
+.input-with-icon .form-input-pill {
+    padding-left: 36px;
+}
+
 .field-icon {
     position: absolute;
-    left: 16px;
+    left: 13px;
     top: 50%;
     transform: translateY(-50%);
     color: #718096;
-    font-size: 14px;
+    font-size: 12px;
     pointer-events: none;
     z-index: 2;
 }
@@ -481,19 +558,19 @@ body {
 
 .field-suffix {
     position: absolute;
-    right: 18px;
+    right: 14px;
     top: 50%;
     transform: translateY(-50%);
     color: #718096;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     pointer-events: none;
     z-index: 2;
 }
 
 .btn-round-navy {
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background-color: var(--navy-dark);
     color: #ffffff;
@@ -501,7 +578,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 11px;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.15s ease;
 }
@@ -521,6 +598,7 @@ body {
 .dashed-line-divider {
     border-top: 1px dashed #cbd5e1;
     height: 0;
+    margin: 8px 0;
 }
 
 /* Remarks Textarea */
@@ -530,23 +608,26 @@ body {
 
 .remarks-icon {
     position: absolute;
-    left: 16px;
-    top: 16px;
+    left: 13px;
+    top: 10px;
     color: #718096;
-    font-size: 14px;
+    font-size: 12px;
     pointer-events: none;
 }
 
 .remarks-textarea {
     background-color: #f8fafc;
     border: 1px solid var(--border-light);
-    border-radius: 16px;
-    padding-left: 44px;
-    padding-top: 12px;
-    font-size: 13px;
+    border-radius: 12px;
+    padding-left: 36px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--text-dark);
-    resize: vertical;
+    resize: none;
+    min-height: 48px;
+    height: 48px;
 }
 
 .remarks-textarea:focus {
@@ -561,20 +642,24 @@ body {
     background-color: #e8f8ef;
     border: 1px solid #bbf2d3;
     border-radius: 50px;
-    padding: 6px 18px;
+    padding: 3px 12px;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .whatsapp-icon {
-    font-size: 18px;
+    font-size: 15px;
 }
 
 .whatsapp-text {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     color: #1b5e20;
+}
+
+.whatsapp-switch-input {
+    transform: scale(0.85);
 }
 
 .whatsapp-switch-input:checked {
@@ -587,9 +672,10 @@ body {
     background-color: #ffffff;
     border: 1.5px solid var(--navy-dark);
     color: var(--navy-dark);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    padding: 5px 18px;
     transition: all 0.2s ease;
 }
 
@@ -602,17 +688,18 @@ body {
     background: linear-gradient(135deg, #f57c00 0%, #ff9800 100%);
     border: none;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 14px rgba(245, 124, 0, 0.35);
+    letter-spacing: 0.3px;
+    padding: 5px 24px;
+    box-shadow: 0 3px 10px rgba(245, 124, 0, 0.35);
     transition: all 0.2s ease;
 }
 
 .btn-gradient-save:hover {
     background: linear-gradient(135deg, #d35400 0%, #f57c00 100%);
     color: #ffffff;
-    box-shadow: 0 6px 18px rgba(245, 124, 0, 0.45);
+    box-shadow: 0 4px 14px rgba(245, 124, 0, 0.45);
     transform: translateY(-1px);
 }
 
@@ -621,12 +708,12 @@ body {
    -------------------------------------------------------------------------- */
 .table-responsive-container {
     overflow-x: auto;
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid #e2e8f0;
 }
 
 .bhav-table {
-    min-width: 780px;
+    min-width: 760px;
 }
 
 /* Table Header */
@@ -637,23 +724,23 @@ body {
 .bhav-table thead th {
     background-color: var(--table-header-bg);
     color: #475569;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.5px;
-    padding: 10px 8px;
+    letter-spacing: 0.3px;
+    padding: 5px 6px;
     border-color: #cbd5e1;
     vertical-align: middle;
 }
 
 .header-row-sub th {
-    font-size: 10px;
+    font-size: 9px;
     color: #64748b;
-    padding: 6px 8px;
+    padding: 3px 4px;
 }
 
 /* Table Empty Body */
 .table-empty-row td {
-    font-size: 14px;
+    font-size: 13px;
     color: #94a3b8;
     background-color: #ffffff;
     border-bottom: 1px solid #edf2f7;
@@ -665,8 +752,8 @@ body {
 }
 
 .table-total-row td {
-    font-size: 12px;
-    padding: 12px 8px;
+    font-size: 11px;
+    padding: 6px 6px;
     border-top: 1px solid #cbd5e1;
     background-color: #ffffff;
 }
@@ -701,14 +788,15 @@ body {
 /* --------------------------------------------------------------------------
    Customer Search Autocomplete & Dropdown
    -------------------------------------------------------------------------- */
-.btn-customer-clear {
+.btn-customer-clear,
+.btn-clear-input {
     position: absolute;
     right: 14px;
     top: 50%;
     transform: translateY(-50%);
     background: transparent;
     border: none;
-    font-size: 20px;
+    font-size: 18px;
     line-height: 1;
     color: #94a3b8;
     cursor: pointer;
@@ -717,7 +805,8 @@ body {
     transition: color 0.15s ease;
 }
 
-.btn-customer-clear:hover {
+.btn-customer-clear:hover,
+.btn-clear-input:hover {
     color: #e63946;
 }
 
@@ -733,6 +822,20 @@ body {
     border-radius: 14px;
     z-index: 1050;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+}
+
+.customer-dropdown-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .customer-search-item {
@@ -865,54 +968,55 @@ body {
 }
 
 .entries-table {
-    font-size: 13px;
+    font-size: 12px;
     background-color: #ffffff;
 }
 
 .entries-table thead th {
     font-weight: 700;
-    font-size: 11px;
+    font-size: 10.5px;
     letter-spacing: 0.5px;
     color: #64748b;
     background-color: #f1f5f9;
     border-bottom: 1px solid #e2e8f0;
+    padding: 4px 6px;
 }
 
 .entries-table tbody td {
-    padding: 6px 8px;
+    padding: 4px 6px;
     vertical-align: middle;
 }
 
 .entries-table tfoot td {
-    padding: 8px 8px;
+    padding: 4px 6px;
     border-top: 2px solid #e2e8f0;
 }
 
 .col-entry-sn {
-    width: 32px;
+    width: 28px;
 }
 
 .col-entry-wt {
-    width: 110px;
+    width: 105px;
 }
 
 .col-entry-rt {
-    width: 125px;
+    width: 115px;
 }
 
 .col-entry-amt {
-    min-width: 110px;
+    min-width: 100px;
 }
 
 .col-entry-del {
-    width: 36px;
+    width: 30px;
 }
 
 .entry-cell-input {
     width: 100%;
-    height: 30px;
-    padding: 2px 8px;
-    font-size: 13px;
+    height: 28px;
+    padding: 2px 6px;
+    font-size: 12px;
     font-weight: 600;
     text-align: right;
     border: 1px solid #cbd5e1;
@@ -921,14 +1025,16 @@ body {
     transition: all 0.15s ease-in-out;
 }
 
-.entry-cell-input:focus {
-    border-color: var(--primary-orange);
+.entry-cell-input:focus:not(.is-invalid) {
+    border-color: #f57c00 !important;
     outline: none;
-    box-shadow: 0 0 0 2px rgba(245, 124, 0, 0.15);
+    box-shadow: 0 0 0 3px rgba(245, 124, 0, 0.18) !important;
 }
 
-.entry-cell-input.is-invalid {
-    border-color: #dc3545;
+.entry-cell-input.is-invalid,
+.entry-cell-input.is-invalid:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.2) !important;
     background-color: #fff8f8;
 }
 
@@ -936,13 +1042,14 @@ body {
     background: transparent;
     border: none;
     color: #94a3b8;
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    font-size: 11px;
     transition: all 0.15s ease;
 }
 
@@ -955,3 +1062,837 @@ body {
     color: var(--navy-dark);
 }
 
+/* --------------------------------------------------------------------------
+   Booking List (Task B2) Badges, Table & Pagination Styles
+   -------------------------------------------------------------------------- */
+#filterPartyInput,
+#dateRangeInput,
+#filterMetalSelect,
+#filterTypeSelect,
+#pageSizeSelect {
+    height: 32px;
+    font-size: 12px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.bhav-table {
+    font-size: 12px;
+}
+
+.bhav-table thead th {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    padding: 6px 8px;
+    background-color: #f8fafc;
+    color: #475569;
+}
+
+.bhav-table tbody td {
+    padding: 6px 8px;
+    vertical-align: middle;
+}
+
+.bhav-table tfoot td {
+    padding: 6px 8px;
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.active-list-item {
+    background-color: #f1f5f9;
+    font-weight: 700;
+    color: var(--navy-dark) !important;
+}
+
+.cursor-help {
+    cursor: help;
+}
+
+.badge-metal-gold {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+}
+
+.badge-metal-silver {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+}
+
+.badge-type-entry {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    line-height: 1.2;
+}
+
+.badge-type-ledger {
+    background-color: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid #e9d5ff;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    line-height: 1.2;
+}
+
+.badge-status-pending {
+    background-color: #fef9c3;
+    color: #854d0e;
+    border: 1px solid #fef08a;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    line-height: 1.2;
+}
+
+.badge-status-partial {
+    background-color: #cffafe;
+    color: #155e75;
+    border: 1px solid #a5f3fc;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    line-height: 1.2;
+}
+
+.badge-status-delivered {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    line-height: 1.2;
+}
+
+.badge-status-cancelled {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    line-height: 1.2;
+}
+
+.bhav-pagination-btn {
+    border-radius: 50px !important;
+    min-width: 26px;
+    height: 26px;
+    padding: 1px 6px;
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--navy-dark);
+}
+
+.bhav-pagination-btn:hover {
+    background-color: #e2e8f0;
+    color: var(--navy-dark);
+}
+
+.page-item.active .bhav-pagination-btn {
+    background-color: var(--navy-dark) !important;
+    border-color: var(--navy-dark) !important;
+    color: #ffffff !important;
+}
+
+/* --------------------------------------------------------------------------
+   Task C: Action Column Buttons, Edit Mode & Modal Styles
+   -------------------------------------------------------------------------- */
+.btn-action-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+    background-color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    padding: 0;
+    line-height: 1;
+}
+
+.btn-action-icon:hover:not(:disabled) {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.btn-action-icon:disabled {
+    opacity: 0.35;
+    cursor: not-allowed !important;
+    pointer-events: auto !important; /* Allow browser/bootstrap tooltip on disabled button */
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.edit-mode-indicator {
+    border: 1px solid #fde047;
+    background-color: #fef9c3;
+}
+
+.btn-cancel-edit {
+    font-size: 12px;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.btn-cancel-edit:hover {
+    color: #dc3545 !important;
+}
+
+/* --------------------------------------------------------------------------
+   3-Dot Kebab Action Menu & Dropdown
+   -------------------------------------------------------------------------- */
+.btn-action-kebab {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+    background-color: #ffffff;
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    padding: 0;
+    line-height: 1;
+}
+
+.btn-action-kebab:hover,
+.btn-action-kebab[aria-expanded="true"] {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+    color: var(--navy-dark);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.action-kebab-menu {
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    z-index: 1060 !important;
+}
+
+.action-kebab-menu .dropdown-item {
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    padding: 6px 14px;
+    transition: background-color 0.15s ease;
+}
+
+.action-kebab-menu .dropdown-item:hover:not(.disabled) {
+    background-color: #f8fafc;
+    color: #0f172a;
+}
+
+.action-kebab-menu .dropdown-item.disabled {
+    opacity: 0.45;
+    cursor: not-allowed !important;
+    pointer-events: auto !important;
+}
+
+/* --------------------------------------------------------------------------
+   Old Booking List Page Table Styles
+   -------------------------------------------------------------------------- */
+.old-bhav-table {
+    width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 3px 0 !important;
+}
+
+.old-bhav-table thead th {
+    background-color: #e0e3f7 !important;
+    color: #1e293b;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 9px 8px;
+    border: none !important;
+    border-radius: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.2px;
+}
+
+.old-bhav-table tbody td {
+    padding: 7px 8px;
+    vertical-align: middle;
+    border-top: none;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 12px;
+}
+
+.old-bhav-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Round Orange Back Button */
+.btn-round-orange {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--primary-orange, #f57c00);
+    color: #ffffff;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    box-shadow: 0 2px 6px rgba(245, 124, 0, 0.35);
+}
+
+.btn-round-orange:hover {
+    background-color: var(--primary-orange-dark, #d35400);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(245, 124, 0, 0.45);
+}
+
+.btn-round-orange:active {
+    transform: translateY(0);
+}
+
+/* --------------------------------------------------------------------------
+   Save / Update Success Modal Animations
+   -------------------------------------------------------------------------- */
+.save-success-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.save-success-circle {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background-color: #e6f7ec;
+    border: 3px solid #22c55e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: success-pulse 0.5s ease-out;
+}
+
+.save-success-check {
+    color: #16a34a;
+    font-size: 32px;
+    animation: success-check-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes success-pulse {
+    0% {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+    70% {
+        transform: scale(1.08);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes success-check-bounce {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    60% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* ==========================================================================
+   NEW PARTY DETAIL MODAL STYLES (MATCHING SCREENSHOTS)
+   ========================================================================== */
+
+.party-modal-card {
+    border-radius: 24px;
+    background-color: #ffffff;
+    overflow: hidden;
+}
+
+.party-modal-header {
+    background-color: #ffffff;
+}
+
+.party-title-icon {
+    font-size: 19px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.party-title-icon .text-primary-orange {
+    color: #ff7a00;
+}
+
+.party-modal-title {
+    font-size: 18px;
+    letter-spacing: 0.2px;
+    color: #1e293b;
+}
+
+.party-modal-close-round {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    border: 1px solid #f1f5f9;
+    color: #ff7a00;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.party-modal-close-round:hover {
+    background-color: #fff3ee;
+    transform: scale(1.06);
+}
+
+/* Profile Avatar Upload */
+.party-avatar-col {
+    width: 125px;
+    min-width: 125px;
+}
+
+.party-avatar-outer {
+    width: 92px;
+    height: 92px;
+}
+
+.party-avatar-inner {
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    border: 3px solid #ff7a00;
+    background-color: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(255, 122, 0, 0.18);
+}
+
+.party-avatar-default-icon {
+    font-size: 42px;
+    color: #64748b;
+}
+
+.party-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.party-img-remove-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: #ef4444;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    z-index: 5;
+    transition: transform 0.15s ease;
+}
+
+.party-img-remove-badge:hover {
+    background-color: #dc2626;
+    transform: scale(1.1);
+}
+
+.party-mini-circle-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1.5px solid #ff7a00;
+    background-color: #ffffff;
+    color: #ff7a00;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(255, 122, 0, 0.12);
+}
+
+.party-mini-circle-btn:hover {
+    background-color: #ff7a00;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.party-avatar-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #ff7a00;
+    letter-spacing: 0.6px;
+}
+
+/* Customer / Supplier Segmented Sliding Toggle */
+.party-segmented-toggle {
+    background-color: #f1f4f8;
+    border-radius: 50px;
+    padding: 3px;
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    width: 216px;
+    height: 38px;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.party-toggle-slider {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    width: 105px;
+    background-color: #ffffff;
+    border-radius: 50px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: transform 250ms ease;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.party-segmented-toggle[data-type="CUSTOMER"] .party-toggle-slider {
+    transform: translateX(0);
+}
+
+.party-segmented-toggle[data-type="SUPPLIER"] .party-toggle-slider {
+    transform: translateX(105px);
+}
+
+.party-toggle-btn {
+    position: relative;
+    z-index: 2;
+    width: 50%;
+    border: none;
+    background: transparent !important;
+    padding: 4px 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: color 250ms ease;
+}
+
+.party-toggle-btn.active {
+    color: #ff7a00;
+    font-weight: 700;
+}
+
+/* Rounded Pill Inputs & Fields */
+.party-input-pill {
+    height: 38px;
+    border-radius: 50px;
+    border: 1.5px solid #e2e8f0;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 16px;
+    color: #1e293b;
+    background-color: #ffffff;
+    transition: all 0.15s ease-in-out;
+}
+
+.party-input-pill::placeholder {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.party-input-pill:focus {
+    border-color: #ff7a00 !important;
+    box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.16) !important;
+    outline: none;
+}
+
+.party-input-pill.is-invalid {
+    border-color: #e63946 !important;
+    box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.15) !important;
+}
+
+.party-textarea-rounded {
+    border-radius: 14px;
+    border: 1.5px solid #e2e8f0;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 14px;
+    color: #1e293b;
+    background-color: #ffffff;
+    resize: vertical;
+    transition: all 0.15s ease-in-out;
+}
+
+.party-textarea-rounded::placeholder {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.party-textarea-rounded:focus {
+    border-color: #ff7a00 !important;
+    box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.16) !important;
+    outline: none;
+}
+
+.party-textarea-rounded.is-invalid {
+    border-color: #e63946 !important;
+    box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.15) !important;
+}
+
+.party-field-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 3px;
+    display: block;
+}
+
+/* Custom Checkbox */
+.party-checkbox-custom {
+    width: 17px;
+    height: 17px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.party-checkbox-custom:checked {
+    background-color: #ff7a00;
+    border-color: #ff7a00;
+}
+
+.party-checkbox-custom:focus {
+    box-shadow: 0 0 0 2px rgba(255, 122, 0, 0.2);
+}
+
+.party-checkbox-text {
+    font-size: 11.5px;
+    letter-spacing: 0.3px;
+    color: #334155;
+    cursor: pointer;
+}
+
+.family-subprofile-container {
+    background-color: #fff9f5;
+    border: 1px solid #fed7aa;
+}
+
+.btn-clear-parent {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    font-size: 16px;
+    color: #94a3b8;
+    cursor: pointer;
+    z-index: 5;
+}
+
+.btn-clear-parent:hover {
+    color: #e63946;
+}
+
+.selected-parent-info {
+    font-size: 11px;
+    color: #c2410c;
+    font-weight: 600;
+}
+
+/* Additional Information Divider with Pill */
+.additional-divider-wrapper {
+    margin: 14px 0 10px 0;
+}
+
+.additional-divider-line {
+    flex: 1;
+    height: 1.5px;
+    background-color: #fed7aa;
+}
+
+.additional-divider-pill {
+    background-color: #fff3ee;
+    color: #ff6b35;
+    border: 1px solid #ffd8cc;
+    border-radius: 50px;
+    padding: 4px 18px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin: 0 12px;
+    white-space: nowrap;
+}
+
+/* Dashed Orange Shop Logo Upload Box */
+.shop-logo-upload-box {
+    border: 2px dashed #ffcaa6;
+    background-color: #fffaf7;
+    border-radius: 16px;
+    padding: 12px 10px 8px 10px;
+    min-height: 98px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: border-color 0.2s ease;
+}
+
+.shop-logo-upload-box:hover {
+    border-color: #ff7a00;
+}
+
+.shop-logo-silhouette {
+    font-size: 32px;
+    color: #64748b;
+}
+
+.shop-logo-title-text {
+    font-size: 10px;
+    font-weight: 700;
+    color: #ff7a00;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+}
+
+.shop-logo-preview-img {
+    max-height: 52px;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+}
+
+/* Footer Buttons */
+.party-btn-additional-toggle {
+    background-color: #fff2eb;
+    color: #ff6b35;
+    border: 1px solid #ffd8cc;
+    border-radius: 50px;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 6px 18px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+}
+
+.party-btn-additional-toggle:hover {
+    background-color: #ffe4d6;
+    color: #d35400;
+}
+
+.party-btn-save {
+    background: linear-gradient(135deg, #ff7a00 0%, #ff9800 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 50px;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 6px 26px;
+    box-shadow: 0 3px 10px rgba(255, 122, 0, 0.35);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+}
+
+.party-btn-save:hover {
+    background: linear-gradient(135deg, #d35400 0%, #ff7a00 100%);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(255, 122, 0, 0.45);
+}
+
+/* Dropdown Avatar & Supplier Badge */
+.dropdown-party-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid #ff7a00;
+    flex-shrink: 0;
+}
+
+.dropdown-party-avatar-default {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: #f1f5f9;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    border: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.party-supplier-badge {
+    background-color: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 20px;
+    padding: 1px 7px;
+    display: inline-flex;
+    align-items: center;
+}

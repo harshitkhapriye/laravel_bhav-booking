@@ -44,5 +44,25 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+
+        // Why: Return clean JSON 404 message "Booking not found" whenever a BhavBooking is not found in JSON requests
+        $this->renderable(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, $request) {
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                if ($e->getModel() === \App\Models\BhavBooking::class) {
+                    return response()->json(['message' => 'Booking not found'], 404);
+                }
+            }
+        });
+
+        $this->renderable(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                $previous = $e->getPrevious();
+                if ($previous instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                    if ($previous->getModel() === \App\Models\BhavBooking::class) {
+                        return response()->json(['message' => 'Booking not found'], 404);
+                    }
+                }
+            }
+        });
     }
 }

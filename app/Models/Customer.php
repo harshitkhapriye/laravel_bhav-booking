@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Customer extends Model
 {
@@ -17,9 +19,91 @@ class Customer extends Model
     protected $fillable = [
         'customer_no',
         'name',
+        'party_type',
+        'parent_customer_id',
         'mobile',
         'city',
+        'email',
+        'address',
+        'profile_image',
+        'birthday',
+        'anniversary',
+        'aadhaar_no',
+        'pan_no',
+        'gst_no',
+        'lic_no',
+        'reg_no',
+        'logo_title',
+        'shop_name',
+        'state',
+        'district',
+        'area',
+        'shop_address',
+        'shop_logo',
     ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'aadhaar_no',
+        'pan_no',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'birthday' => 'date',
+        'anniversary' => 'date',
+    ];
+
+    /**
+     * The accessors to append to the model's array and JSON form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'profile_image_url',
+    ];
+
+    /**
+     * Get the public URL for the profile image.
+     *
+     * @return string|null
+     */
+    public function getProfileImageUrlAttribute(): ?string
+    {
+        if (!empty($this->profile_image)) {
+            return asset('storage/' . $this->profile_image);
+        }
+
+        return null;
+    }
+
+    /**
+     * Parent customer relationship for family sub-profiles.
+     *
+     * @return BelongsTo
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'parent_customer_id');
+    }
+
+    /**
+     * Family members relationship for parent profiles.
+     *
+     * @return HasMany
+     */
+    public function familyMembers(): HasMany
+    {
+        return $this->hasMany(Customer::class, 'parent_customer_id');
+    }
 
     /**
      * Generate the next sequential customer number (e.g. CUST-0001).
