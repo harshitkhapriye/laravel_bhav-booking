@@ -559,23 +559,112 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+    // In-memory Customer Search Cache: query -> results (max 50 entries)
+    const customerSearchCache = new Map();
+
+    function setCustomerSearchCache(key, data) {
+        if (customerSearchCache.size >= 50) {
+            const firstKey = customerSearchCache.keys().next().value;
+            customerSearchCache.delete(firstKey);
+        }
+        customerSearchCache.set(key, data);
+    }
+
+    function renderCustomerSearchResults(customers, query) {
+        currentSearchResults = customers;
+        activeCustomerIndex = -1;
+
+        if (!customers || customers.length === 0) {
+            customerSearchResults.innerHTML = `
+                <div class="p-3 text-center text-muted small">
+                    No customer found &nbsp;
+                    <a href="#" id="linkAddNewCustomer" class="text-primary fw-bold text-decoration-none">
+                        + Add New Customer
+                    </a>
+                </div>
+            `;
+            const linkAddNew = document.getElementById('linkAddNewCustomer');
+            if (linkAddNew) {
+                linkAddNew.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    hideCustomerDropdown();
+                    openAddCustomerModal(query);
+                });
+            }
+            customerSearchResults.style.display = 'block';
+            return;
+        }
+
+        let listHtml = '';
+        customers.forEach((c, index) => {
+            const highlightedName = highlightMatch(c.name, query);
+            const highlightedNo = highlightMatch(c.customer_no, query);
+            const highlightedMobile = c.mobile ? highlightMatch(c.mobile, query) : '<span class="text-muted fst-italic">No mobile</span>';
+
+            const avatarHtml = c.profile_image_url
+                ? `<img src="${escapeHtml(c.profile_image_url)}" alt="${escapeHtml(c.name)}" class="dropdown-party-avatar me-2">`
+                : `<div class="dropdown-party-avatar-default me-2"><i class="fa-solid fa-user"></i></div>`;
+
+            const supplierBadge = (c.party_type === 'SUPPLIER')
+                ? `<span class="party-supplier-badge ms-2"><i class="fa-solid fa-truck me-1"></i>Supplier</span>`
+                : '';
+
+            listHtml += `
+                <div class="customer-search-item d-flex align-items-center" data-index="${index}">
+                    ${avatarHtml}
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="fw-bold text-dark customer-item-name d-flex align-items-center">
+                            <span class="text-truncate">${highlightedName}</span>
+                            ${supplierBadge}
+                        </div>
+                        <div class="small text-muted d-flex justify-content-between mt-1">
+                            <span><i class="fa-solid fa-id-badge me-1"></i>${highlightedNo}</span>
+                            <span><i class="fa-solid fa-phone me-1"></i>${highlightedMobile}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        customerSearchResults.innerHTML = listHtml;
+        customerSearchResults.style.display = 'block';
+
+        const itemEls = customerSearchResults.querySelectorAll('.customer-search-item');
+        itemEls.forEach(itemEl => {
+            itemEl.addEventListener('click', function () {
+                const idx = parseInt(this.getAttribute('data-index'), 10);
+                if (currentSearchResults[idx]) {
+                    selectCustomer(currentSearchResults[idx]);
+                    const typeSelect = document.getElementById('typeSelect');
+                    if (typeSelect) typeSelect.focus();
+                }
+            });
+        });
+    }
 
     function performCustomerSearch(query) {
         if (editingBookingId !== null) return;
         const searchUrl = window.APP_ROUTES ? window.APP_ROUTES.customerSearch : '/customers/search';
+        const cacheKey = query.toLowerCase().trim();
+
+        // If in cache, show cached results instantly
+        if (customerSearchCache.has(cacheKey)) {
+            renderCustomerSearchResults(customerSearchCache.get(cacheKey), query);
+        } else {
+            customerSearchResults.innerHTML = `
+                <div class="p-3 text-center text-muted small">
+                    <i class="fa-solid fa-spinner fa-spin me-2"></i> Searching customers...
+                </div>
+            `;
+            customerSearchResults.style.display = 'block';
+        }
 
         if (currentSearchAbortController) {
             currentSearchAbortController.abort();
         }
         currentSearchAbortController = new AbortController();
 
-        customerSearchResults.innerHTML = `
-            <div class="p-3 text-center text-muted small">
-                <i class="fa-solid fa-spinner fa-spin me-2"></i> Searching customers...
-            </div>
-        `;
-        customerSearchResults.style.display = 'block';
-
+        // Still refresh in background once
         fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
             method: 'GET',
             headers: {
@@ -588,81 +677,18 @@ document.addEventListener('DOMContentLoaded', function () {
             return response.json();
         })
         .then(customers => {
-            currentSearchResults = customers;
-            activeCustomerIndex = -1;
-
-            if (!customers || customers.length === 0) {
-                customerSearchResults.innerHTML = `
-                    <div class="p-3 text-center text-muted small">
-                        No customer found &nbsp;
-                        <a href="#" id="linkAddNewCustomer" class="text-primary fw-bold text-decoration-none">
-                            + Add New Customer
-                        </a>
-                    </div>
-                `;
-                const linkAddNew = document.getElementById('linkAddNewCustomer');
-                if (linkAddNew) {
-                    linkAddNew.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        hideCustomerDropdown();
-                        openAddCustomerModal(query);
-                    });
-                }
-                return;
-            }
-
-            let listHtml = '';
-            customers.forEach((c, index) => {
-                const highlightedName = highlightMatch(c.name, query);
-                const highlightedNo = highlightMatch(c.customer_no, query);
-                const highlightedMobile = c.mobile ? highlightMatch(c.mobile, query) : '<span class="text-muted fst-italic">No mobile</span>';
-
-                const avatarHtml = c.profile_image_url
-                    ? `<img src="${escapeHtml(c.profile_image_url)}" alt="${escapeHtml(c.name)}" class="dropdown-party-avatar me-2">`
-                    : `<div class="dropdown-party-avatar-default me-2"><i class="fa-solid fa-user"></i></div>`;
-
-                const supplierBadge = (c.party_type === 'SUPPLIER')
-                    ? `<span class="party-supplier-badge ms-2"><i class="fa-solid fa-truck me-1"></i>Supplier</span>`
-                    : '';
-
-                listHtml += `
-                    <div class="customer-search-item d-flex align-items-center" data-index="${index}">
-                        ${avatarHtml}
-                        <div class="flex-grow-1 min-w-0">
-                            <div class="fw-bold text-dark customer-item-name d-flex align-items-center">
-                                <span class="text-truncate">${highlightedName}</span>
-                                ${supplierBadge}
-                            </div>
-                            <div class="small text-muted d-flex justify-content-between mt-1">
-                                <span><i class="fa-solid fa-id-badge me-1"></i>${highlightedNo}</span>
-                                <span><i class="fa-solid fa-phone me-1"></i>${highlightedMobile}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            customerSearchResults.innerHTML = listHtml;
-
-            const itemEls = customerSearchResults.querySelectorAll('.customer-search-item');
-            itemEls.forEach(itemEl => {
-                itemEl.addEventListener('click', function () {
-                    const idx = parseInt(this.getAttribute('data-index'), 10);
-                    if (currentSearchResults[idx]) {
-                        selectCustomer(currentSearchResults[idx]);
-                        const typeSelect = document.getElementById('typeSelect');
-                        if (typeSelect) typeSelect.focus();
-                    }
-                });
-            });
+            setCustomerSearchCache(cacheKey, customers);
+            renderCustomerSearchResults(customers, query);
         })
         .catch(err => {
             if (err.name === 'AbortError') return;
-            customerSearchResults.innerHTML = `
-                <div class="p-3 text-center text-danger small">
-                    <i class="fa-solid fa-triangle-exclamation me-1"></i> Failed to search. Please try again.
-                </div>
-            `;
+            if (!customerSearchCache.has(cacheKey)) {
+                customerSearchResults.innerHTML = `
+                    <div class="p-3 text-center text-danger small">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i> Failed to search. Please try again.
+                    </div>
+                `;
+            }
         });
     }
 
@@ -706,7 +732,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             searchDebounceTimer = setTimeout(() => {
                 performCustomerSearch(query);
-            }, 300);
+            }, 200);
         });
 
         customerSearchInput.addEventListener('keydown', function (e) {
@@ -814,6 +840,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Additional Information Section Elements
     const btnToggleAdditionalInfo = document.getElementById('btnToggleAdditionalInfo');
+    const iconToggleAdditional = document.getElementById('iconToggleAdditional');
     const additionalInfoSection = document.getElementById('additionalInfoSection');
     const newPartyBirthday = document.getElementById('newPartyBirthday');
     const newPartyAnniversary = document.getElementById('newPartyAnniversary');
@@ -1030,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             parentSearchDebounceTimer = setTimeout(() => {
                 performParentCustomerSearch(query);
-            }, 300);
+            }, 200);
         });
     }
 
@@ -1163,20 +1190,157 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Expand / Collapse Additional Information Section
+     * Set min and max on birthday and anniversary date inputs (min: 1900-01-01, max: today)
      */
-    function expandAdditionalSection() {
-        if (!additionalInfoSection || !btnToggleAdditionalInfo) return;
-        additionalInfoSection.style.display = 'block';
-        isAdditionalSectionExpanded = true;
-        btnToggleAdditionalInfo.innerHTML = '<i class="fa-solid fa-minus me-1" id="iconToggleAdditional"></i> Additional Information';
+    function initPartyDateInputs() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
+
+        if (newPartyBirthday) {
+            newPartyBirthday.min = '1900-01-01';
+            newPartyBirthday.max = todayStr;
+        }
+        if (newPartyAnniversary) {
+            newPartyAnniversary.min = '1900-01-01';
+            newPartyAnniversary.max = todayStr;
+        }
     }
 
-    function collapseAdditionalSection() {
-        if (!additionalInfoSection || !btnToggleAdditionalInfo) return;
-        additionalInfoSection.style.display = 'none';
+    /**
+     * Validate a date input field (year 1900 to current year / not future)
+     * Returns true if valid or empty; false if invalid
+     */
+    function validatePartyDateInput(input, errorElId) {
+        if (!input) return true;
+        const errorEl = document.getElementById(errorElId);
+
+        const showError = () => {
+            input.classList.add('is-invalid');
+            if (errorEl) {
+                errorEl.textContent = 'Enter a valid date (year 1900 to current year)';
+                errorEl.style.display = 'block';
+            }
+        };
+
+        const clearError = () => {
+            input.classList.remove('is-invalid');
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.style.display = 'none';
+            }
+        };
+
+        // If field has invalid input (e.g. 5-digit year or malformed input)
+        if (input.validity && input.validity.badInput) {
+            showError();
+            return false;
+        }
+
+        const val = input.value ? input.value.trim() : '';
+        if (!val) {
+            clearError();
+            return true;
+        }
+
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const parts = val.split('-');
+        const year = parseInt(parts[0], 10);
+
+        if (isNaN(year) || year < 1900 || val > todayStr || (input.validity && (input.validity.rangeUnderflow || input.validity.rangeOverflow))) {
+            showError();
+            return false;
+        }
+
+        clearError();
+        return true;
+    }
+
+    /**
+     * Expand / Collapse Additional Information Section with smooth animation (~250ms)
+     * Does not leave a fixed max-height or overflow: hidden after fully opened.
+     */
+    function expandAdditionalSection() {
+        if (!additionalInfoSection) return;
+        isAdditionalSectionExpanded = true;
+        if (btnToggleAdditionalInfo) {
+            btnToggleAdditionalInfo.classList.add('expanded');
+        }
+        if (iconToggleAdditional) {
+            iconToggleAdditional.classList.remove('fa-plus');
+            iconToggleAdditional.classList.add('fa-minus');
+        }
+
+        additionalInfoSection.style.overflow = 'hidden';
+        additionalInfoSection.style.maxHeight = '';
+        additionalInfoSection.classList.add('expanded');
+
+        const onTransitionEnd = function (e) {
+            if (e && e.target !== additionalInfoSection) return;
+            additionalInfoSection.removeEventListener('transitionend', onTransitionEnd);
+            if (isAdditionalSectionExpanded) {
+                additionalInfoSection.style.maxHeight = 'none';
+                additionalInfoSection.style.overflow = 'visible';
+            }
+        };
+        additionalInfoSection.addEventListener('transitionend', onTransitionEnd);
+        setTimeout(() => {
+            if (isAdditionalSectionExpanded && additionalInfoSection.style.maxHeight !== 'none') {
+                onTransitionEnd();
+            }
+        }, 300);
+
+        // Smoothly scroll modal body so the heading comes into view
+        const headingEl = additionalInfoSection.querySelector('.additional-divider-wrapper') || additionalInfoSection;
+        if (headingEl) {
+            setTimeout(() => {
+                headingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 60);
+        }
+    }
+
+    function collapseAdditionalSection(immediate = false) {
+        if (!additionalInfoSection) return;
         isAdditionalSectionExpanded = false;
-        btnToggleAdditionalInfo.innerHTML = '<i class="fa-solid fa-plus me-1" id="iconToggleAdditional"></i> Additional Information';
+        if (btnToggleAdditionalInfo) {
+            btnToggleAdditionalInfo.classList.remove('expanded');
+        }
+        if (iconToggleAdditional) {
+            iconToggleAdditional.classList.remove('fa-minus');
+            iconToggleAdditional.classList.add('fa-plus');
+        }
+
+        if (immediate) {
+            additionalInfoSection.classList.remove('expanded');
+            additionalInfoSection.style.maxHeight = '';
+            additionalInfoSection.style.overflow = '';
+            return;
+        }
+
+        additionalInfoSection.style.overflow = 'hidden';
+        additionalInfoSection.style.maxHeight = additionalInfoSection.scrollHeight + 'px';
+        void additionalInfoSection.offsetHeight;
+
+        additionalInfoSection.classList.remove('expanded');
+        additionalInfoSection.style.maxHeight = '0px';
+
+        const onCollapseEnd = function (e) {
+            if (e && e.target !== additionalInfoSection) return;
+            additionalInfoSection.removeEventListener('transitionend', onCollapseEnd);
+            if (!isAdditionalSectionExpanded) {
+                additionalInfoSection.style.maxHeight = '';
+                additionalInfoSection.style.overflow = '';
+            }
+        };
+        additionalInfoSection.addEventListener('transitionend', onCollapseEnd);
+        setTimeout(() => {
+            if (!isAdditionalSectionExpanded) {
+                onCollapseEnd();
+            }
+        }, 300);
     }
 
     if (btnToggleAdditionalInfo) {
@@ -1196,6 +1360,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (editingBookingId !== null) return;
         resetAddCustomerModalErrors();
         initStatesDropdown();
+        initPartyDateInputs();
 
         if (!selectedCustomer) {
             if (prefillName && typeof prefillName === 'string') {
@@ -1231,8 +1396,9 @@ document.addEventListener('DOMContentLoaded', function () {
         clearShopLogoSelection();
         clearParentCustomerSelection();
         setPartyType('CUSTOMER');
-        collapseAdditionalSection();
+        collapseAdditionalSection(true);
         renderDistrictField('');
+        initPartyDateInputs();
     }
 
     if (btnOpenAddCustomerModal) {
@@ -1280,6 +1446,25 @@ document.addEventListener('DOMContentLoaded', function () {
     if (newPartyGst) {
         newPartyGst.addEventListener('input', function () {
             this.value = this.value.toUpperCase().slice(0, 15);
+        });
+    }
+
+    // Birthday and anniversary date inputs change and blur validation
+    if (newPartyBirthday) {
+        newPartyBirthday.addEventListener('change', function () {
+            validatePartyDateInput(newPartyBirthday, 'errorNewPartyBirthday');
+        });
+        newPartyBirthday.addEventListener('blur', function () {
+            validatePartyDateInput(newPartyBirthday, 'errorNewPartyBirthday');
+        });
+    }
+
+    if (newPartyAnniversary) {
+        newPartyAnniversary.addEventListener('change', function () {
+            validatePartyDateInput(newPartyAnniversary, 'errorNewPartyAnniversary');
+        });
+        newPartyAnniversary.addEventListener('blur', function () {
+            validatePartyDateInput(newPartyAnniversary, 'errorNewPartyAnniversary');
         });
     }
 
@@ -1340,6 +1525,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (parentCustomerSearchInput) {
                     parentCustomerSearchInput.classList.add('is-invalid');
                     parentCustomerSearchInput.focus();
+                }
+                return;
+            }
+
+            // Validate birthday and anniversary dates
+            const isBirthdayValid = validatePartyDateInput(newPartyBirthday, 'errorNewPartyBirthday');
+            const isAnniversaryValid = validatePartyDateInput(newPartyAnniversary, 'errorNewPartyAnniversary');
+
+            if (!isBirthdayValid || !isAnniversaryValid) {
+                expandAdditionalSection();
+                if (!isBirthdayValid && newPartyBirthday) {
+                    newPartyBirthday.focus();
+                } else if (!isAnniversaryValid && newPartyAnniversary) {
+                    newPartyAnniversary.focus();
                 }
                 return;
             }
@@ -1551,6 +1750,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const labelRate = document.getElementById('labelRate');
 
     /**
+     * Return rate unit label from config: 10 -> "(/10GM)", 1 -> "(/GM)", any other n -> "(/nGM)"
+     */
+    function getRateUnitLabel() {
+        const unit = (window.BHAV_CONFIG && window.BHAV_CONFIG.rate_unit_grams) ? window.BHAV_CONFIG.rate_unit_grams : 10;
+        return unit == 1 ? '(/GM)' : `(/${unit}GM)`;
+    }
+
+    /**
      * Set active trade mode in UI and form hidden input.
      * Updates sliding pill container data-mode/classes (green for BUY, coral/red for SELL).
      * Why: Safe to call programmatically from edit mode without triggering auto-focus or dropdown.
@@ -1569,16 +1776,19 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
+        const unitLabel = getRateUnitLabel();
         if (mode === 'BUY') {
             btnBuy.classList.add('active');
             btnSell.classList.remove('active');
             if (labelWeight) labelWeight.textContent = 'BUY WEIGHT :';
-            if (labelRate) labelRate.textContent = 'BUY RATE (/10GM) :';
+            if (labelRate) labelRate.textContent = `BUY RATE ${unitLabel} :`;
+            if (labelPayment) labelPayment.textContent = 'GIVEN :';
         } else {
             btnSell.classList.add('active');
             btnBuy.classList.remove('active');
             if (labelWeight) labelWeight.textContent = 'SELL WEIGHT :';
-            if (labelRate) labelRate.textContent = 'SELL RATE (/10GM) :';
+            if (labelRate) labelRate.textContent = `SELL RATE ${unitLabel} :`;
+            if (labelPayment) labelPayment.textContent = 'RECEIVED :';
         }
     }
 
@@ -1634,6 +1844,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const weightError = document.getElementById('weightError');
     const rateError = document.getElementById('rateError');
+
+    // Payment Section State & DOM Elements
+    let bookingPayments = [];
+    let nextPaymentId = 1;
+    let currentPaymentMode = 'CASH';
+
+    const labelPayment = document.getElementById('labelPayment');
+    const paymentModeToggle = document.getElementById('paymentModeToggle');
+    const paymentModeTogglePill = document.getElementById('paymentModeTogglePill');
+    const btnPaymentCash = document.getElementById('btnPaymentCash');
+    const btnPaymentOnline = document.getElementById('btnPaymentOnline');
+    const paymentOnlineFields = document.getElementById('paymentOnlineFields');
+    const paymentOnlineMethod = document.getElementById('paymentOnlineMethod');
+    const paymentRefNo = document.getElementById('paymentRefNo');
+    const inputPaymentAmount = document.getElementById('inputPaymentAmount');
+    const btnAddPayment = document.getElementById('btnAddPayment');
+    const paymentError = document.getElementById('paymentError');
+
+    const paymentEntriesRowWrapper = document.getElementById('paymentEntriesRowWrapper');
+    const paymentEntriesTableBody = document.getElementById('paymentEntriesTableBody');
+    const paymentEntriesCountBadge = document.getElementById('paymentEntriesCountBadge');
+
+    const paymentSummaryRow = document.getElementById('paymentSummaryRow');
+    const paymentSummaryBox = document.getElementById('paymentSummaryBox');
+    const paymentSummaryPaid = document.getElementById('paymentSummaryPaid');
+    const paymentSummaryBalance = document.getElementById('paymentSummaryBalance');
 
     // Initialize metal and default rate from BHAV_CONFIG
     if (categorySelect) {
@@ -1710,6 +1946,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (inputAmount && hiddenAmount) {
             hiddenAmount.value = totals.grandAmount.toFixed(2);
             inputAmount.value = formatIndianCurrency(totals.grandAmount);
+        }
+
+        // Update Payment Summary & Validation
+        if (typeof updatePaymentSummary === 'function') {
+            updatePaymentSummary(totals.grandAmount);
         }
     }
 
@@ -2063,6 +2304,344 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // =========================================================================
+    // 7B. PAYMENT SECTION & ENTRIES
+    // Cash / Online mode toggle, multi-payment entries, inline edit, summary line
+    // =========================================================================
+
+    /**
+     * Compute total payments and balance:
+     * - Paid: sum of all confirmed rows in bookingPayments + currently typed payment amount (if > 0)
+     * - Balance: booking grand total - total paid
+     */
+    function calculatePaymentTotals(bookingGrandTotal) {
+        let confirmedPaid = 0;
+        for (const p of bookingPayments) {
+            confirmedPaid += parseFloat(p.amount) || 0;
+        }
+        confirmedPaid = Math.round(confirmedPaid * 100) / 100;
+
+        const curPayAmt = parseFloat(inputPaymentAmount ? inputPaymentAmount.value : 0) || 0;
+        const totalPaid = Math.round((confirmedPaid + curPayAmt) * 100) / 100;
+        const balance = Math.round((bookingGrandTotal - totalPaid) * 100) / 100;
+
+        return {
+            confirmedPaid,
+            curPayAmt,
+            totalPaid,
+            balance
+        };
+    }
+
+    /**
+     * Update summary line: "Paid: ₹x  |  Balance: ₹y"
+     * Balance in red if > 0, green if 0.
+     * Also checks if total drops below paid (e.g. when weights/rates change).
+     */
+    function updatePaymentSummary(bookingGrandTotal) {
+        const payTotals = calculatePaymentTotals(bookingGrandTotal);
+
+        if (paymentSummaryPaid) {
+            paymentSummaryPaid.textContent = `₹${formatIndianCurrency(payTotals.totalPaid)}`;
+        }
+
+        if (paymentSummaryBalance) {
+            paymentSummaryBalance.textContent = `₹${formatIndianCurrency(Math.max(0, payTotals.balance))}`;
+            if (payTotals.balance > 0) {
+                paymentSummaryBalance.className = 'text-danger';
+            } else {
+                paymentSummaryBalance.className = 'text-success';
+            }
+        }
+
+        // Frontend check: total paid must not exceed booking total amount
+        if (payTotals.totalPaid > bookingGrandTotal && bookingGrandTotal >= 0 && payTotals.totalPaid > 0) {
+            if (paymentError) {
+                paymentError.textContent = `Payment cannot be more than booking amount ₹${formatIndianCurrency(bookingGrandTotal)}`;
+                paymentError.style.display = 'block';
+            }
+            if (inputPaymentAmount && payTotals.curPayAmt > 0) {
+                inputPaymentAmount.classList.add('is-invalid');
+            }
+        } else {
+            if (paymentError && paymentError.textContent.startsWith('Payment cannot be more than')) {
+                paymentError.textContent = '';
+                paymentError.style.display = 'none';
+                if (inputPaymentAmount) inputPaymentAmount.classList.remove('is-invalid');
+            }
+        }
+    }
+
+    /**
+     * Switch payment mode between CASH and ONLINE.
+     * Cash = green, Online = blue. Shows/hides method & ref inputs.
+     */
+    function setPaymentMode(mode) {
+        currentPaymentMode = mode;
+        if (paymentModeToggle) {
+            paymentModeToggle.setAttribute('data-mode', mode);
+            if (mode === 'CASH') {
+                paymentModeToggle.classList.add('mode-cash');
+                paymentModeToggle.classList.remove('mode-online');
+            } else {
+                paymentModeToggle.classList.add('mode-online');
+                paymentModeToggle.classList.remove('mode-cash');
+            }
+        }
+
+        if (btnPaymentCash && btnPaymentOnline) {
+            if (mode === 'CASH') {
+                btnPaymentCash.classList.add('active');
+                btnPaymentOnline.classList.remove('active');
+            } else {
+                btnPaymentOnline.classList.add('active');
+                btnPaymentCash.classList.remove('active');
+            }
+        }
+
+        if (paymentOnlineFields) {
+            if (mode === 'ONLINE') {
+                paymentOnlineFields.classList.remove('d-none');
+                paymentOnlineFields.classList.add('d-flex');
+            } else {
+                paymentOnlineFields.classList.remove('d-flex');
+                paymentOnlineFields.classList.add('d-none');
+            }
+        }
+    }
+
+    if (btnPaymentCash) {
+        btnPaymentCash.addEventListener('click', function (e) {
+            e.preventDefault();
+            setPaymentMode('CASH');
+        });
+    }
+
+    if (btnPaymentOnline) {
+        btnPaymentOnline.addEventListener('click', function (e) {
+            e.preventDefault();
+            setPaymentMode('ONLINE');
+        });
+    }
+
+    /**
+     * Add current payment line as an entry in bookingPayments
+     */
+    function addPaymentEntryRow() {
+        const amtVal = parseFloat(inputPaymentAmount ? inputPaymentAmount.value : 0);
+        const bookingTotals = calculateTotals();
+        const bookingGrandTotal = bookingTotals.grandAmount;
+
+        let confirmedPaid = 0;
+        for (const p of bookingPayments) {
+            confirmedPaid += parseFloat(p.amount) || 0;
+        }
+
+        if (!amtVal || isNaN(amtVal) || amtVal <= 0) {
+            if (paymentError) {
+                paymentError.textContent = 'Payment amount must be greater than 0.';
+                paymentError.style.display = 'block';
+            }
+            if (inputPaymentAmount) {
+                inputPaymentAmount.classList.add('is-invalid');
+                inputPaymentAmount.focus();
+            }
+            return false;
+        }
+
+        const roundedAmt = Math.round(amtVal * 100) / 100;
+        if (Math.round((confirmedPaid + roundedAmt) * 100) / 100 > bookingGrandTotal) {
+            if (paymentError) {
+                paymentError.textContent = `Payment cannot be more than booking amount ₹${formatIndianCurrency(bookingGrandTotal)}`;
+                paymentError.style.display = 'block';
+            }
+            if (inputPaymentAmount) {
+                inputPaymentAmount.classList.add('is-invalid');
+                inputPaymentAmount.focus();
+            }
+            return false;
+        }
+
+        if (paymentError) {
+            paymentError.textContent = '';
+            paymentError.style.display = 'none';
+        }
+        if (inputPaymentAmount) inputPaymentAmount.classList.remove('is-invalid');
+
+        const mode = currentPaymentMode;
+        const onlineMethod = mode === 'ONLINE' ? (paymentOnlineMethod ? paymentOnlineMethod.value : 'UPI') : null;
+        const refNo = mode === 'ONLINE' ? (paymentRefNo ? paymentRefNo.value.trim() : null) : null;
+
+        bookingPayments.push({
+            id: nextPaymentId++,
+            mode: mode,
+            online_method: onlineMethod,
+            reference_no: refNo,
+            amount: roundedAmt
+        });
+
+        // Clears the amount, keeps the selected mode, focuses the amount again
+        if (inputPaymentAmount) {
+            inputPaymentAmount.value = '';
+            inputPaymentAmount.focus();
+        }
+
+        renderPaymentEntriesTable();
+        updateAllTotals();
+        return true;
+    }
+
+    // Add Payment Plus button click
+    if (btnAddPayment) {
+        btnAddPayment.addEventListener('click', function (e) {
+            e.preventDefault();
+            addPaymentEntryRow();
+        });
+    }
+
+    // Payment Amount input input/blur/enter handlers
+    if (inputPaymentAmount) {
+        inputPaymentAmount.addEventListener('input', function () {
+            let val = this.value;
+            val = val.replace(/[^0-9.]/g, '');
+            const parts = val.split('.');
+            if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+            if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2);
+            this.value = val;
+
+            if (paymentError && parseFloat(val) > 0 && !paymentError.textContent.startsWith('Payment cannot be more than')) {
+                paymentError.style.display = 'none';
+                this.classList.remove('is-invalid');
+            }
+
+            updateAllTotals();
+        });
+
+        inputPaymentAmount.addEventListener('blur', function () {
+            const val = this.value.trim();
+            if (val !== '' && !isNaN(val)) {
+                const num = parseFloat(val);
+                if (num >= 0) this.value = num.toFixed(2);
+            }
+            updateAllTotals();
+        });
+
+        inputPaymentAmount.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const curVal = parseFloat(this.value) || 0;
+                if (curVal > 0) {
+                    addPaymentEntryRow();
+                } else if (inputNarration) {
+                    inputNarration.focus();
+                }
+            }
+        });
+    }
+
+    /**
+     * Render Payment Entries mini-table from single source of truth (bookingPayments)
+     */
+    function renderPaymentEntriesTable() {
+        if (!paymentEntriesTableBody || !paymentEntriesRowWrapper) return;
+
+        if (bookingPayments.length === 0) {
+            paymentEntriesRowWrapper.style.display = 'none';
+            paymentEntriesTableBody.innerHTML = '';
+            updateAllTotals();
+            return;
+        }
+
+        paymentEntriesRowWrapper.style.display = 'flex';
+        if (paymentEntriesCountBadge) {
+            paymentEntriesCountBadge.textContent = bookingPayments.length;
+        }
+
+        let rowsHtml = '';
+        bookingPayments.forEach((p, index) => {
+            const aVal = parseFloat(p.amount).toFixed(2);
+            const isCash = (p.mode || '').toUpperCase() === 'CASH';
+            const modeBadge = isCash
+                ? '<span class="badge-payment-cash"><i class="fa-solid fa-money-bill-wave"></i> Cash</span>'
+                : `<span class="badge-payment-online"><i class="fa-solid fa-globe"></i> ${escapeHtml(p.online_method || 'Online')}${p.reference_no ? ' • ' + escapeHtml(p.reference_no) : ''}</span>`;
+
+            rowsHtml += `
+                <tr class="payment-entry-row" data-id="${p.id}">
+                    <td class="text-center text-muted fw-bold col-entry-sn" style="width: 35px;">${index + 1}</td>
+                    <td class="text-start py-1">${modeBadge}</td>
+                    <td class="py-1" style="width: 140px;">
+                        <input type="text"
+                               inputmode="decimal"
+                               class="entry-cell-input row-input-payment-amount text-end fw-bold"
+                               data-id="${p.id}"
+                               value="${aVal}"
+                               title="Edit amount">
+                    </td>
+                    <td class="text-center col-entry-del py-1" style="width: 35px;">
+                        <button type="button"
+                                class="btn-delete-entry-row btn-delete-payment-row"
+                                data-id="${p.id}"
+                                title="Delete payment"
+                                aria-label="Delete payment">
+                            <i class="fa-solid fa-trash-can text-danger"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        paymentEntriesTableBody.innerHTML = rowsHtml;
+        attachPaymentRowListeners();
+        updateAllTotals();
+    }
+
+    function attachPaymentRowListeners() {
+        if (!paymentEntriesTableBody) return;
+
+        // Inline amount editing
+        const amtInputs = paymentEntriesTableBody.querySelectorAll('.row-input-payment-amount');
+        amtInputs.forEach(input => {
+            input.addEventListener('input', function () {
+                const payId = parseInt(this.getAttribute('data-id'), 10);
+                const payment = bookingPayments.find(p => p.id === payId);
+                if (!payment) return;
+
+                let val = this.value.replace(/[^0-9.]/g, '');
+                const parts = val.split('.');
+                if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+                if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2);
+                this.value = val;
+
+                const parsed = parseFloat(val) || 0;
+                payment.amount = parsed;
+                this.classList.remove('is-invalid');
+                updateAllTotals();
+            });
+
+            input.addEventListener('blur', function () {
+                const payId = parseInt(this.getAttribute('data-id'), 10);
+                const payment = bookingPayments.find(p => p.id === payId);
+                if (payment) {
+                    this.value = parseFloat(payment.amount || 0).toFixed(2);
+                }
+                updateAllTotals();
+            });
+        });
+
+        // Delete button for payment rows
+        const deleteButtons = paymentEntriesTableBody.querySelectorAll('.btn-delete-payment-row');
+        deleteButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const payId = parseInt(this.getAttribute('data-id'), 10);
+                const pIndex = bookingPayments.findIndex(p => p.id === payId);
+                if (pIndex !== -1) {
+                    bookingPayments.splice(pIndex, 1);
+                    renderPaymentEntriesTable();
+                }
+            });
+        });
+    }
+
     // Initial total calculation on load
     updateAllTotals();
 
@@ -2178,6 +2757,12 @@ document.addEventListener('DOMContentLoaded', function () {
             entriesGlobalError.style.display = 'none';
         }
 
+        if (paymentError) {
+            paymentError.textContent = '';
+            paymentError.style.display = 'none';
+        }
+        if (inputPaymentAmount) inputPaymentAmount.classList.remove('is-invalid');
+
         const tableInputs = entriesTableBody ? entriesTableBody.querySelectorAll('.entry-cell-input') : [];
         tableInputs.forEach(input => input.classList.remove('is-invalid'));
     }
@@ -2188,6 +2773,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * - Clear weight
      * - Clear narration
      * - WhatsApp off
+     * - Reset payments
      * - KEEP BUY/SELL mode, metal and rate
      * - Generate new request_token
      * - Focus customer input
@@ -2196,6 +2782,14 @@ document.addEventListener('DOMContentLoaded', function () {
         clearCustomerSelection();
         bookingItems = [];
         renderEntriesTable();
+
+        bookingPayments = [];
+        nextPaymentId = 1;
+        renderPaymentEntriesTable();
+        setPaymentMode('CASH');
+        if (inputPaymentAmount) inputPaymentAmount.value = '';
+        if (paymentRefNo) paymentRefNo.value = '';
+        if (paymentOnlineMethod) paymentOnlineMethod.value = 'UPI';
 
         if (inputWeight) inputWeight.value = '';
         if (inputNarration) inputNarration.value = '';
@@ -2270,6 +2864,32 @@ document.addEventListener('DOMContentLoaded', function () {
             amtEl.textContent = `₹${formatIndianCurrency(savedBooking.total_amount || 0)}`;
         }
 
+        const payRowEl = document.getElementById('successPaymentRow');
+        const payTextEl = document.getElementById('successPaymentText');
+        const payments = Array.isArray(savedBooking.payments) ? savedBooking.payments : [];
+        let cashAmt = 0;
+        let onlineAmt = 0;
+        payments.forEach(p => {
+            const amt = parseFloat(p.amount) || 0;
+            if ((p.mode || '').toUpperCase() === 'CASH') {
+                cashAmt += amt;
+            } else {
+                onlineAmt += amt;
+            }
+        });
+        const totalPaid = Math.round((cashAmt + onlineAmt) * 100) / 100;
+
+        if (payRowEl && payTextEl) {
+            if (totalPaid > 0) {
+                payRowEl.style.removeProperty('display');
+                payRowEl.classList.remove('d-none');
+                payRowEl.style.display = 'flex';
+                payTextEl.textContent = `Paid: ₹${formatIndianCurrency(totalPaid)} (Cash ₹${formatIndianCurrency(cashAmt)} + Online ₹${formatIndianCurrency(onlineAmt)})`;
+            } else {
+                payRowEl.style.display = 'none';
+            }
+        }
+
         if (btnPrint) {
             btnPrint.onclick = function () {
                 window.open(getRoute('bhavBookingPrint', savedBooking.id), '_blank');
@@ -2296,6 +2916,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const onModalHidden = function () {
                 modalEl.removeEventListener('keydown', onModalKeydown);
                 modalEl.removeEventListener('hidden.bs.modal', onModalHidden);
+                if (payRowEl) payRowEl.style.display = 'none';
 
                 // Focus customer search and open recent customers dropdown after modal closes
                 if (customerSearchInput) {
@@ -2330,6 +2951,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderEntriesTable();
             }
 
+            // Auto-treat typed payment amount as one entry with current mode if "+" was not clicked
+            const typedPayAmt = parseFloat(inputPaymentAmount ? inputPaymentAmount.value : 0) || 0;
+            if (typedPayAmt > 0) {
+                const valStr = inputPaymentAmount.value.trim();
+                const decMatch = valStr.match(/\.(\d+)$/);
+                if (decMatch && decMatch[1].length > 2) {
+                    if (paymentError) {
+                        paymentError.textContent = 'Payment amount can have at most 2 decimals.';
+                        paymentError.style.display = 'block';
+                    }
+                    if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
+                    inputPaymentAmount.focus();
+                    return;
+                }
+                bookingPayments.push({
+                    id: nextPaymentId++,
+                    mode: currentPaymentMode,
+                    online_method: currentPaymentMode === 'ONLINE' ? (paymentOnlineMethod ? paymentOnlineMethod.value : 'UPI') : null,
+                    reference_no: currentPaymentMode === 'ONLINE' && paymentRefNo && paymentRefNo.value.trim() ? paymentRefNo.value.trim() : null,
+                    amount: typedPayAmt
+                });
+                inputPaymentAmount.value = '';
+                if (paymentRefNo) paymentRefNo.value = '';
+                renderPaymentEntriesTable();
+            }
+
             let isValid = true;
             let firstInvalidField = null;
 
@@ -2362,6 +3009,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 isValid = false;
             }
 
+            // 4. Validate total payments do not exceed booking total amount
+            let totalConfirmedPaid = 0;
+            for (const p of bookingPayments) {
+                totalConfirmedPaid += parseFloat(p.amount) || 0;
+            }
+            totalConfirmedPaid = Math.round(totalConfirmedPaid * 100) / 100;
+
+            const itemTotals = calculateCurrentTotals();
+            const grandTotalAmount = itemTotals.grandAmount;
+
+            if (totalConfirmedPaid > grandTotalAmount && grandTotalAmount >= 0) {
+                const formattedBookingAmt = formatIndianCurrency(grandTotalAmount);
+                if (paymentError) {
+                    paymentError.textContent = `Payment cannot be more than booking amount ₹${formattedBookingAmt}`;
+                    paymentError.style.display = 'block';
+                }
+                if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
+                isValid = false;
+                if (!firstInvalidField) firstInvalidField = inputPaymentAmount;
+            }
+
             if (!isValid) {
                 if (firstInvalidField) firstInvalidField.focus();
                 return;
@@ -2382,6 +3050,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 items: bookingItems.map(item => ({
                     weight: parseFloat(item.weight),
                     rate: parseFloat(item.rate)
+                })),
+                payments: bookingPayments.map(p => ({
+                    mode: p.mode,
+                    online_method: p.mode === 'ONLINE' ? (p.online_method || 'UPI') : null,
+                    reference_no: p.mode === 'ONLINE' && p.reference_no ? p.reference_no : null,
+                    amount: parseFloat(p.amount)
                 })),
                 narration: inputNarration ? inputNarration.value.trim() : null,
                 send_whatsapp: whatsappSwitch ? whatsappSwitch.checked : false
@@ -2494,6 +3168,22 @@ document.addEventListener('DOMContentLoaded', function () {
         if (errors.narration && inputNarration) {
             inputNarration.classList.add('is-invalid');
         }
+
+        if (errors.payments && paymentError) {
+            paymentError.textContent = errors.payments[0];
+            paymentError.style.display = 'block';
+            if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
+        }
+
+        Object.keys(errors).forEach(key => {
+            if (key.startsWith('payments.') && paymentError) {
+                if (!paymentError.textContent) {
+                    paymentError.textContent = errors[key][0];
+                    paymentError.style.display = 'block';
+                }
+                if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
+            }
+        });
     }
 
     // =========================================================================
@@ -2579,6 +3269,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // DOM Elements: Filters
     const filterPartyInput = document.getElementById('filterPartyInput');
+    const filterTradeSelect = document.getElementById('filterTradeSelect');
     const filterMetalSelect = document.getElementById('filterMetalSelect');
     const filterTypeSelect = document.getElementById('filterTypeSelect');
     const pageSizeSelect = document.getElementById('pageSizeSelect');
@@ -2595,7 +3286,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const customDateError = document.getElementById('customDateError');
 
     // DOM Elements: Table & Totals & Pagination
+    const bhavBookingTable = document.getElementById('bhavBookingTable');
     const bhavTableBody = document.getElementById('bhavTableBody');
+    const tableLoadingBar = document.getElementById('tableLoadingBar');
+    let isFirstBookingListLoad = true;
     const listPaginationInfo = document.getElementById('listPaginationInfo');
     const listPaginationLinks = document.getElementById('listPaginationLinks');
 
@@ -2629,23 +3323,67 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
+     * Get visible column count based on active trade filter (8 when Buy or Sell, 11 when All)
+     */
+    function getVisibleColumnCount() {
+        const tradeVal = filterTradeSelect ? filterTradeSelect.value : 'ALL';
+        return (tradeVal === 'BUY' || tradeVal === 'SELL') ? 8 : 11;
+    }
+
+    /**
+     * Apply trade column visibility classes to the table
+     */
+    function applyTradeColumnVisibility(tradeType) {
+        if (!bhavBookingTable) return;
+        bhavBookingTable.classList.remove('show-buy-only', 'show-sell-only');
+        if (tradeType === 'BUY') {
+            bhavBookingTable.classList.add('show-buy-only');
+        } else if (tradeType === 'SELL') {
+            bhavBookingTable.classList.add('show-sell-only');
+        }
+    }
+
+    /**
+     * Format server ISO/SQL datetime string into two compact lines:
+     * Line 1: DD-MM-YYYY (12px)
+     * Line 2: hh:mm AM/PM (10px grey)
+     */
+    function formatDateTimeTwoLines(dateString) {
+        if (!dateString) return '<span class="text-muted opacity-50">–</span>';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return `<div>${escapeHtml(dateString)}</div>`;
+
+        const day = pad2(d.getDate());
+        const month = pad2(d.getMonth() + 1);
+        const year = d.getFullYear();
+
+        let hours = d.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = pad2(d.getMinutes());
+
+        return `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
+               `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${pad2(hours)}:${minutes} ${ampm}</div>`;
+    }
+
+    /**
      * Format metal weights for totals footer:
      * Never add Gold and Silver weights together!
-     * If only one metal has weight: "x gm"
-     * If both have weight: "G: x gm" and "S: y gm"
+     * Format as two lines: "G: x gm" and "S: y gm" (nowrap)
      */
     function formatMetalWeightTotal(goldWeight, silverWeight) {
         const g = parseFloat(goldWeight) || 0;
         const s = parseFloat(silverWeight) || 0;
 
         if (g > 0 && s > 0) {
-            return `<div>G: ${g.toFixed(3)} gm</div><div>S: ${s.toFixed(3)} gm</div>`;
+            return `<div class="text-nowrap" style="line-height: 1.25;">G: ${g.toFixed(3)} gm</div><div class="text-nowrap" style="line-height: 1.25;">S: ${s.toFixed(3)} gm</div>`;
         } else if (g > 0) {
-            return `${g.toFixed(3)} gm`;
+            return `<div class="text-nowrap" style="line-height: 1.25;">G: ${g.toFixed(3)} gm</div>`;
         } else if (s > 0) {
-            return `${s.toFixed(3)} gm`;
+            return `<div class="text-nowrap" style="line-height: 1.25;">S: ${s.toFixed(3)} gm</div>`;
         } else {
-            return `0.000 gm`;
+            return `<div class="text-nowrap" style="line-height: 1.25;">0.000 gm</div>`;
         }
     }
 
@@ -2653,12 +3391,12 @@ document.addEventListener('DOMContentLoaded', function () {
      * Reset table footer aggregate totals to zero
      */
     function resetTotalsToZero() {
-        if (totalBuyWt) totalBuyWt.textContent = '0.000 gm';
+        if (totalBuyWt) totalBuyWt.innerHTML = '<div class="text-nowrap" style="line-height: 1.25;">0.000 gm</div>';
         if (totalBuyAmt) totalBuyAmt.textContent = '₹0.00';
-        if (totalSellWt) totalSellWt.textContent = '0.000 gm';
+        if (totalSellWt) totalSellWt.innerHTML = '<div class="text-nowrap" style="line-height: 1.25;">0.000 gm</div>';
         if (totalSellAmt) totalSellAmt.textContent = '₹0.00';
-        if (totalGiven) totalGiven.textContent = 'G: ₹0.00';
-        if (totalReceived) totalReceived.textContent = 'R: ₹0.00';
+        if (totalGiven) totalGiven.innerHTML = '<div class="text-danger fw-bold text-nowrap" style="line-height: 1.25;">G: ₹0.00</div>';
+        if (totalReceived) totalReceived.innerHTML = '<div class="text-success fw-bold text-nowrap" style="line-height: 1.25;">R: ₹0.00</div>';
     }
 
     /**
@@ -2685,10 +3423,10 @@ document.addEventListener('DOMContentLoaded', function () {
             totalSellAmt.textContent = '₹' + formatIndianCurrency(totals.sell_amount || 0);
         }
         if (totalGiven) {
-            totalGiven.textContent = 'G: ₹' + formatIndianCurrency(totals.given_total || 0);
+            totalGiven.innerHTML = `<div class="text-danger fw-bold text-nowrap" style="line-height: 1.25;">G: ₹${formatIndianCurrency(totals.given_total || 0)}</div>`;
         }
         if (totalReceived) {
-            totalReceived.textContent = 'R: ₹' + formatIndianCurrency(totals.received_total || 0);
+            totalReceived.innerHTML = `<div class="text-success fw-bold text-nowrap" style="line-height: 1.25;">R: ₹${formatIndianCurrency(totals.received_total || 0)}</div>`;
         }
     }
 
@@ -2697,9 +3435,10 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function renderLoadingState() {
         if (!bhavTableBody) return;
+        const colCount = getVisibleColumnCount();
         bhavTableBody.innerHTML = `
             <tr class="table-loading-row">
-                <td colspan="11" class="py-5 text-center text-muted">
+                <td colspan="${colCount}" class="py-5 text-center text-muted">
                     <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
@@ -2714,12 +3453,13 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function renderErrorState(message) {
         if (!bhavTableBody) return;
+        const colCount = getVisibleColumnCount();
         resetTotalsToZero();
         renderPagination({ current_page: 1, per_page: 10, total: 0, last_page: 1, from: 0, to: 0 });
 
         bhavTableBody.innerHTML = `
             <tr class="table-error-row">
-                <td colspan="11" class="py-4 text-center text-danger">
+                <td colspan="${colCount}" class="py-4 text-center text-danger">
                     <i class="fa-solid fa-triangle-exclamation fa-2x mb-2 d-block opacity-75"></i>
                     <div class="fw-semibold mb-2">${escapeHtml(message || 'Failed to load bookings.')}</div>
                     <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" id="btnRetryList">
@@ -2742,10 +3482,11 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function renderEmptyState() {
         if (!bhavTableBody) return;
+        const colCount = getVisibleColumnCount();
         resetTotalsToZero();
         bhavTableBody.innerHTML = `
             <tr class="table-empty-row">
-                <td colspan="11" class="py-5 text-center text-muted">
+                <td colspan="${colCount}" class="py-5 text-center text-muted">
                     <i class="fa-regular fa-folder-open fa-3x text-secondary opacity-50 mb-2 d-block"></i>
                     <span class="fw-semibold">No Records Found</span>
                 </td>
@@ -2771,7 +3512,7 @@ document.addEventListener('DOMContentLoaded', function () {
         rows.forEach((booking, index) => {
             lastLoadedBookingsMap[booking.id] = booking;
             const sn = startFrom + index;
-            const dateTimeStr = formatDateTimeDisplay(booking.booked_at);
+            const dateTimeHtml = formatDateTimeTwoLines(booking.booked_at);
 
             // Customer details & badges
             const customer = booking.customer || {};
@@ -2787,19 +3528,28 @@ document.addEventListener('DOMContentLoaded', function () {
             const isOnlyEntry = (booking.entry_type || '').toUpperCase() === 'ONLY_ENTRY';
             const typeBadge = isOnlyEntry
                 ? `<span class="badge-type-entry">Only Entry</span>`
-                : `<span class="badge-type-ledger">Bhav Cut + Ledger</span>`;
+                : `<span class="badge-type-ledger">Bhav+Ledger</span>`;
 
             const statusUpper = (booking.status || 'PENDING').toUpperCase();
             let statusBadgeClass = 'badge-status-pending';
-            if (statusUpper === 'PARTIAL') statusBadgeClass = 'badge-status-partial';
-            else if (statusUpper === 'DELIVERED') statusBadgeClass = 'badge-status-delivered';
-            else if (statusUpper === 'CANCELLED') statusBadgeClass = 'badge-status-cancelled';
+            let statusText = 'Pending';
+            if (statusUpper === 'PARTIAL') {
+                statusBadgeClass = 'badge-status-partial';
+                statusText = 'Partial';
+            } else if (statusUpper === 'DELIVERED') {
+                statusBadgeClass = 'badge-status-delivered';
+                statusText = 'Delivered';
+            } else if (statusUpper === 'CANCELLED') {
+                statusBadgeClass = 'badge-status-cancelled';
+                statusText = 'Cancelled';
+            }
 
-            const statusBadge = `<span class="${statusBadgeClass}">${escapeHtml(statusUpper)}</span>`;
+            const statusBadge = `<span class="${statusBadgeClass}">${statusText}</span>`;
 
             // Rate cell: single rate or "Multiple" with breakdown tooltip
             const items = Array.isArray(booking.items) ? booking.items : [];
-            let rateDisplay = '-';
+            const emptyCell = '<span class="text-muted opacity-50">–</span>';
+            let rateDisplay = emptyCell;
 
             if (items.length === 1) {
                 const singleRate = parseFloat(items[0].rate) || 0;
@@ -2812,69 +3562,82 @@ document.addEventListener('DOMContentLoaded', function () {
                     return `#${i + 1}: ${w} gm × ₹${r} = ₹${a}`;
                 });
                 const tooltipContent = lines.join('\n');
-                rateDisplay = `<span class="badge bg-light text-dark border cursor-help" title="${escapeHtml(tooltipContent)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(tooltipContent)}"><i class="fa-solid fa-layer-group text-primary me-1"></i>Multiple</span>`;
+                rateDisplay = `<span class="badge bg-light text-dark border cursor-help text-nowrap" title="${escapeHtml(tooltipContent)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(tooltipContent)}"><i class="fa-solid fa-layer-group text-primary me-1"></i>Multiple</span>`;
             }
 
             // BUY booking fills BUY DETAILS, SELL booking fills SELL DETAILS
             const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
-            const wtFormatted = (parseFloat(booking.total_weight) || 0).toFixed(3) + ' gm';
+            const wtFormatted = (parseFloat(booking.total_weight) || 0).toFixed(3);
             const amtFormatted = '₹' + formatIndianCurrency(booking.total_amount || 0);
 
-            let buyWt = '-', buyRate = '-', buyAmt = '-';
-            let sellWt = '-', sellRate = '-', sellAmt = '-';
+            let buyWt = emptyCell, buyRate = emptyCell, buyAmt = emptyCell;
+            let sellWt = emptyCell, sellRate = emptyCell, sellAmt = emptyCell;
 
             if (isBuy) {
-                buyWt = `<span class="text-success fw-bold">${wtFormatted}</span>`;
-                buyRate = `<span class="text-success">${rateDisplay}</span>`;
-                buyAmt = `<span class="text-success fw-bold">${amtFormatted}</span>`;
+                buyWt = `<span class="text-success fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10px; font-weight: normal;">gm</span></span>`;
+                buyRate = `<span class="text-success fw-semibold text-nowrap">${rateDisplay}</span>`;
+                buyAmt = `<span class="text-success fw-bold text-nowrap">${amtFormatted}</span>`;
             } else {
-                sellWt = `<span class="text-danger fw-bold">${wtFormatted}</span>`;
-                sellRate = `<span class="text-danger">${rateDisplay}</span>`;
-                sellAmt = `<span class="text-danger fw-bold">${amtFormatted}</span>`;
+                sellWt = `<span class="text-danger fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10px; font-weight: normal;">gm</span></span>`;
+                sellRate = `<span class="text-danger fw-semibold text-nowrap">${rateDisplay}</span>`;
+                sellAmt = `<span class="text-danger fw-bold text-nowrap">${amtFormatted}</span>`;
             }
 
             // Given / Received
             const givenAmt = parseFloat(booking.given_amount) || 0;
             const receivedAmt = parseFloat(booking.received_amount) || 0;
-            const givenHtml = `<div class="text-danger fw-bold" style="font-size: 11px;">G: ₹${formatIndianCurrency(givenAmt)}</div>`;
-            const receivedHtml = `<div class="text-success fw-bold" style="font-size: 11px;">R: ₹${formatIndianCurrency(receivedAmt)}</div>`;
+            const givenHtml = `<div class="text-danger fw-bold text-nowrap" style="font-size: 11px; line-height: 1.25;">G: ₹${formatIndianCurrency(givenAmt)}</div>`;
+            const receivedHtml = `<div class="text-success fw-bold text-nowrap" style="font-size: 11px; line-height: 1.25;">R: ₹${formatIndianCurrency(receivedAmt)}</div>`;
 
             // Action column: 3-dot Kebab menu (View, Edit, Print, Share, WhatsApp, Delete, Silent Delete)
             const actionHtml = renderActionKebabMenu(booking);
 
             html += `
-                <tr>
-                    <td class="fw-semibold text-muted py-1">${sn}</td>
-                    <td class="text-nowrap py-1" style="font-size: 11px;">${dateTimeStr}</td>
-                    <td class="text-start px-2 py-1">
-                        <div class="fw-bold text-dark text-truncate" style="font-size: 12px; line-height: 1.25;" title="${escapeHtml(customerName)}">${escapeHtml(customerName)}</div>
-                        <div class="text-muted" style="font-size: 10px; line-height: 1.2;">
+                <tr class="bhav-row" data-id="${booking.id}">
+                    <td class="bhav-col-sn fw-semibold text-muted text-center">${sn}</td>
+                    <td class="bhav-col-datetime text-center">${dateTimeHtml}</td>
+                    <td class="bhav-col-customer text-start">
+                        <div class="fw-bold text-dark text-truncate" style="font-size: 12px; line-height: 1.25; max-width: 190px;" title="${escapeHtml(customerName)}">${escapeHtml(customerName)}</div>
+                        <div class="text-muted text-nowrap" style="font-size: 10.5px; line-height: 1.25;">
                             <span class="text-secondary">${escapeHtml(customerNo)}</span> • <span class="fw-semibold text-dark">${escapeHtml(bookingNo)}</span>
                         </div>
-                        <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                        <div class="d-flex align-items-center gap-1 mt-1 text-nowrap" style="line-height: 1;">
                             ${metalBadge}
                             ${typeBadge}
                             ${statusBadge}
                         </div>
                     </td>
-                    <td>${buyWt}</td>
-                    <td>${buyRate}</td>
-                    <td>${buyAmt}</td>
-                    <td>${sellWt}</td>
-                    <td>${sellRate}</td>
-                    <td>${sellAmt}</td>
-                    <td>${givenHtml}${receivedHtml}</td>
-                    <td>${actionHtml}</td>
+                    <td class="bhav-col-buy-wt col-buy text-end">${buyWt}</td>
+                    <td class="bhav-col-buy-rate col-buy text-end">${buyRate}</td>
+                    <td class="bhav-col-buy-amt col-buy group-end text-end">${buyAmt}</td>
+                    <td class="bhav-col-sell-wt col-sell text-end">${sellWt}</td>
+                    <td class="bhav-col-sell-rate col-sell text-end">${sellRate}</td>
+                    <td class="bhav-col-sell-amt col-sell group-end text-end">${sellAmt}</td>
+                    <td class="bhav-col-given-received text-center">${givenHtml}${receivedHtml}</td>
+                    <td class="bhav-col-action text-center">${actionHtml}</td>
                 </tr>
             `;
         });
 
+        // Dispose existing tooltips before re-rendering to prevent memory build-up
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const oldTooltips = bhavTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
+            oldTooltips.forEach(el => {
+                const inst = bootstrap.Tooltip.getInstance(el);
+                if (inst) inst.dispose();
+            });
+        }
+
         bhavTableBody.innerHTML = html;
 
-        // Initialize tooltips if Bootstrap Tooltip is loaded
+        // Initialize tooltips if Bootstrap Tooltip is loaded (disposing existing first)
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const tooltipElements = bhavTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
-            tooltipElements.forEach(el => new bootstrap.Tooltip(el));
+            tooltipElements.forEach(el => {
+                const inst = bootstrap.Tooltip.getInstance(el);
+                if (inst) inst.dispose();
+                new bootstrap.Tooltip(el);
+            });
         }
     }
 
@@ -2970,7 +3733,18 @@ document.addEventListener('DOMContentLoaded', function () {
         listAbortController = new AbortController();
         const signal = listAbortController.signal;
 
-        renderLoadingState();
+        if (isFirstBookingListLoad) {
+            renderLoadingState();
+        } else {
+            // Keep current rows visible with reduced opacity (0.5) and thin orange loading bar
+            if (bhavTableBody) {
+                bhavTableBody.style.opacity = '0.5';
+                bhavTableBody.style.pointerEvents = 'none';
+            }
+            if (tableLoadingBar) {
+                tableLoadingBar.classList.add('active');
+            }
+        }
 
         const baseUrl = (window.APP_ROUTES && window.APP_ROUTES.bhavBookingList)
             ? window.APP_ROUTES.bhavBookingList
@@ -2993,6 +3767,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (dateFilterTo && dateFilterTo.value) {
             params.set('date_to', dateFilterTo.value);
+        }
+
+        if (filterTradeSelect && filterTradeSelect.value) {
+            const tradeVal = filterTradeSelect.value;
+            if (tradeVal !== 'ALL') {
+                params.set('trade_type', tradeVal);
+            }
+            applyTradeColumnVisibility(tradeVal);
         }
 
         if (filterMetalSelect && filterMetalSelect.value) {
@@ -3020,6 +3802,13 @@ document.addEventListener('DOMContentLoaded', function () {
             return data;
         })
         .then(data => {
+            if (tableLoadingBar) tableLoadingBar.classList.remove('active');
+            if (bhavTableBody) {
+                bhavTableBody.style.opacity = '1';
+                bhavTableBody.style.pointerEvents = 'auto';
+            }
+            isFirstBookingListLoad = false;
+
             // Use strictly allowed keys: rows, pagination, totals
             const rows = data.rows || [];
             const pagination = data.pagination || null;
@@ -3030,6 +3819,12 @@ document.addEventListener('DOMContentLoaded', function () {
             renderTotals(totals);
         })
         .catch(error => {
+            if (tableLoadingBar) tableLoadingBar.classList.remove('active');
+            if (bhavTableBody) {
+                bhavTableBody.style.opacity = '1';
+                bhavTableBody.style.pointerEvents = 'auto';
+            }
+
             if (error.name === 'AbortError') {
                 // Ignore aborted requests
                 return;
@@ -3039,13 +3834,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Party Search Input: 400ms debounce
+    // Party Search Input: 250ms debounce
     if (filterPartyInput) {
         filterPartyInput.addEventListener('input', function () {
             clearTimeout(partySearchDebounceTimer);
             partySearchDebounceTimer = setTimeout(() => {
                 fetchBookingList(1);
-            }, 400);
+            }, 250);
+        });
+    }
+
+    // Trade Filter Change
+    if (filterTradeSelect) {
+        filterTradeSelect.addEventListener('change', function () {
+            applyTradeColumnVisibility(this.value);
+            fetchBookingList(1);
         });
     }
 
@@ -3316,6 +4119,55 @@ document.addEventListener('DOMContentLoaded', function () {
             // Narration
             if (viewNarration) viewNarration.textContent = booking.narration || 'None';
 
+            // Payments Section
+            const viewPaymentsCard = document.getElementById('viewPaymentsCard');
+            const viewPaymentsTableBody = document.getElementById('viewPaymentsTableBody');
+            const viewTotalPaidAmount = document.getElementById('viewTotalPaidAmount');
+            const viewPaymentBalanceAmount = document.getElementById('viewPaymentBalanceAmount');
+
+            const payments = Array.isArray(booking.payments) ? booking.payments : [];
+            let totalPaid = 0;
+            if (viewPaymentsCard) {
+                if (payments.length > 0) {
+                    viewPaymentsCard.style.display = 'block';
+                    let payHtml = '';
+                    payments.forEach((p, idx) => {
+                        const sn = p.sort_order || (idx + 1);
+                        const isCash = (p.mode || '').toUpperCase() === 'CASH';
+                        const badgeClass = isCash ? 'badge-payment-cash' : 'badge-payment-online';
+                        let modeText = isCash ? 'CASH' : 'ONLINE';
+                        if (!isCash && p.online_method) {
+                            modeText += ` (${p.online_method})`;
+                        }
+                        const ref = p.reference_no ? `<span class="text-muted ms-1 small">Ref: ${escapeHtml(p.reference_no)}</span>` : '<span class="text-muted small">-</span>';
+                        const amt = parseFloat(p.amount) || 0;
+                        totalPaid += amt;
+                        payHtml += `
+                            <tr>
+                                <td class="text-center fw-bold text-muted">${sn}</td>
+                                <td>
+                                    <span class="badge ${badgeClass}">${modeText}</span>
+                                </td>
+                                <td>${ref}</td>
+                                <td class="text-end fw-bold text-dark">₹${formatIndianCurrency(amt)}</td>
+                            </tr>
+                        `;
+                    });
+                    if (viewPaymentsTableBody) viewPaymentsTableBody.innerHTML = payHtml;
+                } else {
+                    viewPaymentsCard.style.display = 'none';
+                    if (viewPaymentsTableBody) viewPaymentsTableBody.innerHTML = '';
+                }
+            }
+
+            const bookingTotalAmt = parseFloat(booking.total_amount) || 0;
+            const balanceAmt = Math.max(0, bookingTotalAmt - totalPaid);
+            if (viewTotalPaidAmount) viewTotalPaidAmount.textContent = `₹${formatIndianCurrency(totalPaid)}`;
+            if (viewPaymentBalanceAmount) {
+                viewPaymentBalanceAmount.textContent = `₹${formatIndianCurrency(balanceAmt)}`;
+                viewPaymentBalanceAmount.className = balanceAmt > 0 ? 'fw-bold text-danger' : 'fw-bold text-success';
+            }
+
             // Wire print button inside view modal
             if (btnViewModalPrint) {
                 btnViewModalPrint.onclick = function () {
@@ -3336,10 +4188,39 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
+     * Check if user has unsaved work in the left form:
+     * - Rows added
+     * - Weight typed
+     * - Customer selected
+     * - Payment entries added or payment typed
+     */
+    function hasUnsavedEntries() {
+        const hasRows = Array.isArray(bookingItems) && bookingItems.length > 0;
+        const hasWeight = Boolean(inputWeight && inputWeight.value && inputWeight.value.trim() !== '');
+        const hasCustomer = Boolean(selectedCustomer || (hiddenCustomerId && hiddenCustomerId.value));
+        const hasPayments = Array.isArray(bookingPayments) && bookingPayments.length > 0;
+        const hasPaymentAmount = Boolean(inputPaymentAmount && inputPaymentAmount.value && parseFloat(inputPaymentAmount.value) > 0);
+        return hasRows || hasWeight || hasCustomer || hasPayments || hasPaymentAmount;
+    }
+
+    /**
      * Load an existing booking into the left form for editing (Task C4)
      * Fetches booking with customer + items from GET /bhav-bookings/{bhavBooking}
      */
-    function loadBookingForEdit(bookingId) {
+    function loadBookingForEdit(bookingId, knownBookingNo = null) {
+        // If clicking Edit on the booking that is already being edited, do nothing
+        if (editingBookingId === bookingId) {
+            return;
+        }
+
+        // If target booking number is already known and user has unsaved entries, confirm before fetching
+        if (knownBookingNo && hasUnsavedEntries()) {
+            const confirmed = window.confirm(`You have unsaved entries. Discard them and edit ${knownBookingNo}?`);
+            if (!confirmed) {
+                return;
+            }
+        }
+
         const showUrl = getRoute('bhavBookingShow', bookingId);
 
         fetch(showUrl, {
@@ -3357,12 +4238,19 @@ document.addEventListener('DOMContentLoaded', function () {
             return data;
         })
         .then(booking => {
-            // Restriction check: only PENDING with 0 delivered and 0 payments can be edited
+            // If target booking number was not known upfront (e.g. from ?edit=) and user has unsaved entries, confirm now
+            if (!knownBookingNo && hasUnsavedEntries()) {
+                const bNo = booking.booking_no || `BB-${String(booking.id).padStart(6, '0')}`;
+                const confirmed = window.confirm(`You have unsaved entries. Discard them and edit ${bNo}?`);
+                if (!confirmed) {
+                    return;
+                }
+            }
+            // Restriction check: allowed if status = PENDING, delivered_weight = 0, and NO payments with source BUY_SELL
             const statusUpper = (booking.status || '').toUpperCase();
             const isModifiable = statusUpper === 'PENDING'
                 && (parseFloat(booking.delivered_weight) || 0) === 0
-                && (parseFloat(booking.given_amount) || 0) === 0
-                && (parseFloat(booking.received_amount) || 0) === 0;
+                && !booking.has_external_payments;
 
             if (!isModifiable) {
                 showToast('This booking has delivery/payment and cannot be edited', 'warning');
@@ -3407,6 +4295,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
             renderEntriesTable();
+
+            // 5b. Multi-entry Payments (load booking's BOOKING source payments)
+            bookingPayments = [];
+            nextPaymentId = 1;
+            if (Array.isArray(booking.payments) && booking.payments.length > 0) {
+                booking.payments.forEach(p => {
+                    if (!p.source || p.source === 'BOOKING') {
+                        bookingPayments.push({
+                            id: nextPaymentId++,
+                            mode: (p.mode || 'CASH').toUpperCase(),
+                            online_method: p.online_method || 'UPI',
+                            reference_no: p.reference_no || '',
+                            amount: parseFloat(p.amount) || 0
+                        });
+                    }
+                });
+            }
+            renderPaymentEntriesTable();
+            setPaymentMode('CASH');
+            if (inputPaymentAmount) inputPaymentAmount.value = '';
+            if (paymentRefNo) paymentRefNo.value = '';
+            if (paymentOnlineMethod) paymentOnlineMethod.value = 'UPI';
 
             // 6. Current entry line inputs
             if (inputWeight) inputWeight.value = '';
@@ -3498,7 +4408,7 @@ document.addEventListener('DOMContentLoaded', function () {
         bhavTableBody.addEventListener('click', function (e) {
             handleActionKebabMenuClick(e, lastLoadedBookingsMap, {
                 onEdit: function (booking) {
-                    loadBookingForEdit(booking.id);
+                    loadBookingForEdit(booking.id, booking.booking_no);
                 },
                 onDeleted: function (bookingId, bookingNo) {
                     if (editingBookingId === bookingId) {
@@ -3513,6 +4423,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // INITIALIZATION: Load Booking List & Auto-open Customer Field on Page Load
     // =========================================================================
+    initPartyDateInputs();
     fetchBookingList(1);
 
     // Auto-load booking for edit if ?edit={id} query parameter is present in URL

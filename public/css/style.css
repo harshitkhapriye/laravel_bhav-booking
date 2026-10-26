@@ -23,11 +23,88 @@
 
 body {
     font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 500;
     background-color: var(--bg-page);
     color: var(--text-dark);
     margin: 0;
     padding: 0;
     overflow-x: hidden;
+}
+
+/* Form inputs, selects, textareas: 600 */
+input, select, textarea,
+.form-control, .form-select,
+.form-input-pill, .party-input-pill, .party-textarea-rounded,
+.filter-pill-input, .filter-pill-select {
+    font-weight: 600;
+}
+
+/* Labels and table headers: 700 */
+label, .form-label, .party-field-label,
+th, thead th, .table thead th,
+.bhav-table thead th, .old-bhav-table thead th, .parties-table thead th {
+    font-weight: 700;
+}
+
+/* Table body text: 500 */
+td, tbody td, .table tbody td,
+.bhav-table tbody td, .old-bhav-table tbody td, .parties-table tbody td {
+    font-weight: 500;
+}
+
+/* Numbers (weights, rates, amounts): 600 */
+.font-monospace,
+.col-buy, .col-sell,
+td.col-buy, td.col-sell,
+td.cell-buy-wt, td.cell-buy-rate, td.cell-buy-amt,
+td.cell-sell-wt, td.cell-sell-rate, td.cell-sell-amt,
+td.cell-given-amt, td.cell-received-amt,
+.weight-number, .rate-number, .amount-number {
+    font-weight: 600;
+}
+
+/* Placeholders: 500 and lighter grey */
+::placeholder,
+input::placeholder,
+textarea::placeholder,
+.form-control::placeholder,
+.form-input-pill::placeholder,
+.party-input-pill::placeholder,
+.party-textarea-rounded::placeholder {
+    font-weight: 500 !important;
+    color: #94a3b8 !important;
+    opacity: 0.85;
+}
+
+/* Thin Orange Loading Bar */
+.table-loading-bar {
+    height: 3px;
+    width: 100%;
+    background-color: transparent;
+    overflow: hidden;
+    position: relative;
+    border-radius: 2px;
+}
+
+.table-loading-bar.active {
+    background-color: #ffedd5;
+}
+
+.table-loading-bar.active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 35%;
+    background: #f57c00;
+    border-radius: 2px;
+    animation: tableBarSlide 0.8s infinite ease-in-out;
+}
+
+@keyframes tableBarSlide {
+    0% { left: -35%; }
+    100% { left: 100%; }
 }
 
 /* --------------------------------------------------------------------------
@@ -707,55 +784,230 @@ body {
    Right Card: Bhav Table & Filters
    -------------------------------------------------------------------------- */
 .table-responsive-container {
-    overflow-x: auto;
+    overflow-x: auto !important;
+    position: relative;
     border-radius: 10px;
     border: 1px solid #e2e8f0;
+    background-color: #ffffff;
 }
 
+/* Base Bhav Table: Compact, No-Wrap, Non-Sticky Horizontal Scroll */
 .bhav-table {
-    min-width: 760px;
+    min-width: 1150px !important;
+    width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    font-size: 12px !important;
+    margin-bottom: 0 !important;
 }
 
-/* Table Header */
-.bhav-table thead tr {
-    background-color: var(--table-header-bg);
+/* Reduced table min-width when one trade group is hidden */
+.bhav-table.show-buy-only,
+.bhav-table.show-sell-only {
+    min-width: 800px !important;
 }
 
+/* Trade Column Filter Visibility (Buy only / Sell only) */
+.bhav-table.show-buy-only .col-sell {
+    display: none !important;
+}
+
+.bhav-table.show-sell-only .col-buy {
+    display: none !important;
+}
+
+.bhav-table th,
+.bhav-table td {
+    white-space: nowrap !important;
+    vertical-align: middle !important;
+    padding: 5px 8px !important;
+    line-height: 1.25 !important;
+    border-top: none !important;
+    border-bottom: 1px solid #edf2f7 !important;
+}
+
+/* Table Header Styles */
 .bhav-table thead th {
-    background-color: var(--table-header-bg);
+    background-color: var(--table-header-bg, #e8edf3);
     color: #475569;
-    font-size: 10px;
-    font-weight: 700;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px;
+    padding: 5px 8px !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+    vertical-align: middle !important;
+}
+
+.bhav-table thead tr.header-row-sub th {
+    font-size: 9.5px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    padding: 4px 6px !important;
     letter-spacing: 0.3px;
-    padding: 5px 6px;
-    border-color: #cbd5e1;
-    vertical-align: middle;
+    border-top: 1px solid #cbd5e1 !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
 }
 
-.header-row-sub th {
-    font-size: 9px;
-    color: #64748b;
-    padding: 3px 4px;
+/* Header Group Tints: Buy Details (Light Green), Sell Details (Light Red) */
+.bhav-table thead th.col-group-buy,
+.bhav-table thead tr.header-row-sub th:nth-child(1),
+.bhav-table thead tr.header-row-sub th:nth-child(2),
+.bhav-table thead tr.header-row-sub th:nth-child(3) {
+    background-color: #f0fdf4 !important;
+    color: #166534 !important;
 }
 
-/* Table Empty Body */
-.table-empty-row td {
+.bhav-table thead th.col-group-sell,
+.bhav-table thead tr.header-row-sub th:nth-child(4),
+.bhav-table thead tr.header-row-sub th:nth-child(5),
+.bhav-table thead tr.header-row-sub th:nth-child(6) {
+    background-color: #fef2f2 !important;
+    color: #991b1b !important;
+}
+
+/* Column Dimensions & Text Alignment */
+.bhav-table .col-sn,
+.bhav-table .bhav-col-sn {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    text-align: center !important;
+}
+
+.bhav-table .col-datetime,
+.bhav-table .bhav-col-datetime {
+    width: 95px !important;
+    min-width: 95px !important;
+    max-width: 95px !important;
+    text-align: center !important;
+}
+
+.bhav-table .col-customer,
+.bhav-table .bhav-col-customer {
+    width: 200px !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
+    text-align: left !important;
+}
+
+.bhav-table .bhav-col-buy-wt,
+.bhav-table thead tr.header-row-sub th.col-buy:nth-child(1) {
+    width: 115px !important;
+    min-width: 115px !important;
+}
+
+.bhav-table .bhav-col-buy-rate,
+.bhav-table thead tr.header-row-sub th.col-buy:nth-child(2) {
+    width: 110px !important;
+    min-width: 110px !important;
+}
+
+.bhav-table .bhav-col-buy-amt,
+.bhav-table thead tr.header-row-sub th.col-buy:nth-child(3) {
+    width: 120px !important;
+    min-width: 120px !important;
+}
+
+.bhav-table .bhav-col-sell-wt,
+.bhav-table thead tr.header-row-sub th.col-sell:nth-child(4) {
+    width: 115px !important;
+    min-width: 115px !important;
+}
+
+.bhav-table .bhav-col-sell-rate,
+.bhav-table thead tr.header-row-sub th.col-sell:nth-child(5) {
+    width: 110px !important;
+    min-width: 110px !important;
+}
+
+.bhav-table .bhav-col-sell-amt,
+.bhav-table thead tr.header-row-sub th.col-sell:nth-child(6) {
+    width: 120px !important;
+    min-width: 120px !important;
+}
+
+.bhav-table .col-given-received,
+.bhav-table .bhav-col-given-received {
+    width: 120px !important;
+    min-width: 120px !important;
+    text-align: center !important;
+}
+
+.bhav-table .col-action,
+.bhav-table .bhav-col-action {
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+    text-align: center !important;
+}
+
+/* Thin Vertical Separator Lines between Table Groups */
+/* Between CUSTOMER and BUY/SELL */
+.bhav-table .col-customer,
+.bhav-table .bhav-col-customer,
+.bhav-table tfoot tr.table-total-row td:first-child {
+    border-right: 1.5px solid #cbd5e1 !important;
+}
+
+/* Between BUY and SELL, or before GIVEN/RECEIVED when filtered */
+.bhav-table thead th.col-group-buy,
+.bhav-table thead th.col-group-sell,
+.bhav-table .group-end,
+.group-end {
+    border-right: 1.5px solid #cbd5e1 !important;
+}
+
+/* Between GIVEN/RECEIVED and ACTION */
+.bhav-table thead th.col-given-received,
+.bhav-table tbody td.bhav-col-given-received,
+.bhav-table tfoot tr.table-total-row td:nth-child(8) {
+    border-right: 1.5px solid #cbd5e1 !important;
+}
+
+.bhav-table .col-action,
+.bhav-table .bhav-col-action,
+.bhav-table tfoot tr.table-total-row td:last-child {
+    border-left: 1.5px solid #cbd5e1 !important;
+}
+
+/* Light Zebra Striping & Soft Hover Highlight */
+.bhav-table tbody tr {
+    background-color: #ffffff;
+    transition: background-color 0.15s ease;
+}
+
+.bhav-table tbody tr:nth-child(even) {
+    background-color: #fafbfd;
+}
+
+.bhav-table tbody tr:hover {
+    background-color: #f1f5f9;
+}
+
+/* Empty State & Loading State */
+.table-empty-row td,
+.table-loading-row td {
     font-size: 13px;
     color: #94a3b8;
-    background-color: #ffffff;
+    background-color: #ffffff !important;
     border-bottom: 1px solid #edf2f7;
 }
 
-/* Table Footer Row */
-.table-total-row {
+/* Footer TOTAL Row */
+.bhav-table tfoot tr.table-total-row {
     background-color: #ffffff;
+    font-weight: 700;
 }
 
-.table-total-row td {
-    font-size: 11px;
-    padding: 6px 6px;
-    border-top: 1px solid #cbd5e1;
-    background-color: #ffffff;
+.bhav-table tfoot tr.table-total-row td {
+    padding: 6px 8px !important;
+    font-size: 11.5px !important;
+    border-top: 2px solid #cbd5e1 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
+    white-space: nowrap !important;
+    vertical-align: middle !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -1076,29 +1328,7 @@ body {
     padding-bottom: 2px;
 }
 
-.bhav-table {
-    font-size: 12px;
-}
 
-.bhav-table thead th {
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    padding: 6px 8px;
-    background-color: #f8fafc;
-    color: #475569;
-}
-
-.bhav-table tbody td {
-    padding: 6px 8px;
-    vertical-align: middle;
-}
-
-.bhav-table tfoot td {
-    padding: 6px 8px;
-    font-size: 12px;
-    vertical-align: middle;
-}
 
 .active-list-item {
     background-color: #f1f5f9;
@@ -1302,7 +1532,7 @@ body {
     border-radius: 12px;
     border: 1px solid rgba(0, 0, 0, 0.08);
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    z-index: 1060 !important;
+    z-index: 9999 !important;
 }
 
 .action-kebab-menu .dropdown-item {
@@ -1328,33 +1558,137 @@ body {
    Old Booking List Page Table Styles
    -------------------------------------------------------------------------- */
 .old-bhav-table {
+    min-width: 1100px !important;
     width: 100%;
     border-collapse: separate !important;
-    border-spacing: 3px 0 !important;
+    border-spacing: 0 !important;
+    font-size: 12px !important;
+    margin-bottom: 0 !important;
+}
+
+.old-bhav-table th,
+.old-bhav-table td {
+    white-space: nowrap !important;
+    vertical-align: middle !important;
+    padding: 5px 8px !important;
+    line-height: 1.25 !important;
+    border-top: none !important;
+    border-bottom: 1px solid #edf2f7 !important;
+}
+
+.old-bhav-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 
 .old-bhav-table thead th {
-    background-color: #e0e3f7 !important;
-    color: #1e293b;
-    font-weight: 700;
-    font-size: 11px;
-    padding: 9px 8px;
+    background-color: #e8edf3 !important;
+    color: #334155;
+    font-weight: 700 !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px;
+    padding: 6px 8px !important;
     border: none !important;
-    border-radius: 6px;
-    vertical-align: middle;
-    letter-spacing: 0.2px;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+    vertical-align: middle !important;
 }
 
-.old-bhav-table tbody td {
-    padding: 7px 8px;
-    vertical-align: middle;
-    border-top: none;
-    border-bottom: 1px solid #f1f5f9;
-    font-size: 12px;
+/* Old Bhav Table Column Widths (Non-Sticky) */
+/* Col 1: SN + Checkbox (width 70px) */
+.old-bhav-table thead th:nth-child(1),
+.old-bhav-table tbody td.bhav-old-col-sn {
+    width: 70px !important;
+    min-width: 70px !important;
+    max-width: 70px !important;
+    text-align: center !important;
+}
+
+/* Col 2: Date/Time (width 95px) */
+.old-bhav-table thead th:nth-child(2),
+.old-bhav-table tbody td.bhav-old-col-datetime {
+    width: 95px !important;
+    min-width: 95px !important;
+    max-width: 95px !important;
+    text-align: center !important;
+}
+
+/* Col 3: C. No / C. Name (width 195px) */
+.old-bhav-table thead th:nth-child(3),
+.old-bhav-table tbody td.bhav-old-col-customer {
+    width: 195px !important;
+    min-width: 195px !important;
+    max-width: 195px !important;
+    text-align: left !important;
+    border-right: 1.5px solid #cbd5e1 !important;
+}
+
+/* Col 4: Narration */
+.old-bhav-table thead th:nth-child(4),
+.old-bhav-table tbody td:nth-child(4) {
+    width: 180px !important;
+    min-width: 180px !important;
+    text-align: left !important;
+    border-right: 1.5px solid #cbd5e1 !important;
+}
+
+/* Col 5: Sell Weight (Gm) */
+.old-bhav-table thead th:nth-child(5),
+.old-bhav-table tbody td:nth-child(5) {
+    width: 125px !important;
+    min-width: 125px !important;
+    text-align: right !important;
+}
+
+/* Col 6: Sell Rate (₹) */
+.old-bhav-table thead th:nth-child(6),
+.old-bhav-table tbody td:nth-child(6) {
+    width: 110px !important;
+    min-width: 110px !important;
+    text-align: right !important;
+    border-right: 1.5px solid #cbd5e1 !important;
+}
+
+/* Col 7: Buy Weight (Gm) */
+.old-bhav-table thead th:nth-child(7),
+.old-bhav-table tbody td:nth-child(7) {
+    width: 125px !important;
+    min-width: 125px !important;
+    text-align: right !important;
+}
+
+/* Col 8: Buy Rate (₹) */
+.old-bhav-table thead th:nth-child(8),
+.old-bhav-table tbody td:nth-child(8) {
+    width: 110px !important;
+    min-width: 110px !important;
+    text-align: right !important;
+    border-right: 1.5px solid #cbd5e1 !important;
+}
+
+/* Col 9: Action (width 50px) */
+.old-bhav-table thead th:nth-child(9),
+.old-bhav-table tbody td.bhav-old-col-action {
+    width: 50px !important;
+    min-width: 50px !important;
+    max-width: 50px !important;
+    text-align: center !important;
+    border-left: 1.5px solid #cbd5e1 !important;
+}
+
+/* Old Bhav Table Zebra & Hover */
+.old-bhav-table tbody tr {
+    background-color: #ffffff;
+    transition: background-color 0.15s ease;
+}
+
+.old-bhav-table tbody tr:nth-child(even) {
+    background-color: #fafbfd;
 }
 
 .old-bhav-table tbody tr:hover {
-    background-color: #f8fafc;
+    background-color: #f1f5f9;
 }
 
 /* Round Orange Back Button */
@@ -1450,7 +1784,26 @@ body {
     overflow: hidden;
 }
 
+#addCustomerForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.party-modal-body {
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.party-modal-footer {
+    flex-shrink: 0;
+}
+
 .party-modal-header {
+    flex-shrink: 0;
     background-color: #ffffff;
 }
 
@@ -1840,6 +2193,29 @@ body {
     color: #d35400;
 }
 
+/* Smooth Expand / Collapse Animation for Additional Information (~250ms) */
+.additional-info-panel {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 250ms ease, opacity 250ms ease;
+}
+
+.additional-info-panel.expanded {
+    max-height: 1500px;
+    opacity: 1;
+}
+
+/* Smooth Rotation for Additional Information Toggle Icon */
+.party-btn-additional-toggle #iconToggleAdditional {
+    display: inline-block;
+    transition: transform 250ms ease;
+}
+
+.party-btn-additional-toggle.expanded #iconToggleAdditional {
+    transform: rotate(180deg);
+}
+
 .party-btn-save {
     background: linear-gradient(135deg, #ff7a00 0%, #ff9800 100%);
     color: #ffffff;
@@ -1896,3 +2272,134 @@ body {
     display: inline-flex;
     align-items: center;
 }
+
+/* ==========================================================================
+   Party Master Table & View Modal Styles
+   ========================================================================== */
+.parties-table-container {
+    border: 1px solid #eef2f6;
+    border-radius: 8px;
+    overflow-x: auto;
+    background-color: #ffffff;
+}
+
+.parties-table {
+    white-space: nowrap;
+    margin-bottom: 0;
+}
+
+.parties-table thead th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    background-color: #f8fafc;
+    border-bottom: 1.5px solid #e2e8f0;
+    padding: 8px 10px;
+    vertical-align: middle;
+}
+
+.parties-table tbody td {
+    padding: 7px 10px;
+    font-size: 12.5px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.parties-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+/* --------------------------------------------------------------------------
+   Payment Mode Toggle Switch (Cash / Online)
+   -------------------------------------------------------------------------- */
+.payment-mode-toggle-container {
+    background-color: #f1f4f8;
+    border-radius: 50px;
+    padding: 2px;
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    user-select: none;
+    box-sizing: border-box;
+    height: 38px;
+    width: 130px;
+    min-width: 130px;
+}
+
+.payment-mode-toggle-pill {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    width: 63px;
+    border-radius: 50px;
+    transition: transform 250ms ease, background 250ms ease, box-shadow 250ms ease;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.payment-mode-toggle-container[data-mode="CASH"] .payment-mode-toggle-pill,
+.payment-mode-toggle-container.mode-cash .payment-mode-toggle-pill {
+    transform: translateX(0);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+}
+
+.payment-mode-toggle-container[data-mode="ONLINE"] .payment-mode-toggle-pill,
+.payment-mode-toggle-container.mode-online .payment-mode-toggle-pill {
+    transform: translateX(63px);
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+.payment-mode-toggle-btn {
+    border: none;
+    background: transparent !important;
+    padding: 4px 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 50px;
+    color: #64748b;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+    flex: 1 1 0;
+    width: 63px;
+    min-width: 63px;
+    text-align: center;
+    transition: color 250ms ease;
+    box-shadow: none !important;
+}
+
+.payment-mode-toggle-btn.active {
+    color: #ffffff !important;
+}
+
+/* Payment Mode Badges */
+.badge-payment-cash {
+    background-color: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 50px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.badge-payment-online {
+    background-color: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 50px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+

@@ -22,9 +22,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let oldListAbortController = null;
     let partySearchTimer = null;
     let lastLoadedBookingsMap = {};
+    let isFirstOldListLoad = true;
 
     // DOM Elements
     const oldTableBody = document.getElementById('oldBhavTableBody');
+    const oldTableLoadingBar = document.getElementById('oldTableLoadingBar');
     const selectAllCheckbox = document.getElementById('selectAllRowsCheckbox');
     const oldPaginationInfo = document.getElementById('oldPaginationInfo');
     const oldPaginationLinks = document.getElementById('oldPaginationLinks');
@@ -139,6 +141,30 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
+     * Format server ISO/SQL datetime string into two compact lines:
+     * Line 1: DD-MM-YYYY (12px)
+     * Line 2: hh:mm AM/PM (10px grey)
+     */
+    function formatDateTimeTwoLines(dateString) {
+        if (!dateString) return '<span class="text-muted opacity-50">–</span>';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return `<div>${escapeHtml(dateString)}</div>`;
+
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+
+        let hours = d.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+
+        return `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
+               `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${String(hours).padStart(2, '0')}:${minutes} ${ampm}</div>`;
+    }
+
+    /**
      * Render table rows matching Old Booking specifications:
      * Columns: [checkbox] SN | Date/Time | C. No/C. Name | Narration Remark | Sell Weight (Gm) | Sell Rate (₹) | Buy Weight (Gm) | Buy Rate (₹) | Action
      */
@@ -163,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
             lastLoadedBookingsMap[booking.id] = booking;
 
             const sn = startFrom + index;
-            const dateTimeStr = formatDateTimeDisplay(booking.booked_at);
+            const dateTimeHtml = formatDateTimeTwoLines(booking.booked_at);
 
             // Customer Details
             const customer = booking.customer || {};
@@ -172,13 +198,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Narration: truncate with ellipsis, full text in tooltip
             const narrationText = booking.narration ? booking.narration.trim() : '';
+            const emptyCell = '<span class="text-muted opacity-50">–</span>';
             const narrationDisplay = narrationText
-                ? `<div class="text-truncate text-secondary" style="max-width: 220px;" title="${escapeHtml(narrationText)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(narrationText)}">${escapeHtml(narrationText)}</div>`
-                : `<span class="text-muted">---</span>`;
+                ? `<div class="text-truncate text-secondary text-nowrap" style="max-width: 180px; font-size: 11.5px;" title="${escapeHtml(narrationText)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(narrationText)}">${escapeHtml(narrationText)}</div>`
+                : emptyCell;
 
             // Rate Display (Single rate or "Multiple" with breakdown tooltip)
             const items = Array.isArray(booking.items) ? booking.items : [];
-            let rateDisplay = '---';
+            let rateDisplay = emptyCell;
 
             if (items.length === 1) {
                 const singleRate = parseFloat(items[0].rate) || 0;
@@ -191,25 +218,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     return `#${i + 1}: ${w} gm × ₹${r} = ₹${a}`;
                 });
                 const tooltipContent = lines.join('\n');
-                rateDisplay = `<span class="badge bg-light text-dark border cursor-help" title="${escapeHtml(tooltipContent)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(tooltipContent)}"><i class="fa-solid fa-layer-group text-primary me-1"></i>Multiple</span>`;
+                rateDisplay = `<span class="badge bg-light text-dark border cursor-help text-nowrap" title="${escapeHtml(tooltipContent)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(tooltipContent)}"><i class="fa-solid fa-layer-group text-primary me-1"></i>Multiple</span>`;
             }
 
             // BUY / SELL Columns logic:
-            // SELL booking fills Sell Weight/Rate and shows "---" in Buy columns; BUY the opposite.
+            // SELL booking fills Sell Weight/Rate and shows "–" in Buy columns; BUY the opposite.
             const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
             const wtFormatted = (parseFloat(booking.total_weight) || 0).toFixed(3);
 
-            let sellWeightHtml = '<span class="text-muted">---</span>';
-            let sellRateHtml = '<span class="text-muted">---</span>';
-            let buyWeightHtml = '<span class="text-muted">---</span>';
-            let buyRateHtml = '<span class="text-muted">---</span>';
+            let sellWeightHtml = emptyCell;
+            let sellRateHtml = emptyCell;
+            let buyWeightHtml = emptyCell;
+            let buyRateHtml = emptyCell;
 
             if (isBuy) {
-                buyWeightHtml = `<span class="text-success fw-bold">${wtFormatted}</span>`;
-                buyRateHtml = `<span class="text-success fw-semibold">${rateDisplay}</span>`;
+                buyWeightHtml = `<span class="text-success fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10px; font-weight: normal;">gm</span></span>`;
+                buyRateHtml = `<span class="text-success fw-semibold text-nowrap">${rateDisplay}</span>`;
             } else {
-                sellWeightHtml = `<span class="text-danger fw-bold">${wtFormatted}</span>`;
-                sellRateHtml = `<span class="text-danger fw-semibold">${rateDisplay}</span>`;
+                sellWeightHtml = `<span class="text-danger fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10px; font-weight: normal;">gm</span></span>`;
+                sellRateHtml = `<span class="text-danger fw-semibold text-nowrap">${rateDisplay}</span>`;
             }
 
             // Action column 3-dot dropdown menu
@@ -217,42 +244,51 @@ document.addEventListener('DOMContentLoaded', function () {
 
             html += `
                 <tr data-id="${booking.id}">
-                    <td class="text-center py-2">
+                    <td class="bhav-old-col-sn text-center">
                         <div class="d-flex align-items-center justify-content-center gap-1">
                             <input type="checkbox" class="form-check-input row-select-checkbox m-0 cursor-pointer" data-id="${booking.id}">
                             <span class="text-muted fw-semibold small ms-1">${sn}</span>
                         </div>
                     </td>
-                    <td class="text-center py-2 text-nowrap" style="font-size: 11px;">
-                        ${dateTimeStr}
+                    <td class="bhav-old-col-datetime text-center">
+                        ${dateTimeHtml}
                     </td>
-                    <td class="text-start py-2">
-                        <div class="fw-bold text-dark text-truncate" style="max-width: 190px;" title="${escapeHtml(customerName)}">${escapeHtml(customerName)}</div>
-                        <div class="text-muted" style="font-size: 11px;">
-                            ${escapeHtml(customerNo)} • <span class="fw-semibold text-dark">${escapeHtml(booking.booking_no || '')}</span>
+                    <td class="bhav-old-col-customer text-start">
+                        <div class="fw-bold text-dark text-truncate" style="max-width: 185px; font-size: 12px; line-height: 1.25;" title="${escapeHtml(customerName)}">${escapeHtml(customerName)}</div>
+                        <div class="text-muted text-nowrap" style="font-size: 10.5px; line-height: 1.25;">
+                            <span class="text-secondary">${escapeHtml(customerNo)}</span> • <span class="fw-semibold text-dark">${escapeHtml(booking.booking_no || '')}</span>
                         </div>
                     </td>
-                    <td class="text-start py-2">
+                    <td class="text-start">
                         ${narrationDisplay}
                     </td>
-                    <td class="text-end py-2">
+                    <td class="text-end">
                         ${sellWeightHtml}
                     </td>
-                    <td class="text-end py-2">
+                    <td class="text-end">
                         ${sellRateHtml}
                     </td>
-                    <td class="text-end py-2">
+                    <td class="text-end">
                         ${buyWeightHtml}
                     </td>
-                    <td class="text-end py-2">
+                    <td class="text-end">
                         ${buyRateHtml}
                     </td>
-                    <td class="text-center py-2">
+                    <td class="bhav-old-col-action text-center">
                         ${actionHtml}
                     </td>
                 </tr>
             `;
         });
+
+        // Dispose existing tooltips if any before replacing/rendering
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const existingTooltips = oldTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
+            existingTooltips.forEach(el => {
+                const inst = bootstrap.Tooltip.getInstance(el);
+                if (inst) inst.dispose();
+            });
+        }
 
         oldTableBody.innerHTML = html;
 
@@ -388,7 +424,17 @@ document.addEventListener('DOMContentLoaded', function () {
         oldListAbortController = new AbortController();
         const signal = oldListAbortController.signal;
 
-        renderLoadingState();
+        if (isFirstOldListLoad) {
+            renderLoadingState();
+        } else {
+            if (oldTableBody) {
+                oldTableBody.style.opacity = '0.5';
+                oldTableBody.style.pointerEvents = 'none';
+            }
+            if (oldTableLoadingBar) {
+                oldTableLoadingBar.classList.add('active');
+            }
+        }
 
         const baseUrl = (window.APP_ROUTES && window.APP_ROUTES.bhavBookingList)
             ? window.APP_ROUTES.bhavBookingList
@@ -430,6 +476,13 @@ document.addEventListener('DOMContentLoaded', function () {
             return data;
         })
         .then(data => {
+            if (oldTableLoadingBar) oldTableLoadingBar.classList.remove('active');
+            if (oldTableBody) {
+                oldTableBody.style.opacity = '1';
+                oldTableBody.style.pointerEvents = 'auto';
+            }
+            isFirstOldListLoad = false;
+
             const rows = data.rows || [];
             const pagination = data.pagination || null;
             renderTableRows(rows, pagination);
@@ -437,6 +490,11 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .catch(error => {
             if (error.name === 'AbortError') return;
+            if (oldTableLoadingBar) oldTableLoadingBar.classList.remove('active');
+            if (oldTableBody) {
+                oldTableBody.style.opacity = '1';
+                oldTableBody.style.pointerEvents = 'auto';
+            }
             console.warn('Old bookings fetch error:', error);
             renderErrorState(error.message);
         });
@@ -465,13 +523,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // 6. FILTER CONTROLS: SEARCH & PAGE SIZE
     // =========================================================================
 
-    // Customer search: 400ms debounce
+    // Customer search: 250ms debounce (was 400ms)
     if (filterPartyInput) {
         filterPartyInput.addEventListener('input', function () {
             clearTimeout(partySearchTimer);
             partySearchTimer = setTimeout(() => {
                 fetchOldBookings(1);
-            }, 400);
+            }, 250);
         });
     }
 

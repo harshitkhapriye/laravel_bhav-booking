@@ -68,6 +68,14 @@ class BhavBooking extends Model
     }
 
     /**
+     * A Bhav Booking has many payments ordered by sort_order.
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(BhavBookingPayment::class, 'bhav_booking_id')->orderBy('sort_order', 'asc');
+    }
+
+    /**
      * A Bhav Booking belongs to a Customer.
      */
     public function customer(): BelongsTo

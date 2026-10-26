@@ -60,6 +60,8 @@ class Customer extends Model
     protected $casts = [
         'birthday' => 'date',
         'anniversary' => 'date',
+        'aadhaar_no' => 'encrypted',
+        'pan_no' => 'encrypted',
     ];
 
     /**
@@ -69,6 +71,7 @@ class Customer extends Model
      */
     protected $appends = [
         'profile_image_url',
+        'shop_logo_url',
     ];
 
     /**
@@ -80,6 +83,20 @@ class Customer extends Model
     {
         if (!empty($this->profile_image)) {
             return asset('storage/' . $this->profile_image);
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the public URL for the shop logo.
+     *
+     * @return string|null
+     */
+    public function getShopLogoUrlAttribute(): ?string
+    {
+        if (!empty($this->shop_logo)) {
+            return asset('storage/' . $this->shop_logo);
         }
 
         return null;
@@ -103,6 +120,16 @@ class Customer extends Model
     public function familyMembers(): HasMany
     {
         return $this->hasMany(Customer::class, 'parent_customer_id');
+    }
+
+    /**
+     * Bhav bookings relationship.
+     *
+     * @return HasMany
+     */
+    public function bhavBookings(): HasMany
+    {
+        return $this->hasMany(BhavBooking::class, 'customer_id');
     }
 
     /**

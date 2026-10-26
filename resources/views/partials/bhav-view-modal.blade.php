@@ -63,11 +63,41 @@
                                     <tr>
                                         <th class="py-2 text-center" style="width: 45px;">#</th>
                                         <th class="py-2 text-end">WEIGHT (GM)</th>
-                                        <th class="py-2 text-end">RATE (₹/10GM)</th>
+                                        <th class="py-2 text-end">RATE (₹{{ rate_unit_label(null, false) }})</th>
                                         <th class="py-2 text-end">AMOUNT (₹)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="viewItemsTableBody" class="small">
+                                    <!-- Dynamically populated -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payments Section -->
+                <div class="card border rounded-3 mb-3 shadow-none bg-white" id="viewPaymentsCard">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-1">
+                            <div class="fw-bold text-secondary small text-uppercase">
+                                <i class="fa-solid fa-money-bill-wave me-1 text-primary"></i> Payments
+                            </div>
+                            <div class="small fw-bold">
+                                Paid: <span class="text-success" id="viewPaymentsPaid">₹0.00</span> &nbsp;|&nbsp;
+                                Balance: <span id="viewPaymentsBalance" class="text-danger">₹0.00</span>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle mb-0 text-center">
+                                <thead class="table-light small text-secondary">
+                                    <tr>
+                                        <th class="py-2 text-center" style="width: 45px;">#</th>
+                                        <th class="py-2 text-start">MODE</th>
+                                        <th class="py-2 text-start">METHOD / REF</th>
+                                        <th class="py-2 text-end">AMOUNT (₹)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="viewPaymentsTableBody" class="small">
                                     <!-- Dynamically populated -->
                                 </tbody>
                             </table>

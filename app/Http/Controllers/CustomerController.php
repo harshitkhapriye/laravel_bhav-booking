@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePartyRequest;
 use App\Models\BhavBooking;
 use App\Models\Customer;
 use Illuminate\Http\JsonResponse;
@@ -25,15 +26,17 @@ class CustomerController extends Controller
             return response()->json([]);
         }
 
-        // Search customers where name OR mobile OR customer_no matches, limit to 10 ordered by name
-        $customers = Customer::where(function ($query) use ($q) {
+        // Search customers where name matches (contains) OR mobile/customer_no starts with query (leveraging indexes)
+        $customers = Customer::query()
+            ->select(['id', 'customer_no', 'name', 'mobile', 'city', 'party_type', 'profile_image'])
+            ->where(function ($query) use ($q) {
                 $query->where('name', 'LIKE', "%{$q}%")
-                      ->orWhere('mobile', 'LIKE', "%{$q}%")
-                      ->orWhere('customer_no', 'LIKE', "%{$q}%");
+                      ->orWhere('mobile', 'LIKE', "{$q}%")
+                      ->orWhere('customer_no', 'LIKE', "{$q}%");
             })
             ->orderBy('name', 'asc')
             ->limit(10)
-            ->get(['id', 'customer_no', 'name', 'mobile', 'city', 'party_type', 'profile_image']);
+            ->get();
 
         return response()->json($customers);
     }
@@ -41,6 +44,7 @@ class CustomerController extends Controller
     /**
      * Get recent customers ordered by their latest Bhav Booking.
      * Fills remaining slots up to 8 with newest customers by id desc without duplicates.
+     * Selects only required columns.
      *
      * @return JsonResponse
      */
@@ -48,10 +52,10 @@ class CustomerController extends Controller
     {
         // 1. Get up to 8 distinct customer IDs ordered by their latest booking
         $recentCustomerIds = BhavBooking::query()
-            ->select('customer_id', DB::raw('MAX(booked_at) as latest_booking'))
+            ->select('customer_id')
             ->whereNotNull('customer_id')
             ->groupBy('customer_id')
-            ->orderByDesc('latest_booking')
+            ->orderByDesc(DB::raw('MAX(booked_at)'))
             ->limit(8)
             ->pluck('customer_id')
             ->toArray();
@@ -59,8 +63,10 @@ class CustomerController extends Controller
         // 2. Fetch the corresponding Customer models, preserving the order of recent bookings
         $recentCustomers = collect();
         if (!empty($recentCustomerIds)) {
-            $recentCustomers = Customer::whereIn('id', $recentCustomerIds)
-                ->get(['id', 'customer_no', 'name', 'mobile', 'city', 'party_type', 'profile_image'])
+            $recentCustomers = Customer::query()
+                ->select(['id', 'customer_no', 'name', 'mobile', 'city', 'party_type', 'profile_image'])
+                ->whereIn('id', $recentCustomerIds)
+                ->get()
                 ->sortBy(function ($customer) use ($recentCustomerIds) {
                     return array_search($customer->id, $recentCustomerIds);
                 })
@@ -74,10 +80,11 @@ class CustomerController extends Controller
             $existingIds = $recentCustomers->pluck('id')->toArray();
 
             $newestCustomers = Customer::query()
+                ->select(['id', 'customer_no', 'name', 'mobile', 'city', 'party_type', 'profile_image'])
                 ->whereNotIn('id', $existingIds)
                 ->orderByDesc('id')
                 ->limit($remaining)
-                ->get(['id', 'customer_no', 'name', 'mobile', 'city', 'party_type', 'profile_image']);
+                ->get();
 
             $recentCustomers = $recentCustomers->concat($newestCustomers);
         }
@@ -92,101 +99,10 @@ class CustomerController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
-    public function store(Request $request): JsonResponse
+    public function store(StorePartyRequest $request): JsonResponse
     {
-        // Normalize uppercase fields if provided
-        if ($request->has('pan_no') && is_string($request->input('pan_no'))) {
-            $pan = strtoupper(trim($request->input('pan_no')));
-            $request->merge(['pan_no' => $pan !== '' ? $pan : null]);
-        }
-        if ($request->has('gst_no') && is_string($request->input('gst_no'))) {
-            $gst = strtoupper(trim($request->input('gst_no')));
-            $request->merge(['gst_no' => $gst !== '' ? $gst : null]);
-        }
-
-        // Determine if this is a family sub-profile
+        $validated = $request->validated();
         $isFamilySubProfile = filter_var($request->input('is_family_sub_profile'), FILTER_VALIDATE_BOOLEAN);
-        $request->merge(['is_family_sub_profile' => $isFamilySubProfile]);
-
-        // Base mobile validation rules
-        $mobileRules = ['required', 'digits:10'];
-
-        // Mobile unique rule exception:
-        // When is_family_sub_profile is true and mobile equals the selected parent customer's mobile
-        $parentId = $request->input('parent_customer_id');
-        $allowSameMobileAsParent = false;
-
-        if ($isFamilySubProfile && !empty($parentId)) {
-            $parent = Customer::find($parentId);
-            if ($parent && (string) $parent->mobile === (string) $request->input('mobile')) {
-                $allowSameMobileAsParent = true;
-            }
-        }
-
-        if (!$allowSameMobileAsParent) {
-            $mobileRules[] = 'unique:customers,mobile';
-        }
-
-        // Validate all incoming party fields
-        $validated = $request->validate([
-            'name'                  => 'required|string|max:100',
-            'mobile'                => $mobileRules,
-            'party_type'            => 'required|in:CUSTOMER,SUPPLIER',
-            'is_family_sub_profile' => 'boolean',
-            'parent_customer_id'    => 'required_if:is_family_sub_profile,true|nullable|exists:customers,id',
-            'email'                 => 'nullable|email|max:150',
-            'address'               => 'nullable|string|max:500',
-            'birthday'              => 'nullable|date|before_or_equal:today',
-            'anniversary'           => 'nullable|date|before_or_equal:today',
-            'aadhaar_no'            => 'nullable|digits:12',
-            'pan_no'                => ['nullable', 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/'],
-            'gst_no'                => ['nullable', 'regex:/^[0-9]{2}[A-Z0-9]{13}$/'],
-            'lic_no'                => 'nullable|string|max:100',
-            'reg_no'                => 'nullable|string|max:100',
-            'logo_title'            => 'nullable|string|max:100',
-            'shop_name'             => 'nullable|string|max:100',
-            'area'                  => 'nullable|string|max:100',
-            'state'                 => 'nullable|string|max:60',
-            'district'              => 'nullable|string|max:60',
-            'shop_address'          => 'nullable|string|max:500',
-            'profile_image'         => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-            'shop_logo'             => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-            'city'                  => 'nullable|string|max:50',
-        ], [
-            'name.required'                  => 'Party name is required',
-            'name.max'                       => 'Party name may not be greater than 100 characters',
-            'mobile.required'                => 'Mobile number is required',
-            'mobile.digits'                  => 'Mobile number must be 10 digits',
-            'mobile.unique'                  => 'This mobile number is already registered',
-            'party_type.required'            => 'Party type is required',
-            'party_type.in'                  => 'Party type must be Customer or Supplier',
-            'parent_customer_id.required_if' => 'Please select the main customer for this family sub-profile',
-            'parent_customer_id.exists'      => 'Selected main customer was not found',
-            'email.email'                    => 'Please enter a valid email address',
-            'email.max'                      => 'Email may not be greater than 150 characters',
-            'address.max'                    => 'Party address may not be greater than 500 characters',
-            'birthday.date'                  => 'Please enter a valid birthday date',
-            'birthday.before_or_equal'       => 'Birthday cannot be a future date',
-            'anniversary.date'               => 'Please enter a valid anniversary date',
-            'anniversary.before_or_equal'    => 'Anniversary cannot be a future date',
-            'aadhaar_no.digits'              => 'Aadhaar number must be 12 digits',
-            'pan_no.regex'                   => 'Invalid PAN format (e.g. ABCDE1234F)',
-            'gst_no.regex'                   => 'Invalid GST number format (15 characters, e.g. 22AAAAA0000A1Z5)',
-            'lic_no.max'                     => 'License number may not be greater than 100 characters',
-            'reg_no.max'                     => 'Registration number may not be greater than 100 characters',
-            'logo_title.max'                 => 'Logo title may not be greater than 100 characters',
-            'shop_name.max'                  => 'Shop / Business name may not be greater than 100 characters',
-            'area.max'                       => 'Area / Landmark may not be greater than 100 characters',
-            'state.max'                      => 'State may not be greater than 60 characters',
-            'district.max'                   => 'District may not be greater than 60 characters',
-            'shop_address.max'               => 'Shop address may not be greater than 500 characters',
-            'profile_image.image'            => 'Profile image must be an image',
-            'profile_image.mimes'            => 'Profile image must be a JPG, JPEG, PNG, or WEBP file',
-            'profile_image.max'              => 'Profile image may not be larger than 2MB',
-            'shop_logo.image'                => 'Shop logo must be an image',
-            'shop_logo.mimes'                => 'Shop logo must be a JPG, JPEG, PNG, or WEBP file',
-            'shop_logo.max'                  => 'Shop logo may not be larger than 2MB',
-        ]);
 
         // Handle profile image upload
         $profileImagePath = null;

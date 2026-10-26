@@ -8,7 +8,7 @@
     <!-- Google Font: Quicksand -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
 
     <!-- Font Awesome 6 CDN -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
@@ -23,6 +23,7 @@
 
         body {
             font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-weight: 500;
             background-color: #f1f5f9;
             color: #1e293b;
             font-size: 13px;
@@ -217,6 +218,18 @@
         .badge-silver {
             background-color: #f1f5f9;
             color: #475569;
+        }
+
+        .badge-cash {
+            background-color: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .badge-online {
+            background-color: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
         }
 
         /* Items Table */
@@ -462,7 +475,7 @@
                 <tr>
                     <th class="text-center" style="width: 50px;">#</th>
                     <th class="text-end">WEIGHT (GM)</th>
-                    <th class="text-end">RATE (₹/10GM)</th>
+                    <th class="text-end">RATE (₹{{ rate_unit_label(null, false) }})</th>
                     <th class="text-end">AMOUNT (₹)</th>
                 </tr>
             </thead>
@@ -476,10 +489,10 @@
                             {{ number_format((float) $item->weight, 3) }} gm
                         </td>
                         <td class="text-end">
-                            ₹{{ number_format((float) $item->rate, 2) }}
+                            ₹{{ indian_money($item->rate) }}
                         </td>
                         <td class="text-end" style="font-weight: 700; color: #0f172a;">
-                            ₹{{ number_format((float) $item->amount, 2) }}
+                            ₹{{ indian_money($item->amount) }}
                         </td>
                     </tr>
                 @empty
@@ -492,6 +505,50 @@
             </tbody>
         </table>
 
+        <!-- Payment Details Table -->
+        @if($booking->payments && $booking->payments->isNotEmpty())
+            <div style="margin-top: 24px; margin-bottom: 8px; font-weight: 700; color: #1e2a45; font-size: 13px; text-transform: uppercase;">
+                <i class="fa-solid fa-money-bill-wave me-1" style="color: #f57c00;"></i> Payment Details
+            </div>
+            <table class="voucher-table" style="margin-bottom: 24px;">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 50px;">#</th>
+                        <th class="text-start" style="width: 120px;">MODE</th>
+                        <th class="text-start">METHOD / REF</th>
+                        <th class="text-end" style="width: 160px;">AMOUNT (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($booking->payments as $pIndex => $payment)
+                        <tr>
+                            <td class="text-center" style="color: #64748b; font-weight: 600;">
+                                {{ $payment->sort_order ?? ($pIndex + 1) }}
+                            </td>
+                            <td class="text-start">
+                                <span class="badge-pill {{ $payment->mode === 'CASH' ? 'badge-cash' : 'badge-online' }}">
+                                    {{ $payment->mode }}
+                                </span>
+                            </td>
+                            <td class="text-start" style="color: #334155;">
+                                @if($payment->mode === 'ONLINE')
+                                    {{ $payment->online_method ?? 'ONLINE' }}
+                                    @if(!empty($payment->reference_no))
+                                        <span style="color: #64748b; font-size: 11px;">(Ref: {{ $payment->reference_no }})</span>
+                                    @endif
+                                @else
+                                    Cash Payment
+                                @endif
+                            </td>
+                            <td class="text-end" style="font-weight: 700; color: #0f172a;">
+                                ₹{{ indian_money($payment->amount) }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
         <!-- Totals Summary Block -->
         <div class="totals-section">
             <table class="totals-table">
@@ -502,7 +559,7 @@
                 <tr class="total-highlight">
                     <td class="text-end">Total Amount:</td>
                     <td class="text-end" style="color: {{ $booking->trade_type === 'BUY' ? '#166534' : '#991b1b' }};">
-                        ₹{{ number_format((float) $booking->total_amount, 2) }}
+                        ₹{{ indian_money($booking->total_amount) }}
                     </td>
                 </tr>
                 <tr>
@@ -515,18 +572,18 @@
                         {{ number_format((float) $booking->pending_weight, 3) }} gm
                     </td>
                 </tr>
-                @if((float) $booking->given_amount > 0)
-                    <tr>
-                        <td class="info-label text-end">Given Amount:</td>
-                        <td class="info-val text-end text-danger">₹{{ number_format((float) $booking->given_amount, 2) }}</td>
-                    </tr>
-                @endif
-                @if((float) $booking->received_amount > 0)
-                    <tr>
-                        <td class="info-label text-end">Received Amount:</td>
-                        <td class="info-val text-end text-success">₹{{ number_format((float) $booking->received_amount, 2) }}</td>
-                    </tr>
-                @endif
+                @php
+                    $totalPaid = $booking->payments ? (float) $booking->payments->sum('amount') : 0.0;
+                    $balanceAmount = max(0, (float) $booking->total_amount - $totalPaid);
+                @endphp
+                <tr>
+                    <td class="info-label text-end">Paid Amount:</td>
+                    <td class="info-val text-end text-success" style="font-weight: 700;">₹{{ indian_money($totalPaid) }}</td>
+                </tr>
+                <tr>
+                    <td class="info-label text-end">Balance:</td>
+                    <td class="info-val text-end" style="font-weight: 700; color: {{ $balanceAmount > 0 ? '#dc2626' : '#16a34a' }};">₹{{ indian_money($balanceAmount) }}</td>
+                </tr>
             </table>
         </div>
 

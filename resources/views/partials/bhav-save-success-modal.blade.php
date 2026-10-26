@@ -36,9 +36,13 @@
                         <span class="text-muted">Total Weight:</span>
                         <strong class="text-dark" id="successTotalWeight">0.000 gm</strong>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                         <span class="text-muted">Total Amount:</span>
                         <strong class="text-success fs-6" id="successTotalAmount">₹0.00</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center" id="successPaymentRow" style="display: none;">
+                        <span class="text-muted">Payment:</span>
+                        <strong class="text-dark" id="successPaymentText">-</strong>
                     </div>
                 </div>
 

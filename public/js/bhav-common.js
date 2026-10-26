@@ -150,14 +150,13 @@ function showToast(message, type = 'info') {
     }
 }
 
-// Global helper: Check whether a booking can be edited or deleted (PENDING, 0 delivered, 0 payment)
+// Global helper: Check whether a booking can be edited or deleted (PENDING, 0 delivered, and NO external BUY_SELL payments)
 function isBookingModifiable(booking) {
     if (!booking) return false;
     const statusUpper = (booking.status || '').toUpperCase();
     return statusUpper === 'PENDING'
         && (parseFloat(booking.delivered_weight) || 0) === 0
-        && (parseFloat(booking.given_amount) || 0) === 0
-        && (parseFloat(booking.received_amount) || 0) === 0;
+        && !booking.has_external_payments;
 }
 
 // Global helper: Generate a concise text summary of a booking
@@ -172,7 +171,15 @@ function generateBookingSummary(booking) {
     const wt = (parseFloat(booking.total_weight) || 0).toFixed(3);
     const amt = formatIndianCurrency(booking.total_amount || 0);
 
-    return `Booking: ${bookingNo}\nDate: ${dateStr}\nCustomer: ${customerName}\nTrade: ${trade}\nMetal: ${metal}\nWeight: ${wt} gm\nAmount: ₹${amt}`;
+    const payments = Array.isArray(booking.payments) ? booking.payments : [];
+    const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const totalAmt = parseFloat(booking.total_amount) || 0;
+    const balance = Math.max(0, totalAmt - totalPaid);
+
+    let summaryText = `Booking: ${bookingNo}\nDate: ${dateStr}\nCustomer: ${customerName}\nTrade: ${trade}\nMetal: ${metal}\nWeight: ${wt} gm\nAmount: ₹${amt}`;
+    summaryText += `\nPaid: ₹${formatIndianCurrency(totalPaid)}\nBalance: ₹${formatIndianCurrency(balance)}`;
+
+    return summaryText;
 }
 
 // Global helper: Share booking details via Web Share API or Clipboard fallback
@@ -378,6 +385,53 @@ function viewBookingDetails(bookingId) {
         if (viewTotalAmount) viewTotalAmount.textContent = `₹${formatIndianCurrency(booking.total_amount || 0)}`;
         if (viewDeliveredWeight) viewDeliveredWeight.textContent = `${(parseFloat(booking.delivered_weight) || 0).toFixed(3)} gm`;
         if (viewPendingWeight) viewPendingWeight.textContent = `${(parseFloat(booking.pending_weight) || 0).toFixed(3)} gm`;
+
+        // Payments Table & Paid / Balance in View Modal
+        const viewPaymentsTableBody = document.getElementById('viewPaymentsTableBody');
+        const viewPaymentsPaid = document.getElementById('viewPaymentsPaid');
+        const viewPaymentsBalance = document.getElementById('viewPaymentsBalance');
+
+        const payments = Array.isArray(booking.payments) ? booking.payments : [];
+        const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        const totalBookingAmt = parseFloat(booking.total_amount) || 0;
+        const balance = Math.max(0, totalBookingAmt - totalPaid);
+
+        if (viewPaymentsPaid) {
+            viewPaymentsPaid.textContent = `₹${formatIndianCurrency(totalPaid)}`;
+        }
+        if (viewPaymentsBalance) {
+            viewPaymentsBalance.textContent = `₹${formatIndianCurrency(balance)}`;
+            viewPaymentsBalance.className = balance > 0 ? 'text-danger' : 'text-success';
+        }
+
+        if (viewPaymentsTableBody) {
+            if (payments.length === 0) {
+                viewPaymentsTableBody.innerHTML = '<tr><td colspan="4" class="py-3 text-muted text-center">No payments recorded</td></tr>';
+            } else {
+                let pRowsHtml = '';
+                payments.forEach((p, pIdx) => {
+                    const sn = p.sort_order || (pIdx + 1);
+                    const isCash = (p.mode || '').toUpperCase() === 'CASH';
+                    const modeBadge = isCash
+                        ? '<span class="badge-payment-cash"><i class="fa-solid fa-money-bill-wave"></i> Cash</span>'
+                        : '<span class="badge-payment-online"><i class="fa-solid fa-globe"></i> Online</span>';
+                    const methodRef = isCash
+                        ? 'Cash Payment'
+                        : `${escapeHtml(p.online_method || 'ONLINE')}${p.reference_no ? ' • ' + escapeHtml(p.reference_no) : ''}`;
+                    const amtStr = formatIndianCurrency(p.amount || 0);
+
+                    pRowsHtml += `
+                        <tr>
+                            <td class="text-center fw-bold text-muted">${sn}</td>
+                            <td class="text-start">${modeBadge}</td>
+                            <td class="text-start text-muted">${methodRef}</td>
+                            <td class="text-end fw-bold text-dark">₹${amtStr}</td>
+                        </tr>
+                    `;
+                });
+                viewPaymentsTableBody.innerHTML = pRowsHtml;
+            }
+        }
 
         if (viewNarration) viewNarration.textContent = booking.narration || 'None';
 

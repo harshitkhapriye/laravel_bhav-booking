@@ -33,6 +33,11 @@ class StoreBhavBookingRequest extends FormRequest
             'items'         => ['required', 'array', 'min:1', 'max:50'],
             'items.*.weight'=> ['required', 'numeric', 'gt:0', "max:{$maxWeight}"],
             'items.*.rate'  => ['required', 'numeric', 'gt:0', "max:{$maxRate}"],
+            'payments'      => ['nullable', 'array', 'max:20'],
+            'payments.*.mode' => ['required', 'in:CASH,ONLINE'],
+            'payments.*.online_method' => ['nullable', 'required_if:payments.*.mode,ONLINE', 'in:UPI,BANK,CARD,CHEQUE'],
+            'payments.*.reference_no'  => ['nullable', 'string', 'max:50'],
+            'payments.*.amount'        => ['required', 'numeric', 'gt:0', 'max:9999999.99'],
             'narration'     => ['nullable', 'string', 'max:255'],
             'send_whatsapp' => ['boolean'],
             'request_token' => ['required', 'uuid'],
@@ -46,14 +51,19 @@ class StoreBhavBookingRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'customer_id'    => 'customer',
-            'trade_type'     => 'trade type',
-            'entry_type'     => 'entry type',
-            'metal'          => 'metal',
-            'items'          => 'booking items',
-            'items.*.weight' => 'weight',
-            'items.*.rate'   => 'rate',
-            'request_token'  => 'request token',
+            'customer_id'              => 'customer',
+            'trade_type'               => 'trade type',
+            'entry_type'               => 'entry type',
+            'metal'                    => 'metal',
+            'items'                    => 'booking items',
+            'items.*.weight'           => 'weight',
+            'items.*.rate'             => 'rate',
+            'payments'                 => 'payments',
+            'payments.*.mode'          => 'payment mode',
+            'payments.*.online_method' => 'online payment method',
+            'payments.*.reference_no'  => 'reference number',
+            'payments.*.amount'        => 'payment amount',
+            'request_token'            => 'request token',
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BhavBookingController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\PartyController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -60,3 +61,23 @@ Route::delete('/bhav-bookings/{bhavBooking}', [BhavBookingController::class, 'de
 Route::get('/bhav-bookings/{bhavBooking}/print', [BhavBookingController::class, 'print'])
     ->name('bhav-bookings.print')
     ->missing($missingBookingCallback);
+
+// Callback for route model binding failure on parties
+// Returns JSON 404 "Party not found"
+$missingPartyCallback = function (Request $request) {
+    return response()->json(['message' => 'Party not found'], 404);
+};
+
+// Party Master Routes
+Route::get('/parties', [PartyController::class, 'index'])->name('parties.index');
+Route::get('/parties/list', [PartyController::class, 'list'])->name('parties.list');
+Route::get('/parties/{customer}', [PartyController::class, 'show'])
+    ->name('parties.show')
+    ->missing($missingPartyCallback);
+Route::put('/parties/{customer}', [PartyController::class, 'update'])
+    ->name('parties.update')
+    ->missing($missingPartyCallback);
+Route::delete('/parties/{customer}', [PartyController::class, 'destroy'])
+    ->name('parties.destroy')
+    ->missing($missingPartyCallback);
+

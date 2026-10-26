@@ -23,6 +23,9 @@
 
             <!-- Modal Form (multipart/form-data for image uploads) -->
             <form id="addCustomerForm" autocomplete="off" onsubmit="return false;" enctype="multipart/form-data">
+                <input type="hidden" id="editPartyId" name="edit_party_id" value="">
+                <input type="hidden" id="removeProfileImageInput" name="remove_profile_image" value="0">
+                <input type="hidden" id="removeShopLogoInput" name="remove_shop_logo" value="0">
                 <div class="modal-body party-modal-body px-4 py-3">
                     
                     <!-- TOP SECTION: Profile Image + Toggle + Primary Inputs -->
@@ -133,7 +136,7 @@
                     <!-- =========================================================
                          EXPANDABLE ADDITIONAL INFORMATION SECTION (Screenshot 2)
                          ========================================================= -->
-                    <div id="additionalInfoSection" class="additional-info-panel" style="display: none;">
+                    <div id="additionalInfoSection" class="additional-info-panel">
                         
                         <!-- Pill Heading with Decorative Lines -->
                         <div class="additional-divider-wrapper my-3 d-flex align-items-center">
@@ -148,14 +151,14 @@
                             <!-- Birthday -->
                             <div class="col-12 col-md-6">
                                 <label class="party-field-label" for="newPartyBirthday">Birthday</label>
-                                <input type="date" class="form-control party-input-pill" id="newPartyBirthday" name="birthday">
+                                <input type="date" class="form-control party-input-pill" id="newPartyBirthday" name="birthday" min="1900-01-01">
                                 <div class="field-error-text text-danger small mt-1 ps-3" id="errorNewPartyBirthday" style="display: none;"></div>
                             </div>
 
                             <!-- Anniversary -->
                             <div class="col-12 col-md-6">
                                 <label class="party-field-label" for="newPartyAnniversary">Anniversary</label>
-                                <input type="date" class="form-control party-input-pill" id="newPartyAnniversary" name="anniversary">
+                                <input type="date" class="form-control party-input-pill" id="newPartyAnniversary" name="anniversary" min="1900-01-01">
                                 <div class="field-error-text text-danger small mt-1 ps-3" id="errorNewPartyAnniversary" style="display: none;"></div>
                             </div>
 

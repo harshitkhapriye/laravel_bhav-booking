@@ -35,6 +35,11 @@
                             <span><i class="fa-solid fa-clock-rotate-left me-2 text-muted"></i> Old Booking</span>
                         </a>
                     </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ route('parties.index') }}" id="menuPartyMaster">
+                            <span><i class="fa-solid fa-users me-2 text-muted"></i> Party Master</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
 
@@ -179,7 +184,7 @@
                         <!-- RATE (Dynamic Label: Quoted per 10 Grams) -->
                         <div class="row mb-2 align-items-center form-row-group">
                             <label class="col-12 col-sm-4 text-sm-end form-label-label" id="labelRate" for="inputRate">
-                                SELL RATE (/10GM) :
+                                SELL RATE {{ rate_unit_label() }} :
                             </label>
                             <div class="col-12 col-sm-8">
                                 <div class="input-with-suffix">
@@ -237,6 +242,86 @@
                                         </table>
                                     </div>
                                     <div id="entriesGlobalError" class="field-error-text text-danger small mt-1 ps-2" style="display: none;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PAYMENT (Dynamic Label: SELL -> RECEIVED :, BUY -> GIVEN :) -->
+                        <div class="row mb-2 align-items-center form-row-group" id="paymentRowGroup">
+                            <label class="col-12 col-sm-4 text-sm-end form-label-label" id="labelPayment" for="inputPaymentAmount">
+                                RECEIVED :
+                            </label>
+                            <div class="col-12 col-sm-8">
+                                <div class="d-flex align-items-center gap-2 flex-wrap flex-sm-nowrap">
+                                    <!-- Payment Mode Toggle (Cash / Online) -->
+                                    <div class="payment-mode-toggle-container mode-cash flex-shrink-0" id="paymentModeToggle" data-mode="CASH">
+                                        <div class="payment-mode-toggle-pill" id="paymentModeTogglePill"></div>
+                                        <button type="button" class="payment-mode-toggle-btn active" id="btnPaymentCash" data-mode="CASH">Cash</button>
+                                        <button type="button" class="payment-mode-toggle-btn" id="btnPaymentOnline" data-mode="ONLINE">Online</button>
+                                    </div>
+
+                                    <!-- Online Method & Ref (Shown only when Online is selected) -->
+                                    <div id="paymentOnlineFields" class="d-none align-items-center gap-1 flex-shrink-0">
+                                        <select class="form-select form-input-pill py-1 px-2 small" id="paymentOnlineMethod" style="width: auto; min-width: 82px; font-size: 11.5px; height: 38px;">
+                                            <option value="UPI" selected>UPI</option>
+                                            <option value="BANK">Bank</option>
+                                            <option value="CARD">Card</option>
+                                            <option value="CHEQUE">Cheque</option>
+                                        </select>
+                                        <input type="text" class="form-control form-input-pill py-1 px-2 small" id="paymentRefNo" placeholder="Ref. No." maxlength="50" style="width: 95px; font-size: 11.5px; height: 38px;">
+                                    </div>
+
+                                    <!-- Payment Amount Input -->
+                                    <div class="input-with-suffix flex-grow-1" style="min-width: 110px;">
+                                        <input type="text" inputmode="decimal" class="form-control form-input-pill pe-5" id="inputPaymentAmount" placeholder="0.00">
+                                        <span class="field-suffix">₹</span>
+                                    </div>
+
+                                    <!-- Add Payment Button -->
+                                    <button type="button" class="btn btn-round-navy flex-shrink-0" id="btnAddPayment" title="Add Payment Entry">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="paymentError" class="field-error-text text-danger small mt-1 ps-2" style="display: none;"></div>
+                            </div>
+                        </div>
+
+                        <!-- PAYMENT ENTRIES MINI-TABLE -->
+                        <div class="row mb-2 form-row-group" id="paymentEntriesRowWrapper" style="display: none;">
+                            <label class="col-12 col-sm-4 text-sm-end form-label-label pt-1" id="labelPaymentEntries">
+                                PAYMENTS (<span id="paymentEntriesCountBadge">0</span>) :
+                            </label>
+                            <div class="col-12 col-sm-8">
+                                <div class="entries-table-card rounded-3 border bg-white shadow-sm p-2">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm entries-table mb-0 align-middle">
+                                            <thead class="bg-light text-secondary small">
+                                                <tr>
+                                                    <th class="text-center py-2 col-entry-sn" style="width: 35px;">#</th>
+                                                    <th class="py-2 text-start">MODE</th>
+                                                    <th class="text-end py-2" style="width: 140px;">AMOUNT (₹)</th>
+                                                    <th class="text-center py-2 col-entry-del" style="width: 35px;"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="paymentEntriesTableBody">
+                                                <!-- Dynamic payment rows -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUMMARY LINE: Paid: ₹x | Balance: ₹y -->
+                        <div class="row mb-2 form-row-group" id="paymentSummaryRow">
+                            <div class="col-12 col-sm-8 offset-sm-4">
+                                <div class="d-flex align-items-center justify-content-between px-3 py-1 rounded bg-light border small fw-bold" id="paymentSummaryBox">
+                                    <span class="text-secondary">
+                                        Paid: <span id="paymentSummaryPaid" class="text-dark">₹0.00</span>
+                                    </span>
+                                    <span>
+                                        Balance: <span id="paymentSummaryBalance" class="text-success">₹0.00</span>
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -350,10 +435,19 @@
                         </div>
                     </div>
 
-                    <!-- Filter Bar Row 2: Metal, Type, Page Size -->
+                    <!-- Filter Bar Row 2: Trade, Metal, Type, Page Size -->
                     <div class="row g-2 align-items-center mb-3">
+                        <!-- Trade Filter -->
+                        <div class="col-3 col-sm-3">
+                            <select class="form-select form-input-pill text-center" id="filterTradeSelect">
+                                <option value="ALL" selected>Trade: All</option>
+                                <option value="BUY">Buy</option>
+                                <option value="SELL">Sell</option>
+                            </select>
+                        </div>
+
                         <!-- Metal Filter -->
-                        <div class="col-4 col-sm-4">
+                        <div class="col-3 col-sm-3">
                             <select class="form-select form-input-pill text-center" id="filterMetalSelect">
                                 <option value="ALL" selected>Metal: All</option>
                                 <option value="GOLD">Gold</option>
@@ -362,7 +456,7 @@
                         </div>
 
                         <!-- Type Filter -->
-                        <div class="col-5 col-sm-5">
+                        <div class="col-3 col-sm-3">
                             <select class="form-select form-input-pill text-center" id="filterTypeSelect">
                                 <option value="ALL" selected>Type: All</option>
                                 <option value="ONLY_ENTRY">Only Entry</option>
@@ -380,28 +474,31 @@
                         </div>
                     </div>
 
+                    <!-- Thin Loading Bar -->
+                    <div class="table-loading-bar mb-1" id="tableLoadingBar"></div>
+
                     <!-- Horizontally Scrollable Table Container -->
                     <div class="table-responsive-container flex-grow-1">
-                        <table class="table bhav-table text-center align-middle mb-0">
+                        <table class="table bhav-table text-center align-middle mb-0" id="bhavBookingTable">
                             <thead>
                                 <!-- Header Row 1 -->
                                 <tr class="header-row-primary">
                                     <th rowspan="2" class="col-sn">SN</th>
                                     <th rowspan="2" class="col-datetime">DATE / TIME</th>
                                     <th rowspan="2" class="col-customer">CUSTOMER</th>
-                                    <th colspan="3" class="col-group-buy border-bottom-0">BUY DETAILS</th>
-                                    <th colspan="3" class="col-group-sell border-bottom-0">SELL DETAILS</th>
+                                    <th colspan="3" class="col-group-buy border-bottom-0 col-buy">BUY DETAILS</th>
+                                    <th colspan="3" class="col-group-sell border-bottom-0 col-sell">SELL DETAILS</th>
                                     <th rowspan="2" class="col-given-received">GIVEN / RECEIVED</th>
                                     <th rowspan="2" class="col-action">ACTION</th>
                                 </tr>
                                 <!-- Header Row 2 -->
                                 <tr class="header-row-sub">
-                                    <th class="sub-col">WT</th>
-                                    <th class="sub-col">RATE</th>
-                                    <th class="sub-col">AMT</th>
-                                    <th class="sub-col">WT</th>
-                                    <th class="sub-col">RATE</th>
-                                    <th class="sub-col">AMT</th>
+                                    <th class="sub-col col-buy">WT</th>
+                                    <th class="sub-col col-buy">RATE</th>
+                                    <th class="sub-col col-buy group-end">AMT</th>
+                                    <th class="sub-col col-sell">WT</th>
+                                    <th class="sub-col col-sell">RATE</th>
+                                    <th class="sub-col col-sell group-end">AMT</th>
                                 </tr>
                             </thead>
                             <tbody id="bhavTableBody">
@@ -418,17 +515,17 @@
                             <tfoot>
                                 <tr class="table-total-row">
                                     <td colspan="3" class="text-end fw-bold pe-3">TOTAL :-</td>
-                                    <td class="text-success fw-bold" id="totalBuyWt">0.000 gm</td>
-                                    <td></td>
-                                    <td class="text-success fw-bold" id="totalBuyAmt">₹0.00</td>
-                                    <td class="text-danger fw-bold" id="totalSellWt">0.000 gm</td>
-                                    <td></td>
-                                    <td class="text-danger fw-bold" id="totalSellAmt">₹0.00</td>
-                                    <td>
+                                    <td class="text-success fw-bold col-buy" id="totalBuyWt">0.000 gm</td>
+                                    <td class="col-buy"></td>
+                                    <td class="text-success fw-bold col-buy group-end" id="totalBuyAmt">₹0.00</td>
+                                    <td class="text-danger fw-bold col-sell" id="totalSellWt">0.000 gm</td>
+                                    <td class="col-sell"></td>
+                                    <td class="text-danger fw-bold col-sell group-end" id="totalSellAmt">₹0.00</td>
+                                    <td class="col-given-received">
                                         <div class="text-danger fw-bold" id="totalGiven">G: ₹0.00</div>
                                         <div class="text-success fw-bold" id="totalReceived">R: ₹0.00</div>
                                     </td>
-                                    <td></td>
+                                    <td class="col-action"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -483,8 +580,8 @@
 @endsection
 
 @section('scripts')
-    <script src="{{ asset('js/bhav-common.js') }}"></script>
-    <script src="{{ asset('js/bhav-booking.js') }}"></script>
+    <script src="{{ asset('js/bhav-common.js') }}" defer></script>
+    <script src="{{ asset('js/bhav-booking.js') }}" defer></script>
 @endsection
 
 

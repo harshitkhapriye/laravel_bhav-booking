@@ -25,7 +25,12 @@
                 </a>
             </li>
             <li>
-                <a href="#" class="sidebar-icon-link active" title="Buy-Sell / Bhav Booking">
+                <a href="{{ route('parties.index') }}" class="sidebar-icon-link {{ request()->routeIs('parties.*') ? 'active' : '' }}" title="Parties">
+                    <i class="fa-solid fa-users"></i>
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('bhav-booking.index') }}" class="sidebar-icon-link {{ request()->routeIs('bhav-booking.*') ? 'active' : '' }}" title="Buy-Sell / Bhav Booking">
                     <i class="fa-solid fa-box"></i>
                 </a>
             </li>

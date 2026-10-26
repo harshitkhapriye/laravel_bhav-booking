@@ -25,6 +25,13 @@ class ListBhavBookingRequest extends FormRequest
     {
         $merge = [];
 
+        if ($this->has('trade_type') && is_string($this->trade_type)) {
+            $trimmed = trim($this->trade_type);
+            if ($trimmed !== '') {
+                $merge['trade_type'] = strtoupper($trimmed);
+            }
+        }
+
         if ($this->has('metal') && is_string($this->metal)) {
             $trimmed = trim($this->metal);
             if ($trimmed !== '') {
@@ -80,6 +87,7 @@ class ListBhavBookingRequest extends FormRequest
                     }
                 },
             ],
+            'trade_type' => ['nullable', 'string', 'in:ALL,BUY,SELL'],
             'metal'      => ['nullable', 'string', 'in:ALL,GOLD,SILVER'],
             'entry_type' => ['nullable', 'string', 'in:ALL,ONLY_ENTRY,BHAV_CUT_LEDGER'],
             'view'       => ['nullable', 'string', 'in:current,old'],

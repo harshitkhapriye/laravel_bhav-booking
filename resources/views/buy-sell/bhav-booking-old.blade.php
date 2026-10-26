@@ -35,6 +35,11 @@
                             <i class="fa-solid fa-check text-success small ms-3" id="iconOldCheck"></i>
                         </a>
                     </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ route('parties.index') }}" id="menuPartyMaster">
+                            <span><i class="fa-solid fa-users me-2 text-muted"></i> Party Master</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
 
@@ -132,6 +137,9 @@
     <!-- Table Card -->
     <div class="card custom-content-card border-0 shadow-sm">
         <div class="card-body p-2 p-md-3">
+            <!-- Thin Loading Bar -->
+            <div class="table-loading-bar mb-1" id="oldTableLoadingBar"></div>
+
             <div class="table-responsive-container">
                 <table class="table old-bhav-table align-middle text-center mb-0">
                     <thead>
@@ -204,6 +212,6 @@
 @endsection
 
 @section('scripts')
-    <script src="{{ asset('js/bhav-common.js') }}"></script>
-    <script src="{{ asset('js/bhav-booking-old.js') }}"></script>
+    <script src="{{ asset('js/bhav-common.js') }}" defer></script>
+    <script src="{{ asset('js/bhav-booking-old.js') }}" defer></script>
 @endsection
