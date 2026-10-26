@@ -1871,12 +1871,48 @@ document.addEventListener('DOMContentLoaded', function () {
     const paymentSummaryPaid = document.getElementById('paymentSummaryPaid');
     const paymentSummaryBalance = document.getElementById('paymentSummaryBalance');
 
-    // Initialize metal and default rate from BHAV_CONFIG
+    // Initialize metal and default rate from BHAV_CONFIG or today's rate
     if (categorySelect) {
         currentMetal = categorySelect.value || 'GOLD';
     }
-    if (inputRate && BHAV_CONFIG.default_rates && BHAV_CONFIG.default_rates[currentMetal]) {
-        inputRate.value = BHAV_CONFIG.default_rates[currentMetal];
+
+    function getDefaultRateForMetal(metal) {
+        if (window.TODAY_RATES && window.TODAY_RATES[metal] && window.TODAY_RATES[metal].is_set) {
+            return {
+                rate: window.TODAY_RATES[metal].rate,
+                isToday: true
+            };
+        }
+        const def = (BHAV_CONFIG.default_rates && BHAV_CONFIG.default_rates[metal] !== undefined)
+            ? BHAV_CONFIG.default_rates[metal]
+            : (metal === 'GOLD' ? 165000 : 1800);
+        return {
+            rate: def,
+            isToday: false
+        };
+    }
+
+    function updateTodayRateHint() {
+        const hintEl = document.getElementById('rateTodayHint');
+        if (!hintEl || !inputRate) return;
+
+        const metal = categorySelect ? categorySelect.value : currentMetal;
+        const currentRateVal = parseFloat(inputRate.value) || 0;
+
+        if (window.TODAY_RATES && window.TODAY_RATES[metal] && window.TODAY_RATES[metal].is_set) {
+            const todayRateVal = parseFloat(window.TODAY_RATES[metal].rate) || 0;
+            if (Math.abs(currentRateVal - todayRateVal) < 0.001) {
+                hintEl.style.display = 'inline-block';
+                return;
+            }
+        }
+        hintEl.style.display = 'none';
+    }
+
+    if (inputRate) {
+        const def = getDefaultRateForMetal(currentMetal);
+        inputRate.value = def.rate;
+        updateTodayRateHint();
     }
 
     /**
@@ -2217,8 +2253,10 @@ document.addEventListener('DOMContentLoaded', function () {
             currentMetal = newMetal;
 
             // Reset rate to new metal's default
-            if (BHAV_CONFIG.default_rates && BHAV_CONFIG.default_rates[newMetal] !== undefined && inputRate) {
-                inputRate.value = BHAV_CONFIG.default_rates[newMetal];
+            if (inputRate) {
+                const def = getDefaultRateForMetal(newMetal);
+                inputRate.value = def.rate;
+                updateTodayRateHint();
                 if (rateError) {
                     rateError.style.display = 'none';
                     inputRate.classList.remove('is-invalid');
@@ -2272,6 +2310,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.classList.remove('is-invalid');
             }
 
+            updateTodayRateHint();
             updateAllTotals();
         });
 
@@ -2281,6 +2320,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const num = parseFloat(val);
                 if (num >= 0) this.value = num.toFixed(2);
             }
+            updateTodayRateHint();
             updateAllTotals();
         });
     }
@@ -4403,6 +4443,144 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // =========================================================================
+    // TODAY'S RATE MASTER
+    // =========================================================================
+    function fetchTodayRates() {
+        if (!window.APP_ROUTES || !window.APP_ROUTES.dailyRatesToday) return;
+
+        fetch(window.APP_ROUTES.dailyRatesToday)
+            .then(res => res.json())
+            .then(rates => {
+                window.TODAY_RATES = rates;
+
+                const badgeGold = document.getElementById('badgeTodayGold');
+                const badgeSilver = document.getElementById('badgeTodaySilver');
+
+                if (badgeGold && rates.GOLD) {
+                    badgeGold.textContent = `Gold: ₹${formatIndianCurrency(rates.GOLD.rate)}`;
+                }
+                if (badgeSilver && rates.SILVER) {
+                    badgeSilver.textContent = `Silver: ₹${formatIndianCurrency(rates.SILVER.rate)}`;
+                }
+
+                if (!isEditingMode) {
+                    const def = getDefaultRateForMetal(currentMetal);
+                    if (inputRate && def.isToday) {
+                        inputRate.value = def.rate;
+                    }
+                    updateTodayRateHint();
+                    updateAllTotals();
+                }
+            })
+            .catch(err => console.warn('Could not fetch daily rates:', err));
+    }
+
+    function initDailyRateModal() {
+        const btnOpen = document.getElementById('btnTodayRateModal');
+        const modalEl = document.getElementById('dailyRateModal');
+        const form = document.getElementById('dailyRateForm');
+        const goldInput = document.getElementById('modalGoldRate');
+        const silverInput = document.getElementById('modalSilverRate');
+        const goldError = document.getElementById('goldRateError');
+        const silverError = document.getElementById('silverRateError');
+        const globalError = document.getElementById('dailyRateGlobalError');
+
+        if (!btnOpen || !modalEl) return;
+
+        btnOpen.addEventListener('click', function () {
+            if (goldError) goldError.style.display = 'none';
+            if (silverError) silverError.style.display = 'none';
+            if (globalError) globalError.classList.add('d-none');
+
+            const goldVal = (window.TODAY_RATES && window.TODAY_RATES.GOLD)
+                ? window.TODAY_RATES.GOLD.rate
+                : (BHAV_CONFIG.default_rates?.GOLD || 165000);
+            const silverVal = (window.TODAY_RATES && window.TODAY_RATES.SILVER)
+                ? window.TODAY_RATES.SILVER.rate
+                : (BHAV_CONFIG.default_rates?.SILVER || 1800);
+
+            if (goldInput) goldInput.value = goldVal;
+            if (silverInput) silverInput.value = silverVal;
+
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        });
+
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                let hasErr = false;
+                const gVal = parseFloat(goldInput.value) || 0;
+                const sVal = parseFloat(silverInput.value) || 0;
+
+                if (gVal <= 0) {
+                    if (goldError) {
+                        goldError.textContent = 'Gold rate must be greater than 0';
+                        goldError.style.display = 'block';
+                    }
+                    hasErr = true;
+                } else if (goldError) {
+                    goldError.style.display = 'none';
+                }
+
+                if (sVal <= 0) {
+                    if (silverError) {
+                        silverError.textContent = 'Silver rate must be greater than 0';
+                        silverError.style.display = 'block';
+                    }
+                    hasErr = true;
+                } else if (silverError) {
+                    silverError.style.display = 'none';
+                }
+
+                if (hasErr) return;
+
+                const btnSave = document.getElementById('btnSaveDailyRates');
+                if (btnSave) btnSave.disabled = true;
+
+                fetch(window.APP_ROUTES.dailyRatesStore, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        gold_rate: gVal,
+                        silver_rate: sVal
+                    })
+                })
+                .then(res => {
+                    if (res.status === 429) {
+                        showGlobalToast('Too many requests. Please slow down and try again shortly.', 'warning');
+                        throw new Error('Throttle');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (btnSave) btnSave.disabled = false;
+                    if (data.rates) {
+                        window.TODAY_RATES = data.rates;
+                        fetchTodayRates();
+                    }
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                        bootstrap.Modal.getInstance(modalEl)?.hide();
+                    }
+                    showGlobalToast("Today's rates updated successfully.", 'success');
+                })
+                .catch(err => {
+                    if (btnSave) btnSave.disabled = false;
+                    if (err.message !== 'Throttle' && globalError) {
+                        globalError.textContent = 'Failed to save rates. Please check inputs.';
+                        globalError.classList.remove('d-none');
+                    }
+                });
+            });
+        }
+    }
+
     // Attach Event Delegation to Table Body for Action 3-Dot Kebab Menu
     if (bhavTableBody) {
         bhavTableBody.addEventListener('click', function (e) {
@@ -4424,6 +4602,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // INITIALIZATION: Load Booking List & Auto-open Customer Field on Page Load
     // =========================================================================
     initPartyDateInputs();
+    initDailyRateModal();
+    fetchTodayRates();
     fetchBookingList(1);
 
     // Auto-load booking for edit if ?edit={id} query parameter is present in URL

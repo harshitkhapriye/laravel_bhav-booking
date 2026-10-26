@@ -2,11 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
+use Database\Seeders\CustomerSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class CustomerTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(CustomerSeeder::class);
+    }
     /**
      * Test empty query returns empty JSON array.
      */

@@ -126,6 +126,11 @@
                     </select>
                 </div>
 
+                <!-- Export to CSV Button -->
+                <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-1 shadow-sm" id="btnExportBookings" title="Export filtered bookings to CSV">
+                    <i class="fa-solid fa-file-csv"></i> Export
+                </button>
+
                 <!-- Far Right: Round Orange Back Button -->
                 <button type="button" class="btn btn-round-orange ms-auto" id="btnBackNavigation" title="Back">
                     <i class="fa-solid fa-chevron-left"></i>
@@ -206,7 +211,9 @@
         bhavBookingShow: "{{ route('bhav-bookings.show', ['bhavBooking' => '__ID__']) }}",
         bhavBookingUpdate: "{{ route('bhav-bookings.update', ['bhavBooking' => '__ID__']) }}",
         bhavBookingDelete: "{{ route('bhav-bookings.destroy', ['bhavBooking' => '__ID__']) }}",
-        bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}"
+        bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingExport: "{{ route('bhav-bookings.export') }}",
+        bhavBookingLogAction: "{{ route('bhav-bookings.log-action', ['bhavBooking' => '__ID__']) }}"
     };
 </script>
 @endsection

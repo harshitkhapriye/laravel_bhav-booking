@@ -76,6 +76,14 @@ class BhavBooking extends Model
     }
 
     /**
+     * A Bhav Booking has many activity logs ordered newest first.
+     */
+    public function logs(): HasMany
+    {
+        return $this->hasMany(BhavBookingLog::class, 'bhav_booking_id')->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+    }
+
+    /**
      * A Bhav Booking belongs to a Customer.
      */
     public function customer(): BelongsTo

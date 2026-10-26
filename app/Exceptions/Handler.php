@@ -64,5 +64,14 @@ class Handler extends ExceptionHandler
                 }
             }
         });
+
+        // Why: Friendly JSON message on HTTP 429 Too Many Requests for API routes
+        $this->renderable(function (\Illuminate\Http\Exceptions\ThrottleRequestsException $e, $request) {
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson() || $request->is('customers/*') || $request->is('bhav-bookings*') || $request->is('daily-rates*')) {
+                return response()->json([
+                    'message' => 'Too many requests. Please slow down and try again shortly.',
+                ], 429);
+            }
+        });
     }
 }

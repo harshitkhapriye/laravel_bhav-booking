@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BhavBooking;
+use App\Models\BhavBookingLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -123,61 +124,108 @@ class BhavBookingService
         $receivedAmount = $isSell ? $totalPayments : 0.00;
         $givenAmount = $isSell ? 0.00 : $totalPayments;
 
-        // 4. DATABASE TRANSACTION WITH ROW LOCK
-        // Why: Prevents race conditions when two users save bookings at the exact same millisecond.
-        $booking = DB::transaction(function () use ($validated, $calculated, $paymentsData, $givenAmount, $receivedAmount) {
-            $bookingNo = BhavBooking::nextBookingNo(true);
+        // 4. DATABASE TRANSACTION WITH RETRY (Bugs b and c)
+        // Why: Retries up to 3 times on booking_no race; catches duplicate request_token on idempotency race
+        $maxAttempts = 3;
+        $attempt = 0;
 
-            $newBooking = BhavBooking::create([
-                'booking_no'       => $bookingNo,
-                'customer_id'      => $validated['customer_id'],
-                'trade_type'       => $validated['trade_type'],
-                'entry_type'       => $validated['entry_type'],
-                'metal'            => $validated['metal'],
-                'total_weight'     => $calculated['total_weight'],
-                'total_amount'     => $calculated['total_amount'],
-                'delivered_weight' => 0.000,
-                'given_amount'     => $givenAmount,
-                'received_amount'  => $receivedAmount,
-                'status'           => 'PENDING',
-                'narration'        => $validated['narration'] ?? null,
-                'send_whatsapp'    => $validated['send_whatsapp'] ?? false,
-                'request_token'    => $validated['request_token'],
-                'booked_at'        => now(),
-            ]);
+        while ($attempt < $maxAttempts) {
+            $attempt++;
+            try {
+                $booking = DB::transaction(function () use ($validated, $calculated, $paymentsData, $givenAmount, $receivedAmount) {
+                    $bookingNo = BhavBooking::nextBookingNo(true);
 
-            // Save line items
-            $newBooking->items()->createMany($calculated['items']);
+                    $newBooking = BhavBooking::create([
+                        'booking_no'       => $bookingNo,
+                        'customer_id'      => $validated['customer_id'],
+                        'trade_type'       => $validated['trade_type'],
+                        'entry_type'       => $validated['entry_type'],
+                        'metal'            => $validated['metal'],
+                        'total_weight'     => $calculated['total_weight'],
+                        'total_amount'     => $calculated['total_amount'],
+                        'delivered_weight' => 0.000,
+                        'given_amount'     => $givenAmount,
+                        'received_amount'  => $receivedAmount,
+                        'status'           => 'PENDING',
+                        'narration'        => $validated['narration'] ?? null,
+                        'send_whatsapp'    => $validated['send_whatsapp'] ?? false,
+                        'request_token'    => $validated['request_token'],
+                        'booked_at'        => now(),
+                    ]);
 
-            // Save payments with source = 'BOOKING'
-            if (!empty($paymentsData)) {
-                $now = now();
-                $paymentRows = [];
-                foreach ($paymentsData as $index => $payment) {
-                    $paymentRows[] = [
-                        'mode'          => $payment['mode'],
-                        'online_method' => $payment['mode'] === 'ONLINE' ? ($payment['online_method'] ?? 'UPI') : null,
-                        'reference_no'  => $payment['reference_no'] ?? null,
-                        'amount'        => round((float) $payment['amount'], 2),
-                        'source'        => 'BOOKING',
-                        'sort_order'    => $index + 1,
-                        'paid_at'       => $now,
-                        'created_at'    => $now,
-                        'updated_at'    => $now,
+                    // Save line items
+                    $newBooking->items()->createMany($calculated['items']);
+
+                    // Save payments with source = 'BOOKING'
+                    if (!empty($paymentsData)) {
+                        $now = now();
+                        $paymentRows = [];
+                        foreach ($paymentsData as $index => $payment) {
+                            $paymentRows[] = [
+                                'mode'          => $payment['mode'],
+                                'online_method' => $payment['mode'] === 'ONLINE' ? ($payment['online_method'] ?? 'UPI') : null,
+                                'reference_no'  => $payment['reference_no'] ?? null,
+                                'amount'        => round((float) $payment['amount'], 2),
+                                'source'        => 'BOOKING',
+                                'sort_order'    => $index + 1,
+                                'paid_at'       => $now,
+                                'created_at'    => $now,
+                                'updated_at'    => $now,
+                            ];
+                        }
+                        $newBooking->payments()->createMany($paymentRows);
+                    }
+
+                    // Activity log: booking created
+                    BhavBookingLog::create([
+                        'bhav_booking_id' => $newBooking->id,
+                        'action'          => 'CREATED',
+                        'old_values'      => null,
+                        'new_values'      => [
+                            'booking_no'      => $newBooking->booking_no,
+                            'trade_type'      => $newBooking->trade_type,
+                            'metal'           => $newBooking->metal,
+                            'total_weight'    => (float) $newBooking->total_weight,
+                            'total_amount'    => (float) $newBooking->total_amount,
+                            'given_amount'    => (float) $newBooking->given_amount,
+                            'received_amount' => (float) $newBooking->received_amount,
+                            'payments_count'  => count($paymentsData),
+                        ],
+                        'ip_address'      => request()->ip(),
+                        'user_agent'      => request()->userAgent(),
+                        'created_at'      => now(),
+                    ]);
+
+                    return $newBooking;
+                });
+
+                $booking->load(['items', 'customer', 'payments']);
+
+                return [
+                    'booking' => $booking,
+                    'created' => true,
+                ];
+            } catch (\Illuminate\Database\UniqueConstraintViolationException|\Illuminate\Database\QueryException $e) {
+                // Bug c: If inserting fails because request_token already exists, return existing booking with 200
+                $existing = BhavBooking::where('request_token', $validated['request_token'])
+                    ->with(['items', 'customer', 'payments'])
+                    ->first();
+
+                if ($existing) {
+                    return [
+                        'booking' => $existing,
+                        'created' => false,
                     ];
                 }
-                $newBooking->payments()->createMany($paymentRows);
+
+                // Bug b: On unique violation of booking_no, retry generation up to 3 times
+                if ($attempt >= $maxAttempts) {
+                    throw $e;
+                }
             }
+        }
 
-            return $newBooking;
-        });
-
-        $booking->load(['items', 'customer', 'payments']);
-
-        return [
-            'booking' => $booking,
-            'created' => true,
-        ];
+        throw new \RuntimeException('Failed to create booking after maximum retries');
     }
 
     /**
@@ -191,6 +239,13 @@ class BhavBookingService
      */
     public function update(BhavBooking $booking, array $validated): BhavBooking
     {
+        // Bug e: Check canModify with SOP message
+        if (! $this->canModify($booking)) {
+            throw ValidationException::withMessages([
+                'booking' => ['This booking has delivery/payment and cannot be edited'],
+            ]);
+        }
+
         // 1. RECALCULATE ON SERVER
         $calculated = $this->calculateItems($validated['items']);
 
@@ -214,13 +269,26 @@ class BhavBookingService
             ]);
         }
 
+        // Snapshot old values before update
+        $oldValues = [
+            'booking_no'      => $booking->booking_no,
+            'trade_type'      => $booking->trade_type,
+            'metal'           => $booking->metal,
+            'total_weight'    => (float) $booking->total_weight,
+            'total_amount'    => (float) $booking->total_amount,
+            'given_amount'    => (float) $booking->given_amount,
+            'received_amount' => (float) $booking->received_amount,
+            'narration'       => $booking->narration,
+            'payments_count'  => $booking->payments()->count(),
+        ];
+
         // Recalculate given_amount / received_amount based on current trade_type
         $isSell = $validated['trade_type'] === 'SELL';
         $receivedAmount = $isSell ? $totalPayments : 0.00;
         $givenAmount = $isSell ? 0.00 : $totalPayments;
 
         // 3. ATOMIC DATABASE TRANSACTION
-        DB::transaction(function () use ($booking, $validated, $calculated, $paymentsData, $givenAmount, $receivedAmount) {
+        DB::transaction(function () use ($booking, $validated, $calculated, $paymentsData, $givenAmount, $receivedAmount, $oldValues) {
             $booking->update([
                 // customer_id is immutable in edit mode: always retain original value from database
                 'trade_type'      => $validated['trade_type'],
@@ -259,6 +327,27 @@ class BhavBookingService
                 }
                 $booking->payments()->createMany($paymentRows);
             }
+
+            // Activity log: booking updated
+            BhavBookingLog::create([
+                'bhav_booking_id' => $booking->id,
+                'action'          => 'UPDATED',
+                'old_values'      => $oldValues,
+                'new_values'      => [
+                    'booking_no'      => $booking->booking_no,
+                    'trade_type'      => $validated['trade_type'],
+                    'metal'           => $validated['metal'],
+                    'total_weight'    => $calculated['total_weight'],
+                    'total_amount'    => $calculated['total_amount'],
+                    'given_amount'    => $givenAmount,
+                    'received_amount' => $receivedAmount,
+                    'narration'       => $validated['narration'] ?? null,
+                    'payments_count'  => count($paymentsData),
+                ],
+                'ip_address'      => request()->ip(),
+                'user_agent'      => request()->userAgent(),
+                'created_at'      => now(),
+            ]);
         });
 
         $booking->load(['items', 'customer', 'payments']);
@@ -270,10 +359,55 @@ class BhavBookingService
      * Soft delete an existing Bhav Booking.
      *
      * @param BhavBooking $booking
+     * @param bool $silent
      * @return bool
      */
-    public function delete(BhavBooking $booking): bool
+    public function delete(BhavBooking $booking, bool $silent = false): bool
     {
+        // Bug e: Check canModify with SOP message
+        if (! $this->canModify($booking)) {
+            throw ValidationException::withMessages([
+                'booking' => ['This booking has delivery/payment and cannot be edited'],
+            ]);
+        }
+
+        $oldValues = [
+            'booking_no'   => $booking->booking_no,
+            'total_weight' => (float) $booking->total_weight,
+            'total_amount' => (float) $booking->total_amount,
+        ];
+
+        BhavBookingLog::create([
+            'bhav_booking_id' => $booking->id,
+            'action'          => $silent ? 'SILENT_DELETED' : 'DELETED',
+            'old_values'      => $oldValues,
+            'new_values'      => null,
+            'ip_address'      => request()->ip(),
+            'user_agent'      => request()->userAgent(),
+            'created_at'      => now(),
+        ]);
+
         return (bool) $booking->delete();
+    }
+
+    /**
+     * Log an external action on a booking (e.g. PRINTED, SHARED).
+     *
+     * @param BhavBooking $booking
+     * @param string $action
+     * @param array|null $meta
+     * @return BhavBookingLog
+     */
+    public function logAction(BhavBooking $booking, string $action, ?array $meta = null): BhavBookingLog
+    {
+        return BhavBookingLog::create([
+            'bhav_booking_id' => $booking->id,
+            'action'          => strtoupper($action),
+            'old_values'      => null,
+            'new_values'      => $meta,
+            'ip_address'      => request()->ip(),
+            'user_agent'      => request()->userAgent(),
+            'created_at'      => now(),
+        ]);
     }
 }

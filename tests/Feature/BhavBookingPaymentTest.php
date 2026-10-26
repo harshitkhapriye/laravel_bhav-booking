@@ -5,11 +5,13 @@ namespace Tests\Feature;
 use App\Models\BhavBooking;
 use App\Models\BhavBookingPayment;
 use App\Models\Customer;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class BhavBookingPaymentTest extends TestCase
 {
+    use RefreshDatabase;
     private function createCustomer(): Customer
     {
         return Customer::create([
@@ -18,6 +20,37 @@ class BhavBookingPaymentTest extends TestCase
             'mobile'      => '98' . rand(10000000, 99999999),
             'party_type'  => 'CUSTOMER',
             'city'        => 'Indore',
+        ]);
+    }
+
+    public function test_sell_booking_with_cash_only_payment(): void
+    {
+        $customer = $this->createCustomer();
+
+        $payload = [
+            'customer_id'   => $customer->id,
+            'request_token' => Str::uuid()->toString(),
+            'trade_type'    => 'SELL',
+            'entry_type'    => 'ONLY_ENTRY',
+            'metal'         => 'GOLD',
+            'items'         => [
+                ['weight' => 10.000, 'rate' => 70000.00],
+            ],
+            'payments'      => [
+                ['mode' => 'CASH', 'amount' => 15000.00],
+            ],
+        ];
+
+        $response = $this->postJson('/bhav-bookings', $payload);
+        $response->assertStatus(201);
+
+        $bookingId = $response->json('id');
+        $this->assertDatabaseHas('bhav_bookings', [
+            'id'              => $bookingId,
+            'trade_type'      => 'SELL',
+            'total_amount'    => 70000.00,
+            'received_amount' => 15000.00,
+            'given_amount'    => 0.00,
         ]);
     }
 

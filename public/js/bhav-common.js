@@ -435,8 +435,93 @@ function viewBookingDetails(bookingId) {
 
         if (viewNarration) viewNarration.textContent = booking.narration || 'None';
 
+        // Track last saved/viewed booking ID for shortcuts
+        window.lastSavedBookingId = booking.id;
+
+        // Populate History Tab
+        const viewHistoryCount = document.getElementById('viewHistoryCount');
+        const viewHistoryEmpty = document.getElementById('viewHistoryEmpty');
+        const viewHistoryTableWrapper = document.getElementById('viewHistoryTableWrapper');
+        const viewHistoryTableBody = document.getElementById('viewHistoryTableBody');
+        const logs = booking.logs || [];
+
+        if (viewHistoryCount) viewHistoryCount.textContent = logs.length;
+
+        if (viewHistoryTableBody) {
+            if (logs.length === 0) {
+                if (viewHistoryEmpty) viewHistoryEmpty.style.display = 'block';
+                if (viewHistoryTableWrapper) viewHistoryTableWrapper.style.display = 'none';
+                viewHistoryTableBody.innerHTML = '';
+            } else {
+                if (viewHistoryEmpty) viewHistoryEmpty.style.display = 'none';
+                if (viewHistoryTableWrapper) viewHistoryTableWrapper.style.display = 'block';
+
+                let logsHtml = '';
+                logs.forEach(log => {
+                    let badgeClass = 'bg-secondary';
+                    let actionText = log.action || '';
+                    switch (log.action) {
+                        case 'CREATED':
+                            badgeClass = 'bg-success';
+                            actionText = 'Created';
+                            break;
+                        case 'UPDATED':
+                            badgeClass = 'bg-warning text-dark';
+                            actionText = 'Updated';
+                            break;
+                        case 'DELETED':
+                        case 'SILENT_DELETED':
+                            badgeClass = 'bg-danger';
+                            actionText = 'Deleted';
+                            break;
+                        case 'PRINTED':
+                            badgeClass = 'bg-info text-dark';
+                            actionText = 'Printed';
+                            break;
+                        case 'SHARED':
+                            badgeClass = 'bg-primary';
+                            actionText = 'Shared';
+                            break;
+                    }
+
+                    const dt = log.created_at ? new Date(log.created_at).toLocaleString('en-IN', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                    }) : '-';
+
+                    const summary = escapeHtml(log.summary || log.action);
+                    const ip = log.ip_address ? `<span class="text-muted ms-1" style="font-size: 10px;">(${escapeHtml(log.ip_address)})</span>` : '';
+
+                    logsHtml += `
+                        <tr>
+                            <td class="text-nowrap text-secondary">${dt}</td>
+                            <td><span class="badge ${badgeClass} rounded-pill px-2 py-1">${actionText}</span></td>
+                            <td class="text-dark">${summary} ${ip}</td>
+                        </tr>
+                    `;
+                });
+                viewHistoryTableBody.innerHTML = logsHtml;
+            }
+        }
+
+        // Always activate Details tab by default on open
+        const tabDetailsBtn = document.getElementById('tabViewDetailsBtn');
+        if (tabDetailsBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(tabDetailsBtn).show();
+        }
+
         if (btnViewModalPrint) {
             btnViewModalPrint.onclick = function () {
+                if (window.APP_ROUTES && window.APP_ROUTES.bhavBookingLogAction) {
+                    fetch(getRoute('bhavBookingLogAction', booking.id), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': getCsrfToken()
+                        },
+                        body: JSON.stringify({ action: 'PRINTED' })
+                    }).catch(() => {});
+                }
                 window.open(getRoute('bhavBookingPrint', booking.id), '_blank');
             };
         }
@@ -611,3 +696,230 @@ function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
         return;
     }
 }
+
+// =========================================================================
+// GLOBAL TOAST NOTIFICATIONS (for 429 Throttle & System Messages)
+// =========================================================================
+function showGlobalToast(message, type = 'info') {
+    let toastContainer = document.getElementById('globalToastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'globalToastContainer';
+        toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1090; min-width: 280px; max-width: 400px;';
+        document.body.appendChild(toastContainer);
+    }
+
+    const toastEl = document.createElement('div');
+    const bgClass = type === 'warning' ? 'bg-warning text-dark' : (type === 'danger' ? 'bg-danger text-white' : (type === 'success' ? 'bg-success text-white' : 'bg-primary text-white'));
+    toastEl.className = `toast align-items-center ${bgClass} border-0 shadow show mb-2`;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.style.borderRadius = '12px';
+    toastEl.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body fw-semibold small py-2 px-3">
+                <i class="fa-solid fa-bell me-1"></i> ${escapeHtml(message)}
+            </div>
+            <button type="button" class="btn-close ${type === 'warning' ? '' : 'btn-close-white'} me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toastEl);
+    setTimeout(() => {
+        toastEl.classList.remove('show');
+        setTimeout(() => toastEl.remove(), 400);
+    }, 4500);
+}
+
+// Global interceptor for 429 Throttle responses
+window.addEventListener('unhandledrejection', function (event) {
+    if (event.reason && event.reason.status === 429) {
+        showGlobalToast('Too many requests. Please slow down and try again shortly.', 'warning');
+    }
+});
+
+// =========================================================================
+// CSV EXPORT HANDLER (Streamed chunked download)
+// =========================================================================
+function initExportHandler() {
+    const exportBtn = document.getElementById('btnExportBookings');
+    if (!exportBtn) return;
+
+    exportBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+
+        const partyInput = document.getElementById('filterPartyInput');
+        const dateFromInput = document.getElementById('dateFilterFrom');
+        const dateToInput = document.getElementById('dateFilterTo');
+        const tradeSelect = document.getElementById('filterTradeSelect');
+        const metalSelect = document.getElementById('filterMetalSelect');
+        const typeSelect = document.getElementById('filterTypeSelect');
+
+        const isOldPage = window.location.pathname.includes('/old');
+        const view = isOldPage ? 'old' : 'current';
+
+        const params = new URLSearchParams({
+            view: view,
+            per_page: 100
+        });
+
+        if (partyInput && partyInput.value.trim() !== '') {
+            params.set('party', partyInput.value.trim());
+        }
+        if (dateFromInput && dateFromInput.value) {
+            params.set('date_from', dateFromInput.value);
+        }
+        if (dateToInput && dateToInput.value) {
+            params.set('date_to', dateToInput.value);
+        }
+        if (tradeSelect && tradeSelect.value && tradeSelect.value !== 'ALL') {
+            params.set('trade_type', tradeSelect.value);
+        }
+        if (metalSelect && metalSelect.value && metalSelect.value !== 'ALL') {
+            params.set('metal', metalSelect.value);
+        }
+        if (typeSelect && typeSelect.value && typeSelect.value !== 'ALL') {
+            params.set('entry_type', typeSelect.value);
+        }
+
+        if (window.APP_ROUTES && window.APP_ROUTES.bhavBookingExport) {
+            const exportUrl = `${window.APP_ROUTES.bhavBookingExport}?${params.toString()}`;
+            window.location.href = exportUrl;
+        }
+    });
+}
+
+// =========================================================================
+// KEYBOARD SHORTCUTS (Billing-software style)
+// =========================================================================
+function initKeyboardShortcuts() {
+    // Open shortcuts cheat sheet modal
+    const btnShortcuts = document.getElementById('btnOpenShortcutsModal');
+    if (btnShortcuts) {
+        btnShortcuts.addEventListener('click', function () {
+            const modalEl = document.getElementById('shortcutsModal');
+            if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', function (e) {
+        const isModalOpen = document.body.classList.contains('modal-open') || !!document.querySelector('.modal.show');
+        const activeEl = document.activeElement;
+        const isTypingInModal = isModalOpen && activeEl && (
+            activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT'
+        );
+
+        // 1. ESC: cancel edit / close dropdowns / close modals (Allowed even while typing inside modal)
+        if (e.key === 'Escape' || e.keyCode === 27) {
+            if (isModalOpen) {
+                const openModalEl = document.querySelector('.modal.show');
+                if (openModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const modalInst = bootstrap.Modal.getInstance(openModalEl);
+                    if (modalInst) {
+                        modalInst.hide();
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }
+
+            const customerDropdown = document.getElementById('customerSearchResults');
+            if (customerDropdown && customerDropdown.style.display !== 'none') {
+                customerDropdown.style.display = 'none';
+                e.preventDefault();
+                return;
+            }
+
+            const dateDropdown = document.getElementById('dateRangeDropdown');
+            if (dateDropdown && dateDropdown.style.display !== 'none') {
+                dateDropdown.style.display = 'none';
+                e.preventDefault();
+                return;
+            }
+
+            const cancelEditBtn = document.getElementById('linkCancelEditTop') || document.getElementById('btnCancelEdit');
+            const editIndicator = document.getElementById('editModeIndicator');
+            if (editIndicator && !editIndicator.classList.contains('d-none') && cancelEditBtn) {
+                cancelEditBtn.click();
+                e.preventDefault();
+                return;
+            }
+            return;
+        }
+
+        // Do NOT trigger shortcuts while actively typing inside a modal dialog
+        if (isTypingInModal) {
+            return;
+        }
+
+        // 2. Ctrl + S or F2: Save / Update Booking
+        if ((e.ctrlKey && (e.key === 's' || e.key === 'S')) || e.key === 'F2') {
+            e.preventDefault();
+            const saveBtn = document.getElementById('btnSaveBooking');
+            if (saveBtn) {
+                saveBtn.click();
+            }
+            return;
+        }
+
+        // 3. Alt + B: Switch to BUY
+        if (e.altKey && (e.key === 'b' || e.key === 'B')) {
+            e.preventDefault();
+            const btnBuy = document.getElementById('btnBuy');
+            if (btnBuy) {
+                btnBuy.click();
+            }
+            return;
+        }
+
+        // 4. Alt + S: Switch to SELL
+        if (e.altKey && (e.key === 's' || e.key === 'S')) {
+            e.preventDefault();
+            const btnSell = document.getElementById('btnSell');
+            if (btnSell) {
+                btnSell.click();
+            }
+            return;
+        }
+
+        // 5. Alt + C: Focus Customer Search
+        if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+            e.preventDefault();
+            const custInput = document.getElementById('customerSearchInput');
+            if (custInput) {
+                custInput.focus();
+                custInput.select();
+            }
+            return;
+        }
+
+        // 6. Alt + N: Open New Party modal
+        if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+            e.preventDefault();
+            const openPartyBtn = document.getElementById('btnOpenAddCustomerModal');
+            if (openPartyBtn) {
+                openPartyBtn.click();
+            }
+            return;
+        }
+
+        // 7. Alt + P: Print last saved/viewed booking
+        if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+            e.preventDefault();
+            if (window.lastSavedBookingId) {
+                window.open(getRoute('bhavBookingPrint', window.lastSavedBookingId), '_blank');
+            } else {
+                const printBtn = document.getElementById('btnViewModalPrint');
+                if (printBtn && printBtn.offsetParent !== null) {
+                    printBtn.click();
+                }
+            }
+            return;
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    initExportHandler();
+    initKeyboardShortcuts();
+});

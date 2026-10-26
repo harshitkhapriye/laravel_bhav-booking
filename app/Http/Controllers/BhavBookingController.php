@@ -6,8 +6,11 @@ use App\Http\Requests\ListBhavBookingRequest;
 use App\Http\Requests\StoreBhavBookingRequest;
 use App\Http\Requests\UpdateBhavBookingRequest;
 use App\Models\BhavBooking;
+use App\Models\Customer;
 use App\Services\BhavBookingService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BhavBookingController extends Controller
 {
@@ -42,18 +45,17 @@ class BhavBookingController extends Controller
     }
 
     /**
-     * Get a paginated list of Bhav Bookings with filters and overall totals.
+     * Build base query with all filters applied.
+     * Shared between list API and CSV export.
      *
      * @param ListBhavBookingRequest $request
-     * @return JsonResponse
+     * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function list(ListBhavBookingRequest $request): JsonResponse
+    protected function getFilteredQuery(ListBhavBookingRequest $request)
     {
         $query = BhavBooking::query();
 
         // 1. Filter by view mode (current / old)
-        // view=current -> status PENDING or PARTIAL
-        // view=old -> status DELIVERED or CANCELLED
         $view = strtolower($request->input('view', 'current') ?: 'current');
         if ($view === 'old') {
             $query->whereIn('status', ['DELIVERED', 'CANCELLED']);
@@ -79,7 +81,7 @@ class BhavBookingController extends Controller
             $query->where('entry_type', $entryType);
         }
 
-        // 4. Date range filter on booked_at
+        // 5. Date range filter on booked_at
         if ($request->filled('date_from')) {
             $query->whereDate('booked_at', '>=', $request->input('date_from'));
         }
@@ -87,8 +89,7 @@ class BhavBookingController extends Controller
             $query->whereDate('booked_at', '<=', $request->input('date_to'));
         }
 
-        // 5. Party search across customer name, mobile, customer_no, and booking_no
-        // Uses subquery whereIn which leverages customer indexes faster than whereHas
+        // 6. Party search across customer name, mobile, customer_no, and booking_no
         if ($request->filled('party')) {
             $party = trim($request->input('party'));
             $matchingCustomerIds = Customer::query()
@@ -102,6 +103,19 @@ class BhavBookingController extends Controller
                   ->orWhereIn('customer_id', $matchingCustomerIds);
             });
         }
+
+        return $query;
+    }
+
+    /**
+     * Get a paginated list of Bhav Bookings with filters and overall totals.
+     *
+     * @param ListBhavBookingRequest $request
+     * @return JsonResponse
+     */
+    public function list(ListBhavBookingRequest $request): JsonResponse
+    {
+        $query = $this->getFilteredQuery($request);
 
         // Compute totals with a SINGLE aggregate query using SUM(CASE WHEN ...) for all 8 values
         $aggregates = (clone $query)->selectRaw("
@@ -237,16 +251,129 @@ class BhavBookingController extends Controller
      * @param BhavBooking $bhavBooking
      * @return JsonResponse
      */
+    /**
+     * Display the specified Bhav Booking details including activity logs.
+     *
+     * @param BhavBooking $bhavBooking
+     * @return JsonResponse
+     */
     public function show(BhavBooking $bhavBooking): JsonResponse
     {
         $bhavBooking->load([
             'customer:id,customer_no,name,mobile,city',
             'items:id,bhav_booking_id,sort_order,weight,rate,amount',
-            'payments:id,bhav_booking_id,mode,online_method,reference_no,amount,source,sort_order,paid_at'
+            'payments:id,bhav_booking_id,mode,online_method,reference_no,amount,source,sort_order,paid_at',
+            'logs'
         ]);
         $bhavBooking->has_external_payments = $bhavBooking->payments->contains('source', 'BUY_SELL');
 
         return response()->json($bhavBooking);
+    }
+
+    /**
+     * Streamed CSV export of the currently filtered bookings.
+     * Uses chunked database cursor to ensure zero memory exhaustion on large sets.
+     *
+     * @param ListBhavBookingRequest $request
+     * @return StreamedResponse
+     */
+    public function export(ListBhavBookingRequest $request): StreamedResponse
+    {
+        $query = $this->getFilteredQuery($request)
+            ->with(['customer', 'items', 'payments'])
+            ->orderByDesc('booked_at')
+            ->orderByDesc('id');
+
+        $filename = 'bhav_bookings_export_' . now()->format('Ymd_His') . '.csv';
+
+        return response()->stream(function () use ($query) {
+            $handle = fopen('php://output', 'w');
+
+            // UTF-8 BOM for Microsoft Excel compatibility
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            // CSV Header Row
+            fputcsv($handle, [
+                'Booking No',
+                'Date',
+                'Customer No',
+                'Customer Name',
+                'Mobile',
+                'City',
+                'Trade Type',
+                'Metal',
+                'Type',
+                'Total Weight (gm)',
+                'Delivered Weight (gm)',
+                'Pending Weight (gm)',
+                'Total Amount (₹)',
+                'Given Amount (₹)',
+                'Received Amount (₹)',
+                'Status',
+                'Payments',
+                'Narration',
+            ]);
+
+            // Chunk in sets of 500 records to maintain minimal memory footprint
+            $query->chunk(500, function ($bookings) use ($handle) {
+                foreach ($bookings as $booking) {
+                    $paymentsSummary = $booking->payments->map(function ($p) {
+                        $method = $p->mode === 'ONLINE' ? " ({$p->online_method})" : '';
+                        $ref = $p->reference_no ? " Ref:{$p->reference_no}" : '';
+                        return "{$p->mode}{$method}: ₹{$p->amount}{$ref}";
+                    })->implode('; ');
+
+                    fputcsv($handle, [
+                        $booking->booking_no,
+                        $booking->booked_at ? $booking->booked_at->format('d-m-Y H:i') : '',
+                        $booking->customer->customer_no ?? '',
+                        $booking->customer->name ?? '',
+                        $booking->customer->mobile ?? '',
+                        $booking->customer->city ?? '',
+                        $booking->trade_type,
+                        $booking->metal,
+                        $booking->entry_type === 'BHAV_CUT_LEDGER' ? 'Bhav Cut + Ledger' : 'Only Entry',
+                        number_format((float) $booking->total_weight, 3, '.', ''),
+                        number_format((float) $booking->delivered_weight, 3, '.', ''),
+                        number_format((float) max(0, $booking->total_weight - $booking->delivered_weight), 3, '.', ''),
+                        number_format((float) $booking->total_amount, 2, '.', ''),
+                        number_format((float) $booking->given_amount, 2, '.', ''),
+                        number_format((float) $booking->received_amount, 2, '.', ''),
+                        $booking->status,
+                        $paymentsSummary,
+                        $booking->narration ?? '',
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, 200, [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control'       => 'no-store, no-cache, must-revalidate',
+            'Pragma'              => 'no-cache',
+        ]);
+    }
+
+    /**
+     * Log an external action (PRINTED, SHARED, SILENT_DELETED) on a booking.
+     *
+     * @param Request $request
+     * @param BhavBooking $bhavBooking
+     * @return JsonResponse
+     */
+    public function logAction(Request $request, BhavBooking $bhavBooking): JsonResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', 'string', 'in:PRINTED,SHARED,SILENT_DELETED'],
+        ]);
+
+        $log = $this->bhavBookingService->logAction($bhavBooking, $validated['action']);
+
+        return response()->json([
+            'message' => 'Action logged successfully',
+            'log'     => $log,
+        ]);
     }
 
     /**
@@ -261,7 +388,7 @@ class BhavBookingController extends Controller
     {
         if (! $this->bhavBookingService->canModify($bhavBooking)) {
             return response()->json([
-                'message' => 'This booking cannot be edited because it is no longer pending or has transactions.'
+                'message' => 'This booking has delivery/payment and cannot be edited'
             ], 422);
         }
 
@@ -282,7 +409,7 @@ class BhavBookingController extends Controller
     {
         if (! $this->bhavBookingService->canModify($bhavBooking)) {
             return response()->json([
-                'message' => 'This booking cannot be deleted because it is no longer pending or has transactions.'
+                'message' => 'This booking has delivery/payment and cannot be edited'
             ], 422);
         }
 

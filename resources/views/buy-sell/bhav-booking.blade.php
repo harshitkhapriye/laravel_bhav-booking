@@ -15,6 +15,19 @@
 
         <!-- Action Buttons & Breadcrumbs -->
         <div class="d-flex align-items-center gap-2 flex-wrap">
+            <!-- Today's Rate Button -->
+            <button type="button" class="btn btn-outline-warning rounded-pill px-3 py-1 d-flex align-items-center gap-2 text-dark bg-white shadow-sm" id="btnTodayRateModal" title="Click to view or set today's bullion rates">
+                <i class="fa-solid fa-coins text-warning"></i>
+                <span class="small fw-bold text-nowrap">Today's Rate:</span>
+                <span class="badge bg-warning-subtle text-dark border border-warning-subtle small" id="badgeTodayGold">Gold: ₹...</span>
+                <span class="badge bg-secondary-subtle text-dark border border-secondary-subtle small" id="badgeTodaySilver">Silver: ₹...</span>
+            </button>
+
+            <!-- Keyboard Shortcuts Link -->
+            <button type="button" class="btn btn-light rounded-pill px-3 py-1 small fw-bold text-secondary border shadow-sm" id="btnOpenShortcutsModal" title="Keyboard Shortcuts (Ctrl+S, Alt+B, etc.)">
+                <i class="fa-solid fa-keyboard me-1 text-primary"></i> Shortcuts
+            </button>
+
             <button type="button" class="btn btn-outline-buy-sell rounded-pill px-3 py-1">
                 <i class="fa-solid fa-bag-shopping me-1"></i> BUY-SELL
             </button>
@@ -191,6 +204,9 @@
                                     <input type="text" inputmode="decimal" class="form-control form-input-pill pe-5" id="inputRate" value="165000">
                                     <span class="field-suffix">₹</span>
                                 </div>
+                                <span class="small text-muted ps-2 fst-italic d-inline-block mt-1" id="rateTodayHint" style="display: none;">
+                                    <i class="fa-solid fa-circle-check text-success me-1"></i> (today's rate)
+                                </span>
                                 <div id="rateError" class="field-error-text text-danger small mt-1 ps-2" style="display: none;"></div>
                             </div>
                         </div>
@@ -383,6 +399,9 @@
                                 <span id="listHeadingText">Current Bookings</span>
                             </span>
                         </div>
+                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-1 shadow-sm" id="btnExportBookings" title="Export filtered bookings to CSV">
+                            <i class="fa-solid fa-file-csv"></i> Export
+                        </button>
                     </div>
 
                     <!-- Filter Bar Row 1: Search Party & Date Range -->
@@ -558,6 +577,8 @@
 <!-- Shared Modals -->
 @include('partials.bhav-view-modal')
 @include('partials.bhav-save-success-modal')
+@include('partials.daily-rate-modal')
+@include('partials.shortcuts-modal')
 
 <!-- Pass dynamic application route URLs & Bhav config to JavaScript -->
 <script>
@@ -574,7 +595,11 @@
         bhavBookingShow: "{{ route('bhav-bookings.show', ['bhavBooking' => '__ID__']) }}",
         bhavBookingUpdate: "{{ route('bhav-bookings.update', ['bhavBooking' => '__ID__']) }}",
         bhavBookingDelete: "{{ route('bhav-bookings.destroy', ['bhavBooking' => '__ID__']) }}",
-        bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}"
+        bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingExport: "{{ route('bhav-bookings.export') }}",
+        bhavBookingLogAction: "{{ route('bhav-bookings.log-action', ['bhavBooking' => '__ID__']) }}",
+        dailyRatesToday: "{{ route('daily-rates.today') }}",
+        dailyRatesStore: "{{ route('daily-rates.store') }}"
     };
 </script>
 @endsection

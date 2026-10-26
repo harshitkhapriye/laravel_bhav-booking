@@ -137,9 +137,13 @@ class Customer extends Model
      *
      * @return string
      */
-    public static function generateNextCustomerNo(): string
+    public static function generateNextCustomerNo(bool $lock = false): string
     {
-        $lastCustomer = static::orderBy('id', 'desc')->first();
+        $query = static::orderBy('id', 'desc');
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+        $lastCustomer = $query->first();
 
         if ($lastCustomer && preg_match('/CUST-(\d+)/i', $lastCustomer->customer_no, $matches)) {
             $nextNumber = intval($matches[1]) + 1;
