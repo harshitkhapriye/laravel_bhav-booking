@@ -15,6 +15,7 @@ class CustomerTest extends TestCase
         parent::setUp();
         $this->seed(CustomerSeeder::class);
     }
+
     /**
      * Test empty query returns empty JSON array.
      */
@@ -83,7 +84,7 @@ class CustomerTest extends TestCase
      */
     public function test_customer_store_successful(): void
     {
-        $uniqueMobile = '99999' . rand(10000, 99999);
+        $uniqueMobile = '99999'.rand(10000, 99999);
         $response = $this->postJson('/customers', [
             'name' => 'Test Automated Customer',
             'mobile' => $uniqueMobile,

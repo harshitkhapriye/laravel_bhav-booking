@@ -154,9 +154,9 @@ function showToast(message, type = 'info') {
 function isBookingModifiable(booking) {
     if (!booking) return false;
     const statusUpper = (booking.status || '').toUpperCase();
-    return statusUpper === 'PENDING'
-        && (parseFloat(booking.delivered_weight) || 0) === 0
-        && !booking.has_external_payments;
+    return (
+        statusUpper === 'PENDING' && (parseFloat(booking.delivered_weight) || 0) === 0 && !booking.has_external_payments
+    );
 }
 
 // Global helper: Generate a concise text summary of a booking
@@ -186,14 +186,16 @@ function generateBookingSummary(booking) {
 function shareBooking(booking) {
     const summary = generateBookingSummary(booking);
     if (navigator.share) {
-        navigator.share({
-            title: `Bhav Booking ${booking.booking_no || ''}`,
-            text: summary
-        }).catch(err => {
-            if (err.name !== 'AbortError') {
-                copySummaryToClipboard(summary);
-            }
-        });
+        navigator
+            .share({
+                title: `Bhav Booking ${booking.booking_no || ''}`,
+                text: summary,
+            })
+            .catch((err) => {
+                if (err.name !== 'AbortError') {
+                    copySummaryToClipboard(summary);
+                }
+            });
     } else {
         copySummaryToClipboard(summary);
     }
@@ -201,11 +203,14 @@ function shareBooking(booking) {
 
 function copySummaryToClipboard(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-            showToast('Booking details copied', 'success');
-        }).catch(() => {
-            fallbackClipboardCopy(text);
-        });
+        navigator.clipboard
+            .writeText(text)
+            .then(() => {
+                showToast('Booking details copied', 'success');
+            })
+            .catch(() => {
+                fallbackClipboardCopy(text);
+            });
     } else {
         fallbackClipboardCopy(text);
     }
@@ -257,28 +262,28 @@ function deleteBookingWithConfirm(bookingId, bookingNo, amount, isSilent, onDele
     fetch(deleteUrl, {
         method: 'DELETE',
         headers: {
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': getCsrfToken()
-        }
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken(),
+        },
     })
-    .then(async response => {
-        const data = await response.json();
-        if (!response.ok) {
-            showToast(data.message || 'Failed to delete booking.', 'error');
-            throw new Error(data.message || 'Delete failed');
-        }
-        return data;
-    })
-    .then(() => {
-        const msg = isSilent ? `Booking ${bookingNo} silently deleted` : `Booking ${bookingNo} deleted`;
-        showToast(msg, 'success');
-        if (typeof onDeletedCallback === 'function') {
-            onDeletedCallback(bookingId, bookingNo);
-        }
-    })
-    .catch(err => {
-        console.warn('Booking delete error:', err);
-    });
+        .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok) {
+                showToast(data.message || 'Failed to delete booking.', 'error');
+                throw new Error(data.message || 'Delete failed');
+            }
+            return data;
+        })
+        .then(() => {
+            const msg = isSilent ? `Booking ${bookingNo} silently deleted` : `Booking ${bookingNo} deleted`;
+            showToast(msg, 'success');
+            if (typeof onDeletedCallback === 'function') {
+                onDeletedCallback(bookingId, bookingNo);
+            }
+        })
+        .catch((err) => {
+            console.warn('Booking delete error:', err);
+        });
 }
 
 // Global helper: Fetch booking details and display the shared View Booking modal
@@ -288,87 +293,88 @@ function viewBookingDetails(bookingId) {
     fetch(showUrl, {
         method: 'GET',
         headers: {
-            'Accept': 'application/json'
-        }
+            Accept: 'application/json',
+        },
     })
-    .then(async response => {
-        const data = await response.json();
-        if (!response.ok) {
-            showToast(data.message || 'Booking not found', 'error');
-            throw new Error(data.message || 'View failed');
-        }
-        return data;
-    })
-    .then(booking => {
-        const viewBookingNo = document.getElementById('viewBookingNo');
-        const viewBookingDateTime = document.getElementById('viewBookingDateTime');
-        const viewTradeTypeBadge = document.getElementById('viewTradeTypeBadge');
-        const viewMetalBadge = document.getElementById('viewMetalBadge');
-        const viewTypeBadge = document.getElementById('viewTypeBadge');
-        const viewStatusBadge = document.getElementById('viewStatusBadge');
+        .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok) {
+                showToast(data.message || 'Booking not found', 'error');
+                throw new Error(data.message || 'View failed');
+            }
+            return data;
+        })
+        .then((booking) => {
+            const viewBookingNo = document.getElementById('viewBookingNo');
+            const viewBookingDateTime = document.getElementById('viewBookingDateTime');
+            const viewTradeTypeBadge = document.getElementById('viewTradeTypeBadge');
+            const viewMetalBadge = document.getElementById('viewMetalBadge');
+            const viewTypeBadge = document.getElementById('viewTypeBadge');
+            const viewStatusBadge = document.getElementById('viewStatusBadge');
 
-        const viewCustomerName = document.getElementById('viewCustomerName');
-        const viewCustomerNo = document.getElementById('viewCustomerNo');
-        const viewCustomerMobile = document.getElementById('viewCustomerMobile');
-        const viewCustomerCity = document.getElementById('viewCustomerCity');
+            const viewCustomerName = document.getElementById('viewCustomerName');
+            const viewCustomerNo = document.getElementById('viewCustomerNo');
+            const viewCustomerMobile = document.getElementById('viewCustomerMobile');
+            const viewCustomerCity = document.getElementById('viewCustomerCity');
 
-        const viewItemsTableBody = document.getElementById('viewItemsTableBody');
-        const viewTotalWeight = document.getElementById('viewTotalWeight');
-        const viewTotalAmount = document.getElementById('viewTotalAmount');
-        const viewDeliveredWeight = document.getElementById('viewDeliveredWeight');
-        const viewPendingWeight = document.getElementById('viewPendingWeight');
-        const viewNarration = document.getElementById('viewNarration');
-        const btnViewModalPrint = document.getElementById('btnViewModalPrint');
+            const viewItemsTableBody = document.getElementById('viewItemsTableBody');
+            const viewTotalWeight = document.getElementById('viewTotalWeight');
+            const viewTotalAmount = document.getElementById('viewTotalAmount');
+            const viewDeliveredWeight = document.getElementById('viewDeliveredWeight');
+            const viewPendingWeight = document.getElementById('viewPendingWeight');
+            const viewNarration = document.getElementById('viewNarration');
+            const btnViewModalPrint = document.getElementById('btnViewModalPrint');
 
-        if (viewBookingNo) viewBookingNo.textContent = booking.booking_no || '-';
-        if (viewBookingDateTime) viewBookingDateTime.textContent = formatDateTimeDisplay(booking.booked_at);
+            if (viewBookingNo) viewBookingNo.textContent = booking.booking_no || '-';
+            if (viewBookingDateTime) viewBookingDateTime.textContent = formatDateTimeDisplay(booking.booked_at);
 
-        if (viewTradeTypeBadge) {
-            const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
-            viewTradeTypeBadge.textContent = booking.trade_type;
-            viewTradeTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
-        }
+            if (viewTradeTypeBadge) {
+                const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
+                viewTradeTypeBadge.textContent = booking.trade_type;
+                viewTradeTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
+            }
 
-        if (viewMetalBadge) {
-            const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
-            viewMetalBadge.textContent = booking.metal;
-            viewMetalBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
-        }
+            if (viewMetalBadge) {
+                const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
+                viewMetalBadge.textContent = booking.metal;
+                viewMetalBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
+            }
 
-        if (viewTypeBadge) {
-            const isEntry = (booking.entry_type || '').toUpperCase() === 'ONLY_ENTRY';
-            viewTypeBadge.textContent = isEntry ? 'Only Entry' : 'Bhav Cut + Ledger';
-            viewTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isEntry ? 'badge-type-entry' : 'badge-type-ledger'}`;
-        }
+            if (viewTypeBadge) {
+                const isEntry = (booking.entry_type || '').toUpperCase() === 'ONLY_ENTRY';
+                viewTypeBadge.textContent = isEntry ? 'Only Entry' : 'Bhav Cut + Ledger';
+                viewTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isEntry ? 'badge-type-entry' : 'badge-type-ledger'}`;
+            }
 
-        if (viewStatusBadge) {
-            const st = (booking.status || 'PENDING').toUpperCase();
-            viewStatusBadge.textContent = st;
-            let stClass = 'badge-status-pending';
-            if (st === 'PARTIAL') stClass = 'badge-status-partial';
-            else if (st === 'DELIVERED') stClass = 'badge-status-delivered';
-            else if (st === 'CANCELLED') stClass = 'badge-status-cancelled';
-            viewStatusBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${stClass}`;
-        }
+            if (viewStatusBadge) {
+                const st = (booking.status || 'PENDING').toUpperCase();
+                viewStatusBadge.textContent = st;
+                let stClass = 'badge-status-pending';
+                if (st === 'PARTIAL') stClass = 'badge-status-partial';
+                else if (st === 'DELIVERED') stClass = 'badge-status-delivered';
+                else if (st === 'CANCELLED') stClass = 'badge-status-cancelled';
+                viewStatusBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${stClass}`;
+            }
 
-        const customer = booking.customer || {};
-        if (viewCustomerName) viewCustomerName.textContent = customer.name || '-';
-        if (viewCustomerNo) viewCustomerNo.textContent = customer.customer_no || '-';
-        if (viewCustomerMobile) viewCustomerMobile.textContent = customer.mobile || 'N/A';
-        if (viewCustomerCity) viewCustomerCity.textContent = customer.city || 'N/A';
+            const customer = booking.customer || {};
+            if (viewCustomerName) viewCustomerName.textContent = customer.name || '-';
+            if (viewCustomerNo) viewCustomerNo.textContent = customer.customer_no || '-';
+            if (viewCustomerMobile) viewCustomerMobile.textContent = customer.mobile || 'N/A';
+            if (viewCustomerCity) viewCustomerCity.textContent = customer.city || 'N/A';
 
-        if (viewItemsTableBody) {
-            const items = Array.isArray(booking.items) ? booking.items : [];
-            if (items.length === 0) {
-                viewItemsTableBody.innerHTML = '<tr><td colspan="4" class="py-3 text-muted text-center">No items recorded</td></tr>';
-            } else {
-                let itemsHtml = '';
-                items.forEach((it, idx) => {
-                    const sn = it.sort_order || (idx + 1);
-                    const w = (parseFloat(it.weight) || 0).toFixed(3);
-                    const r = formatIndianCurrency(it.rate || 0);
-                    const a = formatIndianCurrency(it.amount || 0);
-                    itemsHtml += `
+            if (viewItemsTableBody) {
+                const items = Array.isArray(booking.items) ? booking.items : [];
+                if (items.length === 0) {
+                    viewItemsTableBody.innerHTML =
+                        '<tr><td colspan="4" class="py-3 text-muted text-center">No items recorded</td></tr>';
+                } else {
+                    let itemsHtml = '';
+                    items.forEach((it, idx) => {
+                        const sn = it.sort_order || idx + 1;
+                        const w = (parseFloat(it.weight) || 0).toFixed(3);
+                        const r = formatIndianCurrency(it.rate || 0);
+                        const a = formatIndianCurrency(it.amount || 0);
+                        itemsHtml += `
                         <tr>
                             <td class="text-center fw-bold text-muted">${sn}</td>
                             <td class="text-end fw-semibold">${w} gm</td>
@@ -376,51 +382,55 @@ function viewBookingDetails(bookingId) {
                             <td class="text-end fw-bold text-dark">₹${a}</td>
                         </tr>
                     `;
-                });
-                viewItemsTableBody.innerHTML = itemsHtml;
+                    });
+                    viewItemsTableBody.innerHTML = itemsHtml;
+                }
             }
-        }
 
-        if (viewTotalWeight) viewTotalWeight.textContent = `${(parseFloat(booking.total_weight) || 0).toFixed(3)} gm`;
-        if (viewTotalAmount) viewTotalAmount.textContent = `₹${formatIndianCurrency(booking.total_amount || 0)}`;
-        if (viewDeliveredWeight) viewDeliveredWeight.textContent = `${(parseFloat(booking.delivered_weight) || 0).toFixed(3)} gm`;
-        if (viewPendingWeight) viewPendingWeight.textContent = `${(parseFloat(booking.pending_weight) || 0).toFixed(3)} gm`;
+            if (viewTotalWeight)
+                viewTotalWeight.textContent = `${(parseFloat(booking.total_weight) || 0).toFixed(3)} gm`;
+            if (viewTotalAmount) viewTotalAmount.textContent = `₹${formatIndianCurrency(booking.total_amount || 0)}`;
+            if (viewDeliveredWeight)
+                viewDeliveredWeight.textContent = `${(parseFloat(booking.delivered_weight) || 0).toFixed(3)} gm`;
+            if (viewPendingWeight)
+                viewPendingWeight.textContent = `${(parseFloat(booking.pending_weight) || 0).toFixed(3)} gm`;
 
-        // Payments Table & Paid / Balance in View Modal
-        const viewPaymentsTableBody = document.getElementById('viewPaymentsTableBody');
-        const viewPaymentsPaid = document.getElementById('viewPaymentsPaid');
-        const viewPaymentsBalance = document.getElementById('viewPaymentsBalance');
+            // Payments Table & Paid / Balance in View Modal
+            const viewPaymentsTableBody = document.getElementById('viewPaymentsTableBody');
+            const viewPaymentsPaid = document.getElementById('viewPaymentsPaid');
+            const viewPaymentsBalance = document.getElementById('viewPaymentsBalance');
 
-        const payments = Array.isArray(booking.payments) ? booking.payments : [];
-        const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-        const totalBookingAmt = parseFloat(booking.total_amount) || 0;
-        const balance = Math.max(0, totalBookingAmt - totalPaid);
+            const payments = Array.isArray(booking.payments) ? booking.payments : [];
+            const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+            const totalBookingAmt = parseFloat(booking.total_amount) || 0;
+            const balance = Math.max(0, totalBookingAmt - totalPaid);
 
-        if (viewPaymentsPaid) {
-            viewPaymentsPaid.textContent = `₹${formatIndianCurrency(totalPaid)}`;
-        }
-        if (viewPaymentsBalance) {
-            viewPaymentsBalance.textContent = `₹${formatIndianCurrency(balance)}`;
-            viewPaymentsBalance.className = balance > 0 ? 'text-danger' : 'text-success';
-        }
+            if (viewPaymentsPaid) {
+                viewPaymentsPaid.textContent = `₹${formatIndianCurrency(totalPaid)}`;
+            }
+            if (viewPaymentsBalance) {
+                viewPaymentsBalance.textContent = `₹${formatIndianCurrency(balance)}`;
+                viewPaymentsBalance.className = balance > 0 ? 'text-danger' : 'text-success';
+            }
 
-        if (viewPaymentsTableBody) {
-            if (payments.length === 0) {
-                viewPaymentsTableBody.innerHTML = '<tr><td colspan="4" class="py-3 text-muted text-center">No payments recorded</td></tr>';
-            } else {
-                let pRowsHtml = '';
-                payments.forEach((p, pIdx) => {
-                    const sn = p.sort_order || (pIdx + 1);
-                    const isCash = (p.mode || '').toUpperCase() === 'CASH';
-                    const modeBadge = isCash
-                        ? '<span class="badge-payment-cash"><i class="fa-solid fa-money-bill-wave"></i> Cash</span>'
-                        : '<span class="badge-payment-online"><i class="fa-solid fa-globe"></i> Online</span>';
-                    const methodRef = isCash
-                        ? 'Cash Payment'
-                        : `${escapeHtml(p.online_method || 'ONLINE')}${p.reference_no ? ' • ' + escapeHtml(p.reference_no) : ''}`;
-                    const amtStr = formatIndianCurrency(p.amount || 0);
+            if (viewPaymentsTableBody) {
+                if (payments.length === 0) {
+                    viewPaymentsTableBody.innerHTML =
+                        '<tr><td colspan="4" class="py-3 text-muted text-center">No payments recorded</td></tr>';
+                } else {
+                    let pRowsHtml = '';
+                    payments.forEach((p, pIdx) => {
+                        const sn = p.sort_order || pIdx + 1;
+                        const isCash = (p.mode || '').toUpperCase() === 'CASH';
+                        const modeBadge = isCash
+                            ? '<span class="badge-payment-cash"><i class="fa-solid fa-money-bill-wave"></i> Cash</span>'
+                            : '<span class="badge-payment-online"><i class="fa-solid fa-globe"></i> Online</span>';
+                        const methodRef = isCash
+                            ? 'Cash Payment'
+                            : `${escapeHtml(p.online_method || 'ONLINE')}${p.reference_no ? ' • ' + escapeHtml(p.reference_no) : ''}`;
+                        const amtStr = formatIndianCurrency(p.amount || 0);
 
-                    pRowsHtml += `
+                        pRowsHtml += `
                         <tr>
                             <td class="text-center fw-bold text-muted">${sn}</td>
                             <td class="text-start">${modeBadge}</td>
@@ -428,113 +438,121 @@ function viewBookingDetails(bookingId) {
                             <td class="text-end fw-bold text-dark">₹${amtStr}</td>
                         </tr>
                     `;
-                });
-                viewPaymentsTableBody.innerHTML = pRowsHtml;
+                    });
+                    viewPaymentsTableBody.innerHTML = pRowsHtml;
+                }
             }
-        }
 
-        if (viewNarration) viewNarration.textContent = booking.narration || 'None';
+            if (viewNarration) viewNarration.textContent = booking.narration || 'None';
 
-        // Track last saved/viewed booking ID for shortcuts
-        window.lastSavedBookingId = booking.id;
+            // Track last saved/viewed booking ID for shortcuts
+            window.lastSavedBookingId = booking.id;
 
-        // Populate History Tab
-        const viewHistoryCount = document.getElementById('viewHistoryCount');
-        const viewHistoryEmpty = document.getElementById('viewHistoryEmpty');
-        const viewHistoryTableWrapper = document.getElementById('viewHistoryTableWrapper');
-        const viewHistoryTableBody = document.getElementById('viewHistoryTableBody');
-        const logs = booking.logs || [];
+            // Populate History Tab
+            const viewHistoryCount = document.getElementById('viewHistoryCount');
+            const viewHistoryEmpty = document.getElementById('viewHistoryEmpty');
+            const viewHistoryTableWrapper = document.getElementById('viewHistoryTableWrapper');
+            const viewHistoryTableBody = document.getElementById('viewHistoryTableBody');
+            const logs = booking.logs || [];
 
-        if (viewHistoryCount) viewHistoryCount.textContent = logs.length;
+            if (viewHistoryCount) viewHistoryCount.textContent = logs.length;
 
-        if (viewHistoryTableBody) {
-            if (logs.length === 0) {
-                if (viewHistoryEmpty) viewHistoryEmpty.style.display = 'block';
-                if (viewHistoryTableWrapper) viewHistoryTableWrapper.style.display = 'none';
-                viewHistoryTableBody.innerHTML = '';
-            } else {
-                if (viewHistoryEmpty) viewHistoryEmpty.style.display = 'none';
-                if (viewHistoryTableWrapper) viewHistoryTableWrapper.style.display = 'block';
+            if (viewHistoryTableBody) {
+                if (logs.length === 0) {
+                    if (viewHistoryEmpty) viewHistoryEmpty.style.display = 'block';
+                    if (viewHistoryTableWrapper) viewHistoryTableWrapper.style.display = 'none';
+                    viewHistoryTableBody.innerHTML = '';
+                } else {
+                    if (viewHistoryEmpty) viewHistoryEmpty.style.display = 'none';
+                    if (viewHistoryTableWrapper) viewHistoryTableWrapper.style.display = 'block';
 
-                let logsHtml = '';
-                logs.forEach(log => {
-                    let badgeClass = 'bg-secondary';
-                    let actionText = log.action || '';
-                    switch (log.action) {
-                        case 'CREATED':
-                            badgeClass = 'bg-success';
-                            actionText = 'Created';
-                            break;
-                        case 'UPDATED':
-                            badgeClass = 'bg-warning text-dark';
-                            actionText = 'Updated';
-                            break;
-                        case 'DELETED':
-                        case 'SILENT_DELETED':
-                            badgeClass = 'bg-danger';
-                            actionText = 'Deleted';
-                            break;
-                        case 'PRINTED':
-                            badgeClass = 'bg-info text-dark';
-                            actionText = 'Printed';
-                            break;
-                        case 'SHARED':
-                            badgeClass = 'bg-primary';
-                            actionText = 'Shared';
-                            break;
-                    }
+                    let logsHtml = '';
+                    logs.forEach((log) => {
+                        let badgeClass = 'bg-secondary';
+                        let actionText = log.action || '';
+                        switch (log.action) {
+                            case 'CREATED':
+                                badgeClass = 'bg-success';
+                                actionText = 'Created';
+                                break;
+                            case 'UPDATED':
+                                badgeClass = 'bg-warning text-dark';
+                                actionText = 'Updated';
+                                break;
+                            case 'DELETED':
+                            case 'SILENT_DELETED':
+                                badgeClass = 'bg-danger';
+                                actionText = 'Deleted';
+                                break;
+                            case 'PRINTED':
+                                badgeClass = 'bg-info text-dark';
+                                actionText = 'Printed';
+                                break;
+                            case 'SHARED':
+                                badgeClass = 'bg-primary';
+                                actionText = 'Shared';
+                                break;
+                        }
 
-                    const dt = log.created_at ? new Date(log.created_at).toLocaleString('en-IN', {
-                        day: '2-digit', month: 'short', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit', hour12: true
-                    }) : '-';
+                        const dt = log.created_at
+                            ? new Date(log.created_at).toLocaleString('en-IN', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: true,
+                              })
+                            : '-';
 
-                    const summary = escapeHtml(log.summary || log.action);
-                    const ip = log.ip_address ? `<span class="text-muted ms-1" style="font-size: 10px;">(${escapeHtml(log.ip_address)})</span>` : '';
+                        const summary = escapeHtml(log.summary || log.action);
+                        const ip = log.ip_address
+                            ? `<span class="text-muted ms-1" style="font-size: 10px;">(${escapeHtml(log.ip_address)})</span>`
+                            : '';
 
-                    logsHtml += `
+                        logsHtml += `
                         <tr>
                             <td class="text-nowrap text-secondary">${dt}</td>
                             <td><span class="badge ${badgeClass} rounded-pill px-2 py-1">${actionText}</span></td>
                             <td class="text-dark">${summary} ${ip}</td>
                         </tr>
                     `;
-                });
-                viewHistoryTableBody.innerHTML = logsHtml;
-            }
-        }
-
-        // Always activate Details tab by default on open
-        const tabDetailsBtn = document.getElementById('tabViewDetailsBtn');
-        if (tabDetailsBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
-            bootstrap.Tab.getOrCreateInstance(tabDetailsBtn).show();
-        }
-
-        if (btnViewModalPrint) {
-            btnViewModalPrint.onclick = function () {
-                if (window.APP_ROUTES && window.APP_ROUTES.bhavBookingLogAction) {
-                    fetch(getRoute('bhavBookingLogAction', booking.id), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': getCsrfToken()
-                        },
-                        body: JSON.stringify({ action: 'PRINTED' })
-                    }).catch(() => {});
+                    });
+                    viewHistoryTableBody.innerHTML = logsHtml;
                 }
-                window.open(getRoute('bhavBookingPrint', booking.id), '_blank');
-            };
-        }
+            }
 
-        const modalEl = document.getElementById('viewBookingModal');
-        if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modalInstance.show();
-        }
-    })
-    .catch(err => {
-        console.warn('View details error:', err);
-    });
+            // Always activate Details tab by default on open
+            const tabDetailsBtn = document.getElementById('tabViewDetailsBtn');
+            if (tabDetailsBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+                bootstrap.Tab.getOrCreateInstance(tabDetailsBtn).show();
+            }
+
+            if (btnViewModalPrint) {
+                btnViewModalPrint.onclick = function () {
+                    if (window.APP_ROUTES && window.APP_ROUTES.bhavBookingLogAction) {
+                        fetch(getRoute('bhavBookingLogAction', booking.id), {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': getCsrfToken(),
+                            },
+                            body: JSON.stringify({ action: 'PRINTED' }),
+                        }).catch(() => {});
+                    }
+                    window.open(getRoute('bhavBookingPrint', booking.id), '_blank');
+                };
+            }
+
+            const modalEl = document.getElementById('viewBookingModal');
+            if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modalInstance.show();
+            }
+        })
+        .catch((err) => {
+            console.warn('View details error:', err);
+        });
 }
 
 // Global helper: Generate HTML for the 3-dot kebab action dropdown menu
@@ -647,7 +665,9 @@ function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
         if (booking) {
             shareBooking(booking);
         } else if (id) {
-            fetch(getRoute('bhavBookingShow', id)).then(r => r.json()).then(b => shareBooking(b));
+            fetch(getRoute('bhavBookingShow', id))
+                .then((r) => r.json())
+                .then((b) => shareBooking(b));
         }
         return;
     }
@@ -661,7 +681,9 @@ function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
         if (booking) {
             whatsappBooking(booking);
         } else if (id) {
-            fetch(getRoute('bhavBookingShow', id)).then(r => r.json()).then(b => whatsappBooking(b));
+            fetch(getRoute('bhavBookingShow', id))
+                .then((r) => r.json())
+                .then((b) => whatsappBooking(b));
         }
         return;
     }
@@ -705,12 +727,20 @@ function showGlobalToast(message, type = 'info') {
     if (!toastContainer) {
         toastContainer = document.createElement('div');
         toastContainer.id = 'globalToastContainer';
-        toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1090; min-width: 280px; max-width: 400px;';
+        toastContainer.style.cssText =
+            'position: fixed; top: 20px; right: 20px; z-index: 1090; min-width: 280px; max-width: 400px;';
         document.body.appendChild(toastContainer);
     }
 
     const toastEl = document.createElement('div');
-    const bgClass = type === 'warning' ? 'bg-warning text-dark' : (type === 'danger' ? 'bg-danger text-white' : (type === 'success' ? 'bg-success text-white' : 'bg-primary text-white'));
+    const bgClass =
+        type === 'warning'
+            ? 'bg-warning text-dark'
+            : type === 'danger'
+              ? 'bg-danger text-white'
+              : type === 'success'
+                ? 'bg-success text-white'
+                : 'bg-primary text-white';
     toastEl.className = `toast align-items-center ${bgClass} border-0 shadow show mb-2`;
     toastEl.setAttribute('role', 'alert');
     toastEl.style.borderRadius = '12px';
@@ -758,7 +788,7 @@ function initExportHandler() {
 
         const params = new URLSearchParams({
             view: view,
-            per_page: 100
+            per_page: 100,
         });
 
         if (partyInput && partyInput.value.trim() !== '') {
@@ -805,9 +835,10 @@ function initKeyboardShortcuts() {
     document.addEventListener('keydown', function (e) {
         const isModalOpen = document.body.classList.contains('modal-open') || !!document.querySelector('.modal.show');
         const activeEl = document.activeElement;
-        const isTypingInModal = isModalOpen && activeEl && (
-            activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT'
-        );
+        const isTypingInModal =
+            isModalOpen &&
+            activeEl &&
+            (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
 
         // 1. ESC: cancel edit / close dropdowns / close modals (Allowed even while typing inside modal)
         if (e.key === 'Escape' || e.keyCode === 27) {
@@ -837,7 +868,8 @@ function initKeyboardShortcuts() {
                 return;
             }
 
-            const cancelEditBtn = document.getElementById('linkCancelEditTop') || document.getElementById('btnCancelEdit');
+            const cancelEditBtn =
+                document.getElementById('linkCancelEditTop') || document.getElementById('btnCancelEdit');
             const editIndicator = document.getElementById('editModeIndicator');
             if (editIndicator && !editIndicator.classList.contains('d-none') && cancelEditBtn) {
                 cancelEditBtn.click();

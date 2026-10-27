@@ -76,13 +76,11 @@ class Customer extends Model
 
     /**
      * Get the public URL for the profile image.
-     *
-     * @return string|null
      */
     public function getProfileImageUrlAttribute(): ?string
     {
-        if (!empty($this->profile_image)) {
-            return asset('storage/' . $this->profile_image);
+        if (! empty($this->profile_image)) {
+            return asset('storage/'.$this->profile_image);
         }
 
         return null;
@@ -90,13 +88,11 @@ class Customer extends Model
 
     /**
      * Get the public URL for the shop logo.
-     *
-     * @return string|null
      */
     public function getShopLogoUrlAttribute(): ?string
     {
-        if (!empty($this->shop_logo)) {
-            return asset('storage/' . $this->shop_logo);
+        if (! empty($this->shop_logo)) {
+            return asset('storage/'.$this->shop_logo);
         }
 
         return null;
@@ -104,8 +100,6 @@ class Customer extends Model
 
     /**
      * Parent customer relationship for family sub-profiles.
-     *
-     * @return BelongsTo
      */
     public function parent(): BelongsTo
     {
@@ -114,8 +108,6 @@ class Customer extends Model
 
     /**
      * Family members relationship for parent profiles.
-     *
-     * @return HasMany
      */
     public function familyMembers(): HasMany
     {
@@ -124,8 +116,6 @@ class Customer extends Model
 
     /**
      * Bhav bookings relationship.
-     *
-     * @return HasMany
      */
     public function bhavBookings(): HasMany
     {
@@ -134,8 +124,6 @@ class Customer extends Model
 
     /**
      * Generate the next sequential customer number (e.g. CUST-0001).
-     *
-     * @return string
      */
     public static function generateNextCustomerNo(bool $lock = false): string
     {
@@ -165,8 +153,6 @@ class Customer extends Model
 
     /**
      * Alias for generateNextCustomerNo for convenience.
-     *
-     * @return string
      */
     public static function nextCustomerNo(): string
     {

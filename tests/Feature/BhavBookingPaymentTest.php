@@ -12,14 +12,15 @@ use Tests\TestCase;
 class BhavBookingPaymentTest extends TestCase
 {
     use RefreshDatabase;
+
     private function createCustomer(): Customer
     {
         return Customer::create([
-            'customer_no' => 'CUST-' . rand(1000, 9999),
-            'name'        => 'Payment Test Party',
-            'mobile'      => '98' . rand(10000000, 99999999),
-            'party_type'  => 'CUSTOMER',
-            'city'        => 'Indore',
+            'customer_no' => 'CUST-'.rand(1000, 9999),
+            'name' => 'Payment Test Party',
+            'mobile' => '98'.rand(10000000, 99999999),
+            'party_type' => 'CUSTOMER',
+            'city' => 'Indore',
         ]);
     }
 
@@ -28,15 +29,15 @@ class BhavBookingPaymentTest extends TestCase
         $customer = $this->createCustomer();
 
         $payload = [
-            'customer_id'   => $customer->id,
+            'customer_id' => $customer->id,
             'request_token' => Str::uuid()->toString(),
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00],
             ],
-            'payments'      => [
+            'payments' => [
                 ['mode' => 'CASH', 'amount' => 15000.00],
             ],
         ];
@@ -46,11 +47,11 @@ class BhavBookingPaymentTest extends TestCase
 
         $bookingId = $response->json('id');
         $this->assertDatabaseHas('bhav_bookings', [
-            'id'              => $bookingId,
-            'trade_type'      => 'SELL',
-            'total_amount'    => 70000.00,
+            'id' => $bookingId,
+            'trade_type' => 'SELL',
+            'total_amount' => 70000.00,
             'received_amount' => 15000.00,
-            'given_amount'    => 0.00,
+            'given_amount' => 0.00,
         ]);
     }
 
@@ -59,15 +60,15 @@ class BhavBookingPaymentTest extends TestCase
         $customer = $this->createCustomer();
 
         $payload = [
-            'customer_id'   => $customer->id,
+            'customer_id' => $customer->id,
             'request_token' => Str::uuid()->toString(),
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00], // 70,000
             ],
-            'payments'      => [
+            'payments' => [
                 ['mode' => 'CASH', 'amount' => 20000.00],
                 ['mode' => 'ONLINE', 'online_method' => 'UPI', 'reference_no' => 'UPI123456', 'amount' => 30000.00],
             ],
@@ -78,27 +79,27 @@ class BhavBookingPaymentTest extends TestCase
 
         $bookingId = $response->json('id');
         $this->assertDatabaseHas('bhav_bookings', [
-            'id'              => $bookingId,
-            'trade_type'      => 'SELL',
-            'total_amount'    => 70000.00,
+            'id' => $bookingId,
+            'trade_type' => 'SELL',
+            'total_amount' => 70000.00,
             'received_amount' => 50000.00,
-            'given_amount'    => 0.00,
+            'given_amount' => 0.00,
         ]);
 
         $this->assertDatabaseHas('bhav_booking_payments', [
             'bhav_booking_id' => $bookingId,
-            'mode'            => 'CASH',
-            'amount'          => 20000.00,
-            'source'          => 'BOOKING',
+            'mode' => 'CASH',
+            'amount' => 20000.00,
+            'source' => 'BOOKING',
         ]);
 
         $this->assertDatabaseHas('bhav_booking_payments', [
             'bhav_booking_id' => $bookingId,
-            'mode'            => 'ONLINE',
-            'online_method'   => 'UPI',
-            'reference_no'    => 'UPI123456',
-            'amount'          => 30000.00,
-            'source'          => 'BOOKING',
+            'mode' => 'ONLINE',
+            'online_method' => 'UPI',
+            'reference_no' => 'UPI123456',
+            'amount' => 30000.00,
+            'source' => 'BOOKING',
         ]);
     }
 
@@ -107,15 +108,15 @@ class BhavBookingPaymentTest extends TestCase
         $customer = $this->createCustomer();
 
         $payload = [
-            'customer_id'   => $customer->id,
+            'customer_id' => $customer->id,
             'request_token' => Str::uuid()->toString(),
-            'trade_type'    => 'BUY',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'trade_type' => 'BUY',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00], // 70,000
             ],
-            'payments'      => [
+            'payments' => [
                 ['mode' => 'CASH', 'amount' => 40000.00],
             ],
         ];
@@ -125,10 +126,10 @@ class BhavBookingPaymentTest extends TestCase
 
         $bookingId = $response->json('id');
         $this->assertDatabaseHas('bhav_bookings', [
-            'id'              => $bookingId,
-            'trade_type'      => 'BUY',
-            'total_amount'    => 70000.00,
-            'given_amount'    => 40000.00,
+            'id' => $bookingId,
+            'trade_type' => 'BUY',
+            'total_amount' => 70000.00,
+            'given_amount' => 40000.00,
             'received_amount' => 0.00,
         ]);
     }
@@ -138,15 +139,15 @@ class BhavBookingPaymentTest extends TestCase
         $customer = $this->createCustomer();
 
         $payload = [
-            'customer_id'   => $customer->id,
+            'customer_id' => $customer->id,
             'request_token' => Str::uuid()->toString(),
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00], // 70,000
             ],
-            'payments'      => [
+            'payments' => [
                 ['mode' => 'CASH', 'amount' => 75000.00], // > 70,000
             ],
         ];
@@ -161,28 +162,28 @@ class BhavBookingPaymentTest extends TestCase
         $customer = $this->createCustomer();
 
         $booking = BhavBooking::create([
-            'booking_no'       => 'BB-' . rand(100000, 999999),
-            'customer_id'      => $customer->id,
-            'request_token'    => Str::uuid()->toString(),
-            'trade_type'       => 'SELL',
-            'entry_type'       => 'ONLY_ENTRY',
-            'metal'            => 'GOLD',
-            'status'           => 'PENDING',
-            'total_weight'     => 10.000,
+            'booking_no' => 'BB-'.rand(100000, 999999),
+            'customer_id' => $customer->id,
+            'request_token' => Str::uuid()->toString(),
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'status' => 'PENDING',
+            'total_weight' => 10.000,
             'delivered_weight' => 0.000,
-            'total_amount'     => 70000.00,
-            'received_amount'  => 25000.00,
-            'given_amount'     => 0.00,
-            'booked_at'        => now(),
+            'total_amount' => 70000.00,
+            'received_amount' => 25000.00,
+            'given_amount' => 0.00,
+            'booked_at' => now(),
         ]);
 
         BhavBookingPayment::create([
             'bhav_booking_id' => $booking->id,
-            'mode'            => 'CASH',
-            'amount'          => 25000.00,
-            'source'          => 'BOOKING',
-            'sort_order'      => 1,
-            'paid_at'         => now(),
+            'mode' => 'CASH',
+            'amount' => 25000.00,
+            'source' => 'BOOKING',
+            'sort_order' => 1,
+            'paid_at' => now(),
         ]);
 
         // Show endpoint includes has_external_payments = false
@@ -195,11 +196,11 @@ class BhavBookingPaymentTest extends TestCase
         $updatePayload = [
             'trade_type' => 'SELL',
             'entry_type' => 'ONLY_ENTRY',
-            'metal'      => 'GOLD',
-            'items'      => [
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00],
             ],
-            'payments'   => [
+            'payments' => [
                 ['mode' => 'CASH', 'amount' => 35000.00],
             ],
         ];
@@ -221,28 +222,28 @@ class BhavBookingPaymentTest extends TestCase
         $customer = $this->createCustomer();
 
         $booking = BhavBooking::create([
-            'booking_no'       => 'BB-' . rand(100000, 999999),
-            'customer_id'      => $customer->id,
-            'request_token'    => Str::uuid()->toString(),
-            'trade_type'       => 'SELL',
-            'entry_type'       => 'ONLY_ENTRY',
-            'metal'            => 'GOLD',
-            'status'           => 'PENDING',
-            'total_weight'     => 10.000,
+            'booking_no' => 'BB-'.rand(100000, 999999),
+            'customer_id' => $customer->id,
+            'request_token' => Str::uuid()->toString(),
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'status' => 'PENDING',
+            'total_weight' => 10.000,
             'delivered_weight' => 0.000,
-            'total_amount'     => 70000.00,
-            'received_amount'  => 10000.00,
-            'given_amount'     => 0.00,
-            'booked_at'        => now(),
+            'total_amount' => 70000.00,
+            'received_amount' => 10000.00,
+            'given_amount' => 0.00,
+            'booked_at' => now(),
         ]);
 
         BhavBookingPayment::create([
             'bhav_booking_id' => $booking->id,
-            'mode'            => 'CASH',
-            'amount'          => 10000.00,
-            'source'          => 'BUY_SELL', // External payment
-            'sort_order'      => 1,
-            'paid_at'         => now(),
+            'mode' => 'CASH',
+            'amount' => 10000.00,
+            'source' => 'BUY_SELL', // External payment
+            'sort_order' => 1,
+            'paid_at' => now(),
         ]);
 
         $showResponse = $this->getJson("/bhav-bookings/{$booking->id}");
@@ -253,8 +254,8 @@ class BhavBookingPaymentTest extends TestCase
         $updateResponse = $this->putJson("/bhav-bookings/{$booking->id}", [
             'trade_type' => 'SELL',
             'entry_type' => 'ONLY_ENTRY',
-            'metal'      => 'GOLD',
-            'items'      => [
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00],
             ],
         ]);
@@ -274,20 +275,20 @@ class BhavBookingPaymentTest extends TestCase
         $customer = $this->createCustomer();
 
         $payload = [
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'SILVER',
-            'items'         => [
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'SILVER',
+            'items' => [
                 ['weight' => 1.000, 'rate' => 1800.00],
             ],
-            'payments'      => [
+            'payments' => [
                 ['mode' => 'CASH', 'online_method' => null, 'amount' => 1.00],
                 ['mode' => 'CASH', 'online_method' => null, 'amount' => 1.00],
                 ['mode' => 'CASH', 'online_method' => null, 'amount' => 1.00],
             ],
-            'narration'     => null,
+            'narration' => null,
             'send_whatsapp' => false,
-            'customer_id'   => $customer->id,
+            'customer_id' => $customer->id,
             'request_token' => Str::uuid()->toString(),
         ];
 
@@ -296,14 +297,14 @@ class BhavBookingPaymentTest extends TestCase
 
         $bookingId = $response->json('id');
         $this->assertDatabaseHas('bhav_bookings', [
-            'id'              => $bookingId,
-            'customer_id'     => $customer->id,
-            'trade_type'      => 'SELL',
-            'metal'           => 'SILVER',
-            'total_weight'    => 1.000,
-            'total_amount'    => 180.00,
+            'id' => $bookingId,
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'metal' => 'SILVER',
+            'total_weight' => 1.000,
+            'total_amount' => 180.00,
             'received_amount' => 3.00,
-            'given_amount'    => 0.00,
+            'given_amount' => 0.00,
         ]);
 
         $this->assertDatabaseCount('bhav_booking_payments', 3);

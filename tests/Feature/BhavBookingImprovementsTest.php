@@ -2,10 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\BhavBooking;
 use App\Models\BhavBookingLog;
 use App\Models\Customer;
-use App\Models\DailyRate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -22,10 +20,10 @@ class BhavBookingImprovementsTest extends TestCase
 
         $this->customer = Customer::create([
             'customer_no' => 'CUST-0001',
-            'name'        => 'Test Customer',
-            'mobile'      => '9826012345',
-            'city'        => 'Indore',
-            'party_type'  => 'CUSTOMER',
+            'name' => 'Test Customer',
+            'mobile' => '9826012345',
+            'city' => 'Indore',
+            'party_type' => 'CUSTOMER',
         ]);
     }
 
@@ -53,14 +51,14 @@ class BhavBookingImprovementsTest extends TestCase
     {
         // Rejects 0 or negative
         $resInvalid = $this->postJson('/daily-rates', [
-            'gold_rate'   => 0,
+            'gold_rate' => 0,
             'silver_rate' => -100,
         ]);
         $resInvalid->assertStatus(422);
 
         // Valid rates
         $resValid = $this->postJson('/daily-rates', [
-            'gold_rate'   => 170000.50,
+            'gold_rate' => 170000.50,
             'silver_rate' => 1950.00,
         ]);
         $resValid->assertStatus(200);
@@ -84,14 +82,14 @@ class BhavBookingImprovementsTest extends TestCase
         // 1. Create booking
         $createRes = $this->postJson('/bhav-bookings', [
             'request_token' => (string) Str::uuid(),
-            'customer_id'   => $this->customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $this->customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 2.000, 'rate' => 150000.00],
             ],
-            'payments'      => [
+            'payments' => [
                 ['mode' => 'CASH', 'amount' => 10000.00],
             ],
         ]);
@@ -108,13 +106,13 @@ class BhavBookingImprovementsTest extends TestCase
         // 2. Update booking
         $updateRes = $this->putJson("/bhav-bookings/{$bookingId}", [
             'customer_id' => $this->customer->id,
-            'trade_type'  => 'SELL',
-            'entry_type'  => 'ONLY_ENTRY',
-            'metal'       => 'GOLD',
-            'items'       => [
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 3.000, 'rate' => 150000.00],
             ],
-            'payments'    => [
+            'payments' => [
                 ['mode' => 'CASH', 'amount' => 10000.00],
             ],
         ]);
@@ -151,11 +149,11 @@ class BhavBookingImprovementsTest extends TestCase
     {
         $createRes = $this->postJson('/bhav-bookings', [
             'request_token' => (string) Str::uuid(),
-            'customer_id'   => $this->customer->id,
-            'trade_type'    => 'BUY',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'SILVER',
-            'items'         => [
+            'customer_id' => $this->customer->id,
+            'trade_type' => 'BUY',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'SILVER',
+            'items' => [
                 ['weight' => 500.000, 'rate' => 1800.00],
             ],
         ]);
@@ -182,25 +180,25 @@ class BhavBookingImprovementsTest extends TestCase
         // Create 2 bookings (one Gold, one Silver)
         $this->postJson('/bhav-bookings', [
             'request_token' => (string) Str::uuid(),
-            'customer_id'   => $this->customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $this->customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 2.000, 'rate' => 150000.00],
             ],
-            'payments'      => [
+            'payments' => [
                 ['mode' => 'CASH', 'amount' => 5000.00],
             ],
         ]);
 
         $this->postJson('/bhav-bookings', [
             'request_token' => (string) Str::uuid(),
-            'customer_id'   => $this->customer->id,
-            'trade_type'    => 'BUY',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'SILVER',
-            'items'         => [
+            'customer_id' => $this->customer->id,
+            'trade_type' => 'BUY',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'SILVER',
+            'items' => [
                 ['weight' => 100.000, 'rate' => 1800.00],
             ],
         ]);

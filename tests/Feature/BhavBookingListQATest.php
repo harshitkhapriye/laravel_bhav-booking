@@ -15,11 +15,11 @@ class BhavBookingListQATest extends TestCase
     private function createCustomer(string $name, string $mobile): Customer
     {
         return Customer::create([
-            'customer_no' => 'CUST-' . rand(1000, 9999),
-            'name'        => $name,
-            'mobile'      => $mobile,
-            'party_type'  => 'CUSTOMER',
-            'city'        => 'Indore',
+            'customer_no' => 'CUST-'.rand(1000, 9999),
+            'name' => $name,
+            'mobile' => $mobile,
+            'party_type' => 'CUSTOMER',
+            'city' => 'Indore',
         ]);
     }
 
@@ -30,53 +30,53 @@ class BhavBookingListQATest extends TestCase
 
         // B1: Customer 1, SELL, GOLD, ONLY_ENTRY, PENDING, Today, 10gm @ 70,000 = 70,000
         $b1 = BhavBooking::create([
-            'booking_no'       => 'BB-000001',
-            'customer_id'      => $c1->id,
-            'request_token'    => Str::uuid()->toString(),
-            'trade_type'       => 'SELL',
-            'entry_type'       => 'ONLY_ENTRY',
-            'metal'            => 'GOLD',
-            'status'           => 'PENDING',
-            'total_weight'     => 10.000,
+            'booking_no' => 'BB-000001',
+            'customer_id' => $c1->id,
+            'request_token' => Str::uuid()->toString(),
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'status' => 'PENDING',
+            'total_weight' => 10.000,
             'delivered_weight' => 0.000,
-            'total_amount'     => 70000.00,
-            'received_amount'  => 10000.00,
-            'given_amount'     => 0.00,
-            'booked_at'        => now(),
+            'total_amount' => 70000.00,
+            'received_amount' => 10000.00,
+            'given_amount' => 0.00,
+            'booked_at' => now(),
         ]);
 
         // B2: Customer 2, BUY, SILVER, BHAV_CUT_LEDGER, PENDING, Yesterday, 1000gm @ 85.00/10gm = 8,500
         $b2 = BhavBooking::create([
-            'booking_no'       => 'BB-000002',
-            'customer_id'      => $c2->id,
-            'request_token'    => Str::uuid()->toString(),
-            'trade_type'       => 'BUY',
-            'entry_type'       => 'BHAV_CUT_LEDGER',
-            'metal'            => 'SILVER',
-            'status'           => 'PENDING',
-            'total_weight'     => 1000.000,
+            'booking_no' => 'BB-000002',
+            'customer_id' => $c2->id,
+            'request_token' => Str::uuid()->toString(),
+            'trade_type' => 'BUY',
+            'entry_type' => 'BHAV_CUT_LEDGER',
+            'metal' => 'SILVER',
+            'status' => 'PENDING',
+            'total_weight' => 1000.000,
             'delivered_weight' => 0.000,
-            'total_amount'     => 8500.00,
-            'received_amount'  => 0.00,
-            'given_amount'     => 5000.00,
-            'booked_at'        => now()->subDay(),
+            'total_amount' => 8500.00,
+            'received_amount' => 0.00,
+            'given_amount' => 5000.00,
+            'booked_at' => now()->subDay(),
         ]);
 
         // B3: Customer 1, BUY, GOLD, ONLY_ENTRY, DELIVERED (Old view), 5 days ago, 5gm @ 70,000 = 35,000
         $b3 = BhavBooking::create([
-            'booking_no'       => 'BB-000003',
-            'customer_id'      => $c1->id,
-            'request_token'    => Str::uuid()->toString(),
-            'trade_type'       => 'BUY',
-            'entry_type'       => 'ONLY_ENTRY',
-            'metal'            => 'GOLD',
-            'status'           => 'DELIVERED',
-            'total_weight'     => 5.000,
+            'booking_no' => 'BB-000003',
+            'customer_id' => $c1->id,
+            'request_token' => Str::uuid()->toString(),
+            'trade_type' => 'BUY',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'status' => 'DELIVERED',
+            'total_weight' => 5.000,
             'delivered_weight' => 5.000,
-            'total_amount'     => 35000.00,
-            'received_amount'  => 0.00,
-            'given_amount'     => 35000.00,
-            'booked_at'        => now()->subDays(5),
+            'total_amount' => 35000.00,
+            'received_amount' => 0.00,
+            'given_amount' => 35000.00,
+            'booked_at' => now()->subDays(5),
         ]);
 
         return [$c1, $c2, $b1, $b2, $b3];
@@ -233,19 +233,19 @@ class BhavBookingListQATest extends TestCase
         // Create 15 bookings
         for ($i = 1; $i <= 15; $i++) {
             BhavBooking::create([
-                'booking_no'       => sprintf('BB-%06d', $i),
-                'customer_id'      => $customer->id,
-                'request_token'    => Str::uuid()->toString(),
-                'trade_type'       => 'SELL',
-                'entry_type'       => 'ONLY_ENTRY',
-                'metal'            => 'GOLD',
-                'status'           => 'PENDING',
-                'total_weight'     => 1.000,
+                'booking_no' => sprintf('BB-%06d', $i),
+                'customer_id' => $customer->id,
+                'request_token' => Str::uuid()->toString(),
+                'trade_type' => 'SELL',
+                'entry_type' => 'ONLY_ENTRY',
+                'metal' => 'GOLD',
+                'status' => 'PENDING',
+                'total_weight' => 1.000,
                 'delivered_weight' => 0.000,
-                'total_amount'     => 7000.00,
-                'received_amount'  => 0.00,
-                'given_amount'     => 0.00,
-                'booked_at'        => now()->subMinutes(15 - $i),
+                'total_amount' => 7000.00,
+                'received_amount' => 0.00,
+                'given_amount' => 0.00,
+                'booked_at' => now()->subMinutes(15 - $i),
             ]);
         }
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
+
 class UpdateBhavBookingRequest extends StoreBhavBookingRequest
 {
     /**
@@ -11,7 +13,7 @@ class UpdateBhavBookingRequest extends StoreBhavBookingRequest
      * We remove the request_token rule because existing bookings already have
      * their permanent request_token assigned at creation time.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {

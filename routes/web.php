@@ -111,4 +111,3 @@ Route::put('/parties/{customer}', [PartyController::class, 'update'])
 Route::delete('/parties/{customer}', [PartyController::class, 'destroy'])
     ->name('parties.destroy')
     ->missing($missingPartyCallback);
-

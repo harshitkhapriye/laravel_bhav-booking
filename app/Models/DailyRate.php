@@ -26,15 +26,12 @@ class DailyRate extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'rate'      => 'decimal:2',
+        'rate' => 'decimal:2',
         'rate_date' => 'date:Y-m-d',
     ];
 
     /**
      * Get today's rate for a specific metal, or null if not set.
-     *
-     * @param string $metal
-     * @return float|null
      */
     public static function getTodayRate(string $metal): ?float
     {
@@ -48,8 +45,6 @@ class DailyRate extends Model
 
     /**
      * Get today's rates for all metals with fallback indicators.
-     *
-     * @return array
      */
     public static function getTodayRates(): array
     {
@@ -64,11 +59,11 @@ class DailyRate extends Model
 
         return [
             'GOLD' => [
-                'rate'   => $goldRecord ? (float) $goldRecord->rate : $goldDefault,
+                'rate' => $goldRecord ? (float) $goldRecord->rate : $goldDefault,
                 'is_set' => $goldRecord !== null,
             ],
             'SILVER' => [
-                'rate'   => $silverRecord ? (float) $silverRecord->rate : $silverDefault,
+                'rate' => $silverRecord ? (float) $silverRecord->rate : $silverDefault,
                 'is_set' => $silverRecord !== null,
             ],
         ];

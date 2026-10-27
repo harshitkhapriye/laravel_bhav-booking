@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateBhavBookingRequest;
 use App\Models\BhavBooking;
 use App\Models\Customer;
 use App\Services\BhavBookingService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -48,8 +49,7 @@ class BhavBookingController extends Controller
      * Build base query with all filters applied.
      * Shared between list API and CSV export.
      *
-     * @param ListBhavBookingRequest $request
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
     protected function getFilteredQuery(ListBhavBookingRequest $request)
     {
@@ -100,7 +100,7 @@ class BhavBookingController extends Controller
 
             $query->where(function ($q) use ($party, $matchingCustomerIds) {
                 $q->where('booking_no', 'like', "%{$party}%")
-                  ->orWhereIn('customer_id', $matchingCustomerIds);
+                    ->orWhereIn('customer_id', $matchingCustomerIds);
             });
         }
 
@@ -109,9 +109,6 @@ class BhavBookingController extends Controller
 
     /**
      * Get a paginated list of Bhav Bookings with filters and overall totals.
-     *
-     * @param ListBhavBookingRequest $request
-     * @return JsonResponse
      */
     public function list(ListBhavBookingRequest $request): JsonResponse
     {
@@ -130,14 +127,14 @@ class BhavBookingController extends Controller
         ")->first();
 
         $totals = [
-            'buy_weight_gold'    => (float) ($aggregates->buy_weight_gold ?? 0),
-            'buy_weight_silver'  => (float) ($aggregates->buy_weight_silver ?? 0),
-            'buy_amount'         => (float) ($aggregates->buy_amount ?? 0),
-            'sell_weight_gold'   => (float) ($aggregates->sell_weight_gold ?? 0),
+            'buy_weight_gold' => (float) ($aggregates->buy_weight_gold ?? 0),
+            'buy_weight_silver' => (float) ($aggregates->buy_weight_silver ?? 0),
+            'buy_amount' => (float) ($aggregates->buy_amount ?? 0),
+            'sell_weight_gold' => (float) ($aggregates->sell_weight_gold ?? 0),
             'sell_weight_silver' => (float) ($aggregates->sell_weight_silver ?? 0),
-            'sell_amount'        => (float) ($aggregates->sell_amount ?? 0),
-            'given_total'        => (float) ($aggregates->given_total ?? 0),
-            'received_total'     => (float) ($aggregates->received_total ?? 0),
+            'sell_amount' => (float) ($aggregates->sell_amount ?? 0),
+            'given_total' => (float) ($aggregates->given_total ?? 0),
+            'received_total' => (float) ($aggregates->received_total ?? 0),
         ];
 
         // 6. Eager load customer and items, sort newest booked_at first
@@ -158,84 +155,81 @@ class BhavBookingController extends Controller
             'narration',
             'booked_at',
         ])
-        ->with([
-            'customer:id,customer_no,name,mobile,city',
-            'items:id,bhav_booking_id,sort_order,weight,rate,amount',
-            'payments:id,bhav_booking_id,mode,online_method,reference_no,amount,source,sort_order,paid_at'
-        ])
-        ->orderByDesc('booked_at')
-        ->orderByDesc('id')
-        ->paginate($perPage);
+            ->with([
+                'customer:id,customer_no,name,mobile,city',
+                'items:id,bhav_booking_id,sort_order,weight,rate,amount',
+                'payments:id,bhav_booking_id,mode,online_method,reference_no,amount,source,sort_order,paid_at',
+            ])
+            ->orderByDesc('booked_at')
+            ->orderByDesc('id')
+            ->paginate($perPage);
 
         // Format rows according to frontend expectations
         $rows = collect($paginator->items())->map(function (BhavBooking $booking) {
             return [
-                'id'                    => $booking->id,
-                'booking_no'            => $booking->booking_no,
-                'customer'              => $booking->customer ? [
-                    'id'          => $booking->customer->id,
+                'id' => $booking->id,
+                'booking_no' => $booking->booking_no,
+                'customer' => $booking->customer ? [
+                    'id' => $booking->customer->id,
                     'customer_no' => $booking->customer->customer_no,
-                    'name'        => $booking->customer->name,
-                    'mobile'      => $booking->customer->mobile,
-                    'city'        => $booking->customer->city,
+                    'name' => $booking->customer->name,
+                    'mobile' => $booking->customer->mobile,
+                    'city' => $booking->customer->city,
                 ] : null,
-                'trade_type'            => $booking->trade_type,
-                'entry_type'            => $booking->entry_type,
-                'metal'                 => $booking->metal,
-                'total_weight'          => (float) $booking->total_weight,
-                'total_amount'          => (float) $booking->total_amount,
-                'delivered_weight'      => (float) $booking->delivered_weight,
-                'pending_weight'        => (float) max(0, $booking->total_weight - $booking->delivered_weight),
-                'given_amount'          => (float) $booking->given_amount,
-                'received_amount'       => (float) $booking->received_amount,
-                'status'                => $booking->status,
-                'narration'             => $booking->narration,
-                'send_whatsapp'         => (bool) $booking->send_whatsapp,
+                'trade_type' => $booking->trade_type,
+                'entry_type' => $booking->entry_type,
+                'metal' => $booking->metal,
+                'total_weight' => (float) $booking->total_weight,
+                'total_amount' => (float) $booking->total_amount,
+                'delivered_weight' => (float) $booking->delivered_weight,
+                'pending_weight' => (float) max(0, $booking->total_weight - $booking->delivered_weight),
+                'given_amount' => (float) $booking->given_amount,
+                'received_amount' => (float) $booking->received_amount,
+                'status' => $booking->status,
+                'narration' => $booking->narration,
+                'send_whatsapp' => (bool) $booking->send_whatsapp,
                 'has_external_payments' => $booking->payments->contains('source', 'BUY_SELL'),
-                'booked_at'             => $booking->booked_at ? $booking->booked_at->toIso8601String() : null,
-                'items'                 => $booking->items->map(function ($item) {
+                'booked_at' => $booking->booked_at ? $booking->booked_at->toIso8601String() : null,
+                'items' => $booking->items->map(function ($item) {
                     return [
-                        'id'         => $item->id,
+                        'id' => $item->id,
                         'sort_order' => $item->sort_order,
-                        'weight'     => (float) $item->weight,
-                        'rate'       => (float) $item->rate,
-                        'amount'     => (float) $item->amount,
+                        'weight' => (float) $item->weight,
+                        'rate' => (float) $item->rate,
+                        'amount' => (float) $item->amount,
                     ];
                 })->all(),
-                'payments'              => $booking->payments->map(function ($payment) {
+                'payments' => $booking->payments->map(function ($payment) {
                     return [
-                        'id'            => $payment->id,
-                        'mode'          => $payment->mode,
+                        'id' => $payment->id,
+                        'mode' => $payment->mode,
                         'online_method' => $payment->online_method,
-                        'reference_no'  => $payment->reference_no,
-                        'amount'        => (float) $payment->amount,
-                        'source'        => $payment->source,
-                        'sort_order'    => $payment->sort_order,
-                        'paid_at'       => $payment->paid_at ? $payment->paid_at->toIso8601String() : null,
+                        'reference_no' => $payment->reference_no,
+                        'amount' => (float) $payment->amount,
+                        'source' => $payment->source,
+                        'sort_order' => $payment->sort_order,
+                        'paid_at' => $payment->paid_at ? $payment->paid_at->toIso8601String() : null,
                     ];
                 })->all(),
             ];
         });
 
         return response()->json([
-            'rows'       => $rows,
+            'rows' => $rows,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
-                'per_page'     => $paginator->perPage(),
-                'total'        => $paginator->total(),
-                'last_page'    => $paginator->lastPage(),
-                'from'         => $paginator->firstItem() ?? 0,
-                'to'           => $paginator->lastItem() ?? 0,
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+                'from' => $paginator->firstItem() ?? 0,
+                'to' => $paginator->lastItem() ?? 0,
             ],
-            'totals'     => $totals,
+            'totals' => $totals,
         ]);
     }
 
     /**
      * Store a newly created Bhav Booking in storage.
-     *
-     * @param StoreBhavBookingRequest $request
-     * @return JsonResponse
      */
     public function store(StoreBhavBookingRequest $request): JsonResponse
     {
@@ -247,15 +241,9 @@ class BhavBookingController extends Controller
 
     /**
      * Display the specified Bhav Booking details.
-     *
-     * @param BhavBooking $bhavBooking
-     * @return JsonResponse
      */
     /**
      * Display the specified Bhav Booking details including activity logs.
-     *
-     * @param BhavBooking $bhavBooking
-     * @return JsonResponse
      */
     public function show(BhavBooking $bhavBooking): JsonResponse
     {
@@ -263,7 +251,7 @@ class BhavBookingController extends Controller
             'customer:id,customer_no,name,mobile,city',
             'items:id,bhav_booking_id,sort_order,weight,rate,amount',
             'payments:id,bhav_booking_id,mode,online_method,reference_no,amount,source,sort_order,paid_at',
-            'logs'
+            'logs',
         ]);
         $bhavBooking->has_external_payments = $bhavBooking->payments->contains('source', 'BUY_SELL');
 
@@ -273,9 +261,6 @@ class BhavBookingController extends Controller
     /**
      * Streamed CSV export of the currently filtered bookings.
      * Uses chunked database cursor to ensure zero memory exhaustion on large sets.
-     *
-     * @param ListBhavBookingRequest $request
-     * @return StreamedResponse
      */
     public function export(ListBhavBookingRequest $request): StreamedResponse
     {
@@ -284,7 +269,7 @@ class BhavBookingController extends Controller
             ->orderByDesc('booked_at')
             ->orderByDesc('id');
 
-        $filename = 'bhav_bookings_export_' . now()->format('Ymd_His') . '.csv';
+        $filename = 'bhav_bookings_export_'.now()->format('Ymd_His').'.csv';
 
         return response()->stream(function () use ($query) {
             $handle = fopen('php://output', 'w');
@@ -320,6 +305,7 @@ class BhavBookingController extends Controller
                     $paymentsSummary = $booking->payments->map(function ($p) {
                         $method = $p->mode === 'ONLINE' ? " ({$p->online_method})" : '';
                         $ref = $p->reference_no ? " Ref:{$p->reference_no}" : '';
+
                         return "{$p->mode}{$method}: ₹{$p->amount}{$ref}";
                     })->implode('; ');
 
@@ -348,19 +334,15 @@ class BhavBookingController extends Controller
 
             fclose($handle);
         }, 200, [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'Cache-Control'       => 'no-store, no-cache, must-revalidate',
-            'Pragma'              => 'no-cache',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
         ]);
     }
 
     /**
      * Log an external action (PRINTED, SHARED, SILENT_DELETED) on a booking.
-     *
-     * @param Request $request
-     * @param BhavBooking $bhavBooking
-     * @return JsonResponse
      */
     public function logAction(Request $request, BhavBooking $bhavBooking): JsonResponse
     {
@@ -372,23 +354,19 @@ class BhavBookingController extends Controller
 
         return response()->json([
             'message' => 'Action logged successfully',
-            'log'     => $log,
+            'log' => $log,
         ]);
     }
 
     /**
      * Update the specified Bhav Booking in storage.
      * Allowed only if status = PENDING and delivered_weight = 0 and given_amount = 0 and received_amount = 0.
-     *
-     * @param UpdateBhavBookingRequest $request
-     * @param BhavBooking $bhavBooking
-     * @return JsonResponse
      */
     public function update(UpdateBhavBookingRequest $request, BhavBooking $bhavBooking): JsonResponse
     {
         if (! $this->bhavBookingService->canModify($bhavBooking)) {
             return response()->json([
-                'message' => 'This booking has delivery/payment and cannot be edited'
+                'message' => 'This booking has delivery/payment and cannot be edited',
             ], 422);
         }
 
@@ -401,33 +379,29 @@ class BhavBookingController extends Controller
     /**
      * Remove the specified Bhav Booking from storage (soft delete).
      * Allowed only if status = PENDING and delivered_weight = 0 and given_amount = 0 and received_amount = 0.
-     *
-     * @param BhavBooking $bhavBooking
-     * @return JsonResponse
      */
     public function destroy(BhavBooking $bhavBooking): JsonResponse
     {
         if (! $this->bhavBookingService->canModify($bhavBooking)) {
             return response()->json([
-                'message' => 'This booking has delivery/payment and cannot be edited'
+                'message' => 'This booking has delivery/payment and cannot be edited',
             ], 422);
         }
 
         $this->bhavBookingService->delete($bhavBooking);
 
         return response()->json([
-            'message' => 'Booking deleted successfully.'
+            'message' => 'Booking deleted successfully.',
         ]);
     }
 
     /**
      * Print voucher view for a single booking.
-     *
-     * @param BhavBooking $bhavBooking
      */
     public function print(BhavBooking $bhavBooking)
     {
         $booking = $bhavBooking->load(['customer', 'items', 'payments']);
+
         return view('buy-sell.bhav-booking-print', compact('booking'));
     }
 }

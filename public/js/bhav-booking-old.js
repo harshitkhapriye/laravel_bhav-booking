@@ -14,7 +14,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
-
     // =========================================================================
     // 1. STATE & DOM ELEMENTS
     // =========================================================================
@@ -160,8 +159,10 @@ document.addEventListener('DOMContentLoaded', function () {
         hours = hours ? hours : 12;
         const minutes = String(d.getMinutes()).padStart(2, '0');
 
-        return `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
-               `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${String(hours).padStart(2, '0')}:${minutes} ${ampm}</div>`;
+        return (
+            `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
+            `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${String(hours).padStart(2, '0')}:${minutes} ${ampm}</div>`
+        );
     }
 
     /**
@@ -181,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
             selectAllCheckbox.disabled = false;
         }
 
-        const startFrom = (pagination && typeof pagination.from === 'number') ? pagination.from : 1;
+        const startFrom = pagination && typeof pagination.from === 'number' ? pagination.from : 1;
         lastLoadedBookingsMap = {};
 
         let html = '';
@@ -284,7 +285,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Dispose existing tooltips if any before replacing/rendering
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const existingTooltips = oldTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
-            existingTooltips.forEach(el => {
+            existingTooltips.forEach((el) => {
                 const inst = bootstrap.Tooltip.getInstance(el);
                 if (inst) inst.dispose();
             });
@@ -295,12 +296,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // Initialize tooltips if Bootstrap Tooltip is loaded
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const tooltipElements = oldTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
-            tooltipElements.forEach(el => new bootstrap.Tooltip(el));
+            tooltipElements.forEach((el) => new bootstrap.Tooltip(el));
         }
 
         // Attach row checkbox change listeners to update header checkbox state
         const rowCheckboxes = oldTableBody.querySelectorAll('.row-select-checkbox');
-        rowCheckboxes.forEach(cb => {
+        rowCheckboxes.forEach((cb) => {
             cb.addEventListener('change', updateSelectAllCheckboxState);
         });
     }
@@ -315,7 +316,7 @@ document.addEventListener('DOMContentLoaded', function () {
             selectAllCheckbox.checked = false;
             return;
         }
-        const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
+        const allChecked = Array.from(rowCheckboxes).every((cb) => cb.checked);
         selectAllCheckbox.checked = allChecked;
     }
 
@@ -324,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selectAllCheckbox.addEventListener('change', function () {
             if (!oldTableBody) return;
             const rowCheckboxes = oldTableBody.querySelectorAll('.row-select-checkbox');
-            rowCheckboxes.forEach(cb => {
+            rowCheckboxes.forEach((cb) => {
                 cb.checked = selectAllCheckbox.checked;
             });
         });
@@ -396,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Wire page buttons
         const pageButtons = oldPaginationLinks.querySelectorAll('button[data-page]');
-        pageButtons.forEach(btn => {
+        pageButtons.forEach((btn) => {
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 if (this.disabled) return;
@@ -436,9 +437,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        const baseUrl = (window.APP_ROUTES && window.APP_ROUTES.bhavBookingList)
-            ? window.APP_ROUTES.bhavBookingList
-            : '/bhav-bookings/list';
+        const baseUrl =
+            window.APP_ROUTES && window.APP_ROUTES.bhavBookingList
+                ? window.APP_ROUTES.bhavBookingList
+                : '/bhav-bookings/list';
 
         const params = new URLSearchParams();
         params.set('view', 'old');
@@ -464,40 +466,40 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(fullUrl, {
             method: 'GET',
             headers: {
-                'Accept': 'application/json'
+                Accept: 'application/json',
             },
-            signal: signal
+            signal: signal,
         })
-        .then(async response => {
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to load old bookings.');
-            }
-            return data;
-        })
-        .then(data => {
-            if (oldTableLoadingBar) oldTableLoadingBar.classList.remove('active');
-            if (oldTableBody) {
-                oldTableBody.style.opacity = '1';
-                oldTableBody.style.pointerEvents = 'auto';
-            }
-            isFirstOldListLoad = false;
+            .then(async (response) => {
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to load old bookings.');
+                }
+                return data;
+            })
+            .then((data) => {
+                if (oldTableLoadingBar) oldTableLoadingBar.classList.remove('active');
+                if (oldTableBody) {
+                    oldTableBody.style.opacity = '1';
+                    oldTableBody.style.pointerEvents = 'auto';
+                }
+                isFirstOldListLoad = false;
 
-            const rows = data.rows || [];
-            const pagination = data.pagination || null;
-            renderTableRows(rows, pagination);
-            renderPagination(pagination);
-        })
-        .catch(error => {
-            if (error.name === 'AbortError') return;
-            if (oldTableLoadingBar) oldTableLoadingBar.classList.remove('active');
-            if (oldTableBody) {
-                oldTableBody.style.opacity = '1';
-                oldTableBody.style.pointerEvents = 'auto';
-            }
-            console.warn('Old bookings fetch error:', error);
-            renderErrorState(error.message);
-        });
+                const rows = data.rows || [];
+                const pagination = data.pagination || null;
+                renderTableRows(rows, pagination);
+                renderPagination(pagination);
+            })
+            .catch((error) => {
+                if (error.name === 'AbortError') return;
+                if (oldTableLoadingBar) oldTableLoadingBar.classList.remove('active');
+                if (oldTableBody) {
+                    oldTableBody.style.opacity = '1';
+                    oldTableBody.style.pointerEvents = 'auto';
+                }
+                console.warn('Old bookings fetch error:', error);
+                renderErrorState(error.message);
+            });
     }
 
     // =========================================================================
@@ -514,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // On Delete or Silent Delete: refresh current page
                 onDeleted: function () {
                     fetchOldBookings(currentOldPage);
-                }
+                },
             });
         });
     }
@@ -560,7 +562,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (dateRangeDropdown) {
             const buttons = dateRangeDropdown.querySelectorAll('.date-preset-btn');
-            buttons.forEach(btn => {
+            buttons.forEach((btn) => {
                 if (btn.getAttribute('data-preset') === presetName) {
                     btn.classList.add('active');
                 } else {
@@ -582,7 +584,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (dateRangeDropdown) {
         const presetButtons = dateRangeDropdown.querySelectorAll('.date-preset-btn');
-        presetButtons.forEach(button => {
+        presetButtons.forEach((button) => {
             button.addEventListener('click', function (e) {
                 e.stopPropagation();
                 const preset = this.getAttribute('data-preset');
@@ -592,10 +594,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (customDatePanel) {
                         customDatePanel.style.display = 'block';
                         if (customDateError) customDateError.style.display = 'none';
-                        if (customDateFrom && dateFilterFrom) customDateFrom.value = dateFilterFrom.value || formatDateISO(today);
-                        if (customDateTo && dateFilterTo) customDateTo.value = dateFilterTo.value || formatDateISO(today);
+                        if (customDateFrom && dateFilterFrom)
+                            customDateFrom.value = dateFilterFrom.value || formatDateISO(today);
+                        if (customDateTo && dateFilterTo)
+                            customDateTo.value = dateFilterTo.value || formatDateISO(today);
                     }
-                    presetButtons.forEach(b => b.classList.remove('active'));
+                    presetButtons.forEach((b) => b.classList.remove('active'));
                     this.classList.add('active');
                     return;
                 }
@@ -686,5 +690,4 @@ document.addEventListener('DOMContentLoaded', function () {
     // 8. INITIAL LOAD
     // =========================================================================
     fetchOldBookings(1);
-
 });

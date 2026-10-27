@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
         partiesUpdate: '/parties/__ID__',
         partiesDestroy: '/parties/__ID__',
         customerStore: '/customers',
-        customerSearch: '/customers/search'
+        customerSearch: '/customers/search',
     };
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -165,27 +165,27 @@ document.addEventListener('DOMContentLoaded', function () {
             page: currentPage,
             per_page: perPage,
             party_type: currentPartyType,
-            q: currentSearch
+            q: currentSearch,
         });
 
         fetch(`${routes.partiesList}?${params.toString()}`, {
             headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         })
-        .then(res => {
-            if (!res.ok) throw new Error('Failed to fetch parties');
-            return res.json();
-        })
-        .then(data => {
-            renderPartiesTable(data.rows || data.data || [], data.pagination || {});
-            renderPagination(data.pagination || {});
-        })
-        .catch(err => {
-            console.error('Error fetching parties:', err);
-            renderErrorState('Failed to load parties. Please try again.');
-        });
+            .then((res) => {
+                if (!res.ok) throw new Error('Failed to fetch parties');
+                return res.json();
+            })
+            .then((data) => {
+                renderPartiesTable(data.rows || data.data || [], data.pagination || {});
+                renderPagination(data.pagination || {});
+            })
+            .catch((err) => {
+                console.error('Error fetching parties:', err);
+                renderErrorState('Failed to load parties. Please try again.');
+            });
     }
 
     function showLoadingState() {
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const startIndex = pagination.from ? (pagination.from - 1) : ((currentPage - 1) * perPage);
+        const startIndex = pagination.from ? pagination.from - 1 : (currentPage - 1) * perPage;
         let html = '';
 
         rows.forEach((party, index) => {
@@ -246,9 +246,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // Party Name, No, Supplier badge, and Family parent info
-            const supplierBadge = party.party_type === 'SUPPLIER'
-                ? '<span class="badge bg-info-subtle text-info border ms-1" style="font-size: 10px;">SUPPLIER</span>'
-                : '';
+            const supplierBadge =
+                party.party_type === 'SUPPLIER'
+                    ? '<span class="badge bg-info-subtle text-info border ms-1" style="font-size: 10px;">SUPPLIER</span>'
+                    : '';
 
             const parentInfo = party.parent
                 ? `<div class="small text-muted" style="font-size: 11px;"><i class="fa-solid fa-user-group me-1" style="font-size: 10px;"></i>Family of ${escapeHtml(party.parent.name)}</div>`
@@ -406,7 +407,7 @@ document.addEventListener('DOMContentLoaded', function () {
         partiesPaginationLinks.innerHTML = linksHtml;
 
         // Wire page click events
-        partiesPaginationLinks.querySelectorAll('.page-link[data-page]').forEach(btn => {
+        partiesPaginationLinks.querySelectorAll('.page-link[data-page]').forEach((btn) => {
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 const targetPage = parseInt(this.getAttribute('data-page'), 10);
@@ -455,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function wireActionMenuEvents() {
         // View Party
-        document.querySelectorAll('.action-party-view').forEach(btn => {
+        document.querySelectorAll('.action-party-view').forEach((btn) => {
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 const partyId = this.getAttribute('data-id');
@@ -464,7 +465,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Edit Party
-        document.querySelectorAll('.action-party-edit').forEach(btn => {
+        document.querySelectorAll('.action-party-edit').forEach((btn) => {
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 const partyId = this.getAttribute('data-id');
@@ -473,7 +474,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Delete Party
-        document.querySelectorAll('.action-party-delete').forEach(btn => {
+        document.querySelectorAll('.action-party-delete').forEach((btn) => {
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 const partyId = this.getAttribute('data-id');
@@ -499,22 +500,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fetch(showUrl, {
             headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         })
-        .then(res => {
-            if (!res.ok) throw new Error('Party not found');
-            return res.json();
-        })
-        .then(party => {
-            populateViewModal(party);
-        })
-        .catch(err => {
-            console.error('Error fetching party details:', err);
-            showToast('Failed to load party details', 'error');
-            if (partyViewModal) partyViewModal.hide();
-        });
+            .then((res) => {
+                if (!res.ok) throw new Error('Party not found');
+                return res.json();
+            })
+            .then((party) => {
+                populateViewModal(party);
+            })
+            .catch((err) => {
+                console.error('Error fetching party details:', err);
+                showToast('Failed to load party details', 'error');
+                if (partyViewModal) partyViewModal.hide();
+            });
     }
 
     function resetViewModalData() {
@@ -549,9 +550,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (viewPartyAadhaar) viewPartyAadhaar.textContent = '-';
         if (viewPartyPan) viewPartyPan.textContent = '-';
         if (viewFamilyMembersCount) viewFamilyMembersCount.textContent = '0';
-        if (viewFamilyMembersContainer) viewFamilyMembersContainer.innerHTML = '<p class="text-muted small m-0 fst-italic">Loading...</p>';
+        if (viewFamilyMembersContainer)
+            viewFamilyMembersContainer.innerHTML = '<p class="text-muted small m-0 fst-italic">Loading...</p>';
         if (viewLatestBookingsTableBody) {
-            viewLatestBookingsTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Loading bookings...</td></tr>';
+            viewLatestBookingsTableBody.innerHTML =
+                '<tr><td colspan="7" class="text-center text-muted py-3">Loading bookings...</td></tr>';
         }
     }
 
@@ -596,7 +599,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (viewPartyMobile) viewPartyMobile.textContent = party.mobile || '-';
         if (viewPartyEmail) viewPartyEmail.textContent = party.email || '-';
         if (viewPartyBirthday) viewPartyBirthday.textContent = party.birthday ? formatDateDisplay(party.birthday) : '-';
-        if (viewPartyAnniversary) viewPartyAnniversary.textContent = party.anniversary ? formatDateDisplay(party.anniversary) : '-';
+        if (viewPartyAnniversary)
+            viewPartyAnniversary.textContent = party.anniversary ? formatDateDisplay(party.anniversary) : '-';
         if (viewPartyAddress) viewPartyAddress.textContent = party.address || '-';
 
         // Shop / Business
@@ -643,10 +647,11 @@ document.addEventListener('DOMContentLoaded', function () {
             viewFamilyMembersCount.textContent = family.length;
 
             if (family.length === 0) {
-                viewFamilyMembersContainer.innerHTML = '<p class="text-muted small m-0 fst-italic">No family sub-profiles registered for this party.</p>';
+                viewFamilyMembersContainer.innerHTML =
+                    '<p class="text-muted small m-0 fst-italic">No family sub-profiles registered for this party.</p>';
             } else {
                 let famHtml = '<div class="row g-2">';
-                family.forEach(member => {
+                family.forEach((member) => {
                     famHtml += `
                         <div class="col-12 col-md-6">
                             <div class="p-2 border rounded bg-white d-flex align-items-center justify-content-between">
@@ -666,7 +671,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 viewFamilyMembersContainer.innerHTML = famHtml;
 
                 // Click handler for viewing family sub-profile directly
-                viewFamilyMembersContainer.querySelectorAll('.btn-view-family-member').forEach(btn => {
+                viewFamilyMembersContainer.querySelectorAll('.btn-view-family-member').forEach((btn) => {
                     btn.addEventListener('click', function () {
                         const mid = this.getAttribute('data-id');
                         openViewModal(mid);
@@ -688,16 +693,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
             } else {
                 let bookHtml = '';
-                bookings.forEach(b => {
-                    const tradeBadge = b.trade_type === 'BUY'
-                        ? '<span class="badge bg-success-subtle text-success border">BUY</span>'
-                        : '<span class="badge bg-danger-subtle text-danger border">SELL</span>';
+                bookings.forEach((b) => {
+                    const tradeBadge =
+                        b.trade_type === 'BUY'
+                            ? '<span class="badge bg-success-subtle text-success border">BUY</span>'
+                            : '<span class="badge bg-danger-subtle text-danger border">SELL</span>';
 
-                    const statusBadge = b.status === 'PENDING'
-                        ? '<span class="badge bg-warning-subtle text-warning border">PENDING</span>'
-                        : (b.status === 'DELIVERED'
-                            ? '<span class="badge bg-success-subtle text-success border">DELIVERED</span>'
-                            : '<span class="badge bg-secondary-subtle text-secondary border">CANCELLED</span>');
+                    const statusBadge =
+                        b.status === 'PENDING'
+                            ? '<span class="badge bg-warning-subtle text-warning border">PENDING</span>'
+                            : b.status === 'DELIVERED'
+                              ? '<span class="badge bg-success-subtle text-success border">DELIVERED</span>'
+                              : '<span class="badge bg-secondary-subtle text-secondary border">CANCELLED</span>';
 
                     bookHtml += `
                         <tr>
@@ -783,22 +790,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fetch(showUrl, {
             headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         })
-        .then(res => {
-            if (!res.ok) throw new Error('Party not found');
-            return res.json();
-        })
-        .then(party => {
-            prefillEditForm(party);
-            if (addCustomerModal) addCustomerModal.show();
-        })
-        .catch(err => {
-            console.error('Error opening edit modal:', err);
-            showToast('Failed to load party details for edit', 'error');
-        });
+            .then((res) => {
+                if (!res.ok) throw new Error('Party not found');
+                return res.json();
+            })
+            .then((party) => {
+                prefillEditForm(party);
+                if (addCustomerModal) addCustomerModal.show();
+            })
+            .catch((err) => {
+                console.error('Error opening edit modal:', err);
+                showToast('Failed to load party details for edit', 'error');
+            });
     }
 
     /**
@@ -897,9 +904,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Expand additional info if any optional field has data
-        const hasAdditionalData = party.birthday || party.anniversary || party.has_aadhaar || party.has_pan ||
-            party.gst_no || party.lic_no || party.reg_no || party.logo_title || party.shop_name ||
-            party.state || party.district || party.area || party.shop_address || party.shop_logo_url;
+        const hasAdditionalData =
+            party.birthday ||
+            party.anniversary ||
+            party.has_aadhaar ||
+            party.has_pan ||
+            party.gst_no ||
+            party.lic_no ||
+            party.reg_no ||
+            party.logo_title ||
+            party.shop_name ||
+            party.state ||
+            party.district ||
+            party.area ||
+            party.shop_address ||
+            party.shop_logo_url;
 
         if (hasAdditionalData) {
             expandAdditionalSection();
@@ -930,13 +949,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function resetPartyModalErrors() {
         const errorEls = document.querySelectorAll('#addCustomerForm .field-error-text');
-        errorEls.forEach(el => {
+        errorEls.forEach((el) => {
             el.textContent = '';
             el.style.display = 'none';
         });
 
         const invalidInputs = document.querySelectorAll('#addCustomerForm .is-invalid');
-        invalidInputs.forEach(input => input.classList.remove('is-invalid'));
+        invalidInputs.forEach((input) => input.classList.remove('is-invalid'));
     }
 
     // Party Type segmented toggle
@@ -1133,67 +1152,67 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
             signal: parentSearchAbortController.signal,
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
-        .then(res => res.json())
-        .then(results => {
-            // Exclude current editing party from parent list to prevent self-referencing
-            const currentEditId = editPartyIdInput ? parseInt(editPartyIdInput.value, 10) : null;
-            const filtered = (results || []).filter(c => !currentEditId || c.id !== currentEditId);
+            .then((res) => res.json())
+            .then((results) => {
+                // Exclude current editing party from parent list to prevent self-referencing
+                const currentEditId = editPartyIdInput ? parseInt(editPartyIdInput.value, 10) : null;
+                const filtered = (results || []).filter((c) => !currentEditId || c.id !== currentEditId);
 
-            if (filtered.length === 0) {
-                parentCustomerSearchResults.innerHTML = `
+                if (filtered.length === 0) {
+                    parentCustomerSearchResults.innerHTML = `
                     <div class="p-2 text-center text-muted small">No customers found</div>
                 `;
-                return;
-            }
+                    return;
+                }
 
-            let html = '';
-            filtered.forEach(customer => {
-                html += `
+                let html = '';
+                filtered.forEach((customer) => {
+                    html += `
                     <div class="customer-dropdown-item parent-search-item" data-id="${customer.id}" data-name="${escapeHtml(customer.name)}" data-mobile="${escapeHtml(customer.mobile)}" data-no="${escapeHtml(customer.customer_no)}">
                         <div class="fw-bold">${escapeHtml(customer.name)}</div>
                         <div class="small text-muted">${escapeHtml(customer.customer_no)} &bull; ${escapeHtml(customer.mobile)}</div>
                     </div>
                 `;
-            });
-            parentCustomerSearchResults.innerHTML = html;
+                });
+                parentCustomerSearchResults.innerHTML = html;
 
-            parentCustomerSearchResults.querySelectorAll('.parent-search-item').forEach(item => {
-                item.addEventListener('click', function () {
-                    const chosen = {
-                        id: this.getAttribute('data-id'),
-                        name: this.getAttribute('data-name'),
-                        mobile: this.getAttribute('data-mobile'),
-                        customer_no: this.getAttribute('data-no')
-                    };
+                parentCustomerSearchResults.querySelectorAll('.parent-search-item').forEach((item) => {
+                    item.addEventListener('click', function () {
+                        const chosen = {
+                            id: this.getAttribute('data-id'),
+                            name: this.getAttribute('data-name'),
+                            mobile: this.getAttribute('data-mobile'),
+                            customer_no: this.getAttribute('data-no'),
+                        };
 
-                    selectedParentCustomer = chosen;
-                    if (hiddenParentCustomerId) hiddenParentCustomerId.value = chosen.id;
-                    if (parentCustomerSearchInput) parentCustomerSearchInput.value = chosen.name;
-                    if (parentCustomerSearchResults) parentCustomerSearchResults.style.display = 'none';
+                        selectedParentCustomer = chosen;
+                        if (hiddenParentCustomerId) hiddenParentCustomerId.value = chosen.id;
+                        if (parentCustomerSearchInput) parentCustomerSearchInput.value = chosen.name;
+                        if (parentCustomerSearchResults) parentCustomerSearchResults.style.display = 'none';
 
-                    if (parentCustomerSelectedBadge) {
-                        parentCustomerSelectedBadge.style.display = 'block';
-                        parentCustomerSelectedBadge.innerHTML = `
+                        if (parentCustomerSelectedBadge) {
+                            parentCustomerSelectedBadge.style.display = 'block';
+                            parentCustomerSelectedBadge.innerHTML = `
                             <div class="alert alert-info py-1 px-2 m-0 small d-flex align-items-center justify-content-between">
                                 <span><strong>Selected Parent:</strong> ${escapeHtml(chosen.name)} (${escapeHtml(chosen.customer_no)})</span>
                             </div>
                         `;
-                    }
+                        }
 
-                    if (newCustomerMobile && !newCustomerMobile.value.trim() && chosen.mobile) {
-                        newCustomerMobile.value = chosen.mobile;
-                    }
+                        if (newCustomerMobile && !newCustomerMobile.value.trim() && chosen.mobile) {
+                            newCustomerMobile.value = chosen.mobile;
+                        }
+                    });
                 });
-            });
-        })
-        .catch(err => {
-            if (err.name === 'AbortError') return;
-            parentCustomerSearchResults.innerHTML = `
+            })
+            .catch((err) => {
+                if (err.name === 'AbortError') return;
+                parentCustomerSearchResults.innerHTML = `
                 <div class="p-2 text-center text-danger small">Search failed</div>
             `;
-        });
+            });
     }
 
     // State & Dynamic District Population
@@ -1201,7 +1220,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!newPartyState || newPartyState.options.length > 1) return;
         const locations = window.INDIA_LOCATIONS;
         if (locations && Array.isArray(locations.states)) {
-            locations.states.forEach(state => {
+            locations.states.forEach((state) => {
                 const opt = document.createElement('option');
                 opt.value = state;
                 opt.textContent = state;
@@ -1215,13 +1234,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!districtContainer) return;
 
         const locations = window.INDIA_LOCATIONS;
-        const districtList = (locations && locations.districts && locations.districts[stateName])
-            ? locations.districts[stateName]
-            : null;
+        const districtList =
+            locations && locations.districts && locations.districts[stateName] ? locations.districts[stateName] : null;
 
         if (districtList && Array.isArray(districtList) && districtList.length > 0) {
             let optionsHtml = '<option value="">Select District</option>';
-            districtList.forEach(d => {
+            districtList.forEach((d) => {
                 optionsHtml += `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`;
             });
             districtContainer.innerHTML = `
@@ -1303,7 +1321,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const parts = val.split('-');
         const year = parseInt(parts[0], 10);
 
-        if (isNaN(year) || year < 1900 || val > todayStr || (input.validity && (input.validity.rangeUnderflow || input.validity.rangeOverflow))) {
+        if (
+            isNaN(year) ||
+            year < 1900 ||
+            val > todayStr ||
+            (input.validity && (input.validity.rangeUnderflow || input.validity.rangeOverflow))
+        ) {
             showError();
             return false;
         }
@@ -1479,7 +1502,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (partyShopLogoCameraInput && partyShopLogoCameraInput.files && partyShopLogoCameraInput.files[0]) {
                 formData.set('shop_logo', partyShopLogoCameraInput.files[0]);
-            } else if (partyShopLogoFolderInput && partyShopLogoFolderInput.files && partyShopLogoFolderInput.files[0]) {
+            } else if (
+                partyShopLogoFolderInput &&
+                partyShopLogoFolderInput.files &&
+                partyShopLogoFolderInput.files[0]
+            ) {
                 formData.set('shop_logo', partyShopLogoFolderInput.files[0]);
             }
 
@@ -1496,9 +1523,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // Target URL: POST /customers for create, POST /parties/{id} with _method=PUT for update
-            const targetUrl = isEdit
-                ? routes.partiesUpdate.replace('__ID__', partyId)
-                : routes.customerStore;
+            const targetUrl = isEdit ? routes.partiesUpdate.replace('__ID__', partyId) : routes.customerStore;
 
             const originalButtonHtml = btnSaveNewCustomer.innerHTML;
             btnSaveNewCustomer.disabled = true;
@@ -1508,33 +1533,33 @@ document.addEventListener('DOMContentLoaded', function () {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
-                body: formData
+                body: formData,
             })
-            .then(res => {
-                return res.json().then(data => {
-                    if (!res.ok) {
-                        handleValidationErrors(data);
-                        throw new Error(data.message || 'Validation failed');
-                    }
-                    return data;
+                .then((res) => {
+                    return res.json().then((data) => {
+                        if (!res.ok) {
+                            handleValidationErrors(data);
+                            throw new Error(data.message || 'Validation failed');
+                        }
+                        return data;
+                    });
+                })
+                .then((data) => {
+                    if (addCustomerModal) addCustomerModal.hide();
+                    resetPartyModal();
+                    showToast(isEdit ? 'Party updated successfully' : 'Party created successfully', 'success');
+                    fetchParties(isEdit ? currentPage : 1);
+                })
+                .catch((err) => {
+                    console.warn('Save party response:', err);
+                })
+                .finally(() => {
+                    btnSaveNewCustomer.disabled = false;
+                    btnSaveNewCustomer.innerHTML = originalButtonHtml;
                 });
-            })
-            .then(data => {
-                if (addCustomerModal) addCustomerModal.hide();
-                resetPartyModal();
-                showToast(isEdit ? 'Party updated successfully' : 'Party created successfully', 'success');
-                fetchParties(isEdit ? currentPage : 1);
-            })
-            .catch(err => {
-                console.warn('Save party response:', err);
-            })
-            .finally(() => {
-                btnSaveNewCustomer.disabled = false;
-                btnSaveNewCustomer.innerHTML = originalButtonHtml;
-            });
         });
     }
 
@@ -1544,22 +1569,53 @@ document.addEventListener('DOMContentLoaded', function () {
             mobile: { error: document.getElementById('errorNewCustomerMobile'), input: newCustomerMobile },
             email: { error: document.getElementById('errorNewCustomerEmail'), input: newCustomerEmail },
             address: { error: document.getElementById('errorNewCustomerAddress'), input: newCustomerAddress },
-            parent_customer_id: { error: document.getElementById('errorParentCustomerId'), input: parentCustomerSearchInput },
-            birthday: { error: document.getElementById('errorNewPartyBirthday'), input: newPartyBirthday, inAdditional: true },
-            anniversary: { error: document.getElementById('errorNewPartyAnniversary'), input: newPartyAnniversary, inAdditional: true },
-            aadhaar_no: { error: document.getElementById('errorNewPartyAadhaar'), input: newPartyAadhaar, inAdditional: true },
+            parent_customer_id: {
+                error: document.getElementById('errorParentCustomerId'),
+                input: parentCustomerSearchInput,
+            },
+            birthday: {
+                error: document.getElementById('errorNewPartyBirthday'),
+                input: newPartyBirthday,
+                inAdditional: true,
+            },
+            anniversary: {
+                error: document.getElementById('errorNewPartyAnniversary'),
+                input: newPartyAnniversary,
+                inAdditional: true,
+            },
+            aadhaar_no: {
+                error: document.getElementById('errorNewPartyAadhaar'),
+                input: newPartyAadhaar,
+                inAdditional: true,
+            },
             pan_no: { error: document.getElementById('errorNewPartyPan'), input: newPartyPan, inAdditional: true },
             gst_no: { error: document.getElementById('errorNewPartyGst'), input: newPartyGst, inAdditional: true },
             lic_no: { error: document.getElementById('errorNewPartyLicNo'), input: newPartyLicNo, inAdditional: true },
             reg_no: { error: document.getElementById('errorNewPartyRegNo'), input: newPartyRegNo, inAdditional: true },
-            logo_title: { error: document.getElementById('errorNewPartyLogoTitle'), input: newPartyLogoTitle, inAdditional: true },
-            shop_name: { error: document.getElementById('errorNewPartyShopName'), input: newPartyShopName, inAdditional: true },
+            logo_title: {
+                error: document.getElementById('errorNewPartyLogoTitle'),
+                input: newPartyLogoTitle,
+                inAdditional: true,
+            },
+            shop_name: {
+                error: document.getElementById('errorNewPartyShopName'),
+                input: newPartyShopName,
+                inAdditional: true,
+            },
             state: { error: document.getElementById('errorNewPartyState'), input: newPartyState, inAdditional: true },
-            district: { error: document.getElementById('errorNewPartyDistrict'), input: document.getElementById('newPartyDistrict'), inAdditional: true },
+            district: {
+                error: document.getElementById('errorNewPartyDistrict'),
+                input: document.getElementById('newPartyDistrict'),
+                inAdditional: true,
+            },
             area: { error: document.getElementById('errorNewPartyArea'), input: newPartyArea, inAdditional: true },
-            shop_address: { error: document.getElementById('errorNewPartyShopAddress'), input: newPartyShopAddress, inAdditional: true },
+            shop_address: {
+                error: document.getElementById('errorNewPartyShopAddress'),
+                input: newPartyShopAddress,
+                inAdditional: true,
+            },
             profile_image: { error: document.getElementById('errorPartyProfileImage'), input: null },
-            shop_logo: { error: document.getElementById('errorPartyShopLogo'), input: null, inAdditional: true }
+            shop_logo: { error: document.getElementById('errorPartyShopLogo'), input: null, inAdditional: true },
         };
 
         const mapping = fieldErrorMap[field];
@@ -1575,7 +1631,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function handleValidationErrors(data) {
         if (data.errors && typeof data.errors === 'object') {
-            Object.keys(data.errors).forEach(field => {
+            Object.keys(data.errors).forEach((field) => {
                 const messages = data.errors[field];
                 const msg = Array.isArray(messages) ? messages[0] : String(messages);
                 showFieldError(field, msg);
@@ -1599,26 +1655,26 @@ document.addEventListener('DOMContentLoaded', function () {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         })
-        .then(res => {
-            return res.json().then(data => {
-                if (!res.ok) {
-                    throw new Error(data.message || 'Cannot delete party');
-                }
-                return data;
+            .then((res) => {
+                return res.json().then((data) => {
+                    if (!res.ok) {
+                        throw new Error(data.message || 'Cannot delete party');
+                    }
+                    return data;
+                });
+            })
+            .then((data) => {
+                showToast(data.message || 'Party deleted successfully', 'success');
+                fetchParties(currentPage);
+            })
+            .catch((err) => {
+                console.error('Delete party error:', err);
+                showToast(err.message || 'Failed to delete party', 'error');
             });
-        })
-        .then(data => {
-            showToast(data.message || 'Party deleted successfully', 'success');
-            fetchParties(currentPage);
-        })
-        .catch(err => {
-            console.error('Delete party error:', err);
-            showToast(err.message || 'Failed to delete party', 'error');
-        });
     }
 
     // =========================================================================

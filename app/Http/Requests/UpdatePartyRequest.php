@@ -3,13 +3,15 @@
 namespace App\Http\Requests;
 
 use App\Models\Customer;
+use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Validation\Rule;
 
 class UpdatePartyRequest extends StorePartyRequest
 {
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -24,7 +26,7 @@ class UpdatePartyRequest extends StorePartyRequest
 
         // Disallow setting self as parent
         if ($customerId) {
-            $rules['parent_customer_id'][] = \Illuminate\Validation\Rule::notIn([$customerId]);
+            $rules['parent_customer_id'][] = Rule::notIn([$customerId]);
         }
 
         // Aadhaar: if typed, validate 12 digits; if left empty, keep existing value

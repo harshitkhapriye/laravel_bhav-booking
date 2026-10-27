@@ -16,7 +16,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
-
     // =========================================================================
     // 1. CONFIG & STATE
     // Configuration from backend (window.BHAV_CONFIG) and reactive state
@@ -27,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
         rate_unit_grams: 10,
         default_rates: { GOLD: 165000, SILVER: 1800 },
         max_weight: 99999.999,
-        max_rate: 9999999.99
+        max_rate: 9999999.99,
     };
 
     // Single source of truth for multi-weight entries: array of item objects
@@ -66,8 +65,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // Fallback for older browsers
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            const r = (Math.random() * 16) | 0;
+            const v = c === 'x' ? r : (r & 0x3) | 0x8;
             return v.toString(16);
         });
     }
@@ -108,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (isNaN(num)) return '0.00';
         return num.toLocaleString('en-IN', {
             minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            maximumFractionDigits: 2,
         });
     }
 
@@ -118,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * Why: In Indian bullion trade, rates are quoted per 10 grams (1 tola)
      */
     function calculateRowAmount(weight, rate) {
-        const rateUnit = (BHAV_CONFIG && BHAV_CONFIG.rate_unit_grams) ? BHAV_CONFIG.rate_unit_grams : 10;
+        const rateUnit = BHAV_CONFIG && BHAV_CONFIG.rate_unit_grams ? BHAV_CONFIG.rate_unit_grams : 10;
         const w = parseFloat(weight) || 0;
         const r = parseFloat(rate) || 0;
         return Math.round(((w * r) / rateUnit) * 100) / 100;
@@ -377,44 +376,45 @@ document.addEventListener('DOMContentLoaded', function () {
             return recentCustomersPromise;
         }
 
-        const recentUrl = (window.APP_ROUTES && window.APP_ROUTES.customerRecent)
-            ? window.APP_ROUTES.customerRecent
-            : '/customers/recent';
+        const recentUrl =
+            window.APP_ROUTES && window.APP_ROUTES.customerRecent
+                ? window.APP_ROUTES.customerRecent
+                : '/customers/recent';
 
         recentCustomersPromise = fetch(recentUrl, {
             method: 'GET',
             headers: {
-                'Accept': 'application/json'
-            }
+                Accept: 'application/json',
+            },
         })
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to load recent customers');
-            return response.json();
-        })
-        .then(customers => {
-            cachedRecentCustomers = Array.isArray(customers) ? customers : [];
+            .then((response) => {
+                if (!response.ok) throw new Error('Failed to load recent customers');
+                return response.json();
+            })
+            .then((customers) => {
+                cachedRecentCustomers = Array.isArray(customers) ? customers : [];
 
-            // If the dropdown is currently open AND customer input is empty or showing recent customers,
-            // re-render it with the fresh list.
-            if (customerSearchResults && customerSearchResults.style.display === 'block') {
-                const inputVal = customerSearchInput ? customerSearchInput.value.trim() : '';
-                const hasRecentHeader = customerSearchResults.querySelector('.customer-dropdown-header') !== null;
-                const isShowingRecent = hasRecentHeader || !inputVal || selectedCustomer !== null;
+                // If the dropdown is currently open AND customer input is empty or showing recent customers,
+                // re-render it with the fresh list.
+                if (customerSearchResults && customerSearchResults.style.display === 'block') {
+                    const inputVal = customerSearchInput ? customerSearchInput.value.trim() : '';
+                    const hasRecentHeader = customerSearchResults.querySelector('.customer-dropdown-header') !== null;
+                    const isShowingRecent = hasRecentHeader || !inputVal || selectedCustomer !== null;
 
-                if (isShowingRecent) {
-                    renderRecentCustomersList(cachedRecentCustomers);
+                    if (isShowingRecent) {
+                        renderRecentCustomersList(cachedRecentCustomers);
+                    }
                 }
-            }
 
-            return cachedRecentCustomers;
-        })
-        .catch(err => {
-            console.warn('Recent customers fetch error:', err);
-            return [];
-        })
-        .finally(() => {
-            recentCustomersPromise = null;
-        });
+                return cachedRecentCustomers;
+            })
+            .catch((err) => {
+                console.warn('Recent customers fetch error:', err);
+                return [];
+            })
+            .finally(() => {
+                recentCustomersPromise = null;
+            });
 
         return recentCustomersPromise;
     }
@@ -446,7 +446,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 customerSearchResults.style.display = 'block';
             }
 
-            fetchRecentCustomers().then(customers => {
+            fetchRecentCustomers().then((customers) => {
                 if (customerSearchResults && customerSearchResults.style.display === 'block') {
                     const inputVal = customerSearchInput ? customerSearchInput.value.trim() : '';
                     const hasRecentHeader = customerSearchResults.querySelector('.customer-dropdown-header') !== null;
@@ -505,15 +505,18 @@ document.addEventListener('DOMContentLoaded', function () {
         customers.forEach((c, index) => {
             const escapedName = escapeHtml(c.name);
             const escapedNo = escapeHtml(c.customer_no);
-            const escapedMobile = c.mobile ? escapeHtml(c.mobile) : '<span class="text-muted fst-italic">No mobile</span>';
+            const escapedMobile = c.mobile
+                ? escapeHtml(c.mobile)
+                : '<span class="text-muted fst-italic">No mobile</span>';
 
             const avatarHtml = c.profile_image_url
                 ? `<img src="${escapeHtml(c.profile_image_url)}" alt="${escapedName}" class="dropdown-party-avatar me-2">`
                 : `<div class="dropdown-party-avatar-default me-2"><i class="fa-solid fa-user"></i></div>`;
 
-            const supplierBadge = (c.party_type === 'SUPPLIER')
-                ? `<span class="party-supplier-badge ms-2"><i class="fa-solid fa-truck me-1"></i>Supplier</span>`
-                : '';
+            const supplierBadge =
+                c.party_type === 'SUPPLIER'
+                    ? `<span class="party-supplier-badge ms-2"><i class="fa-solid fa-truck me-1"></i>Supplier</span>`
+                    : '';
 
             listHtml += `
                 <div class="customer-search-item d-flex align-items-center" data-index="${index}">
@@ -536,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function () {
         customerSearchResults.style.display = 'block';
 
         const itemEls = customerSearchResults.querySelectorAll('.customer-search-item');
-        itemEls.forEach(itemEl => {
+        itemEls.forEach((itemEl) => {
             itemEl.addEventListener('click', function () {
                 const idx = parseInt(this.getAttribute('data-index'), 10);
                 if (currentSearchResults[idx]) {
@@ -599,15 +602,18 @@ document.addEventListener('DOMContentLoaded', function () {
         customers.forEach((c, index) => {
             const highlightedName = highlightMatch(c.name, query);
             const highlightedNo = highlightMatch(c.customer_no, query);
-            const highlightedMobile = c.mobile ? highlightMatch(c.mobile, query) : '<span class="text-muted fst-italic">No mobile</span>';
+            const highlightedMobile = c.mobile
+                ? highlightMatch(c.mobile, query)
+                : '<span class="text-muted fst-italic">No mobile</span>';
 
             const avatarHtml = c.profile_image_url
                 ? `<img src="${escapeHtml(c.profile_image_url)}" alt="${escapeHtml(c.name)}" class="dropdown-party-avatar me-2">`
                 : `<div class="dropdown-party-avatar-default me-2"><i class="fa-solid fa-user"></i></div>`;
 
-            const supplierBadge = (c.party_type === 'SUPPLIER')
-                ? `<span class="party-supplier-badge ms-2"><i class="fa-solid fa-truck me-1"></i>Supplier</span>`
-                : '';
+            const supplierBadge =
+                c.party_type === 'SUPPLIER'
+                    ? `<span class="party-supplier-badge ms-2"><i class="fa-solid fa-truck me-1"></i>Supplier</span>`
+                    : '';
 
             listHtml += `
                 <div class="customer-search-item d-flex align-items-center" data-index="${index}">
@@ -630,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function () {
         customerSearchResults.style.display = 'block';
 
         const itemEls = customerSearchResults.querySelectorAll('.customer-search-item');
-        itemEls.forEach(itemEl => {
+        itemEls.forEach((itemEl) => {
             itemEl.addEventListener('click', function () {
                 const idx = parseInt(this.getAttribute('data-index'), 10);
                 if (currentSearchResults[idx]) {
@@ -668,28 +674,28 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
             method: 'GET',
             headers: {
-                'Accept': 'application/json'
+                Accept: 'application/json',
             },
-            signal: currentSearchAbortController.signal
+            signal: currentSearchAbortController.signal,
         })
-        .then(response => {
-            if (!response.ok) throw new Error('Search failed');
-            return response.json();
-        })
-        .then(customers => {
-            setCustomerSearchCache(cacheKey, customers);
-            renderCustomerSearchResults(customers, query);
-        })
-        .catch(err => {
-            if (err.name === 'AbortError') return;
-            if (!customerSearchCache.has(cacheKey)) {
-                customerSearchResults.innerHTML = `
+            .then((response) => {
+                if (!response.ok) throw new Error('Search failed');
+                return response.json();
+            })
+            .then((customers) => {
+                setCustomerSearchCache(cacheKey, customers);
+                renderCustomerSearchResults(customers, query);
+            })
+            .catch((err) => {
+                if (err.name === 'AbortError') return;
+                if (!customerSearchCache.has(cacheKey)) {
+                    customerSearchResults.innerHTML = `
                     <div class="p-3 text-center text-danger small">
                         <i class="fa-solid fa-triangle-exclamation me-1"></i> Failed to search. Please try again.
                     </div>
                 `;
-            }
-        });
+                }
+            });
     }
 
     if (customerSearchInput) {
@@ -1079,66 +1085,67 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' },
-            signal: parentSearchAbortController.signal
+            headers: { Accept: 'application/json' },
+            signal: parentSearchAbortController.signal,
         })
-        .then(res => res.json())
-        .then(customers => {
-            if (!customers || customers.length === 0) {
-                parentCustomerSearchResults.innerHTML = `
+            .then((res) => res.json())
+            .then((customers) => {
+                if (!customers || customers.length === 0) {
+                    parentCustomerSearchResults.innerHTML = `
                     <div class="p-2 text-center text-muted small">No customer found</div>
                 `;
-                return;
-            }
+                    return;
+                }
 
-            let html = '';
-            customers.forEach((c, idx) => {
-                const escapedName = escapeHtml(c.name);
-                const escapedNo = escapeHtml(c.customer_no);
-                const escapedMobile = c.mobile ? escapeHtml(c.mobile) : 'No mobile';
+                let html = '';
+                customers.forEach((c, idx) => {
+                    const escapedName = escapeHtml(c.name);
+                    const escapedNo = escapeHtml(c.customer_no);
+                    const escapedMobile = c.mobile ? escapeHtml(c.mobile) : 'No mobile';
 
-                html += `
+                    html += `
                     <div class="customer-search-item py-1 px-2" data-parent-index="${idx}">
                         <div class="fw-bold small text-dark">${escapedName} (${escapedNo})</div>
                         <div class="text-muted" style="font-size: 11px;"><i class="fa-solid fa-phone me-1"></i>${escapedMobile}</div>
                     </div>
                 `;
-            });
+                });
 
-            parentCustomerSearchResults.innerHTML = html;
+                parentCustomerSearchResults.innerHTML = html;
 
-            parentCustomerSearchResults.querySelectorAll('.customer-search-item').forEach(el => {
-                el.addEventListener('click', function () {
-                    const idx = parseInt(this.getAttribute('data-parent-index'), 10);
-                    const chosen = customers[idx];
-                    if (chosen) {
-                        selectedParentCustomer = chosen;
-                        if (hiddenParentCustomerId) hiddenParentCustomerId.value = chosen.id;
-                        if (parentCustomerSearchInput) parentCustomerSearchInput.value = `${chosen.name} (${chosen.customer_no})`;
-                        if (parentCustomerClearBtn) parentCustomerClearBtn.style.display = 'block';
-                        if (parentCustomerSearchResults) parentCustomerSearchResults.style.display = 'none';
+                parentCustomerSearchResults.querySelectorAll('.customer-search-item').forEach((el) => {
+                    el.addEventListener('click', function () {
+                        const idx = parseInt(this.getAttribute('data-parent-index'), 10);
+                        const chosen = customers[idx];
+                        if (chosen) {
+                            selectedParentCustomer = chosen;
+                            if (hiddenParentCustomerId) hiddenParentCustomerId.value = chosen.id;
+                            if (parentCustomerSearchInput)
+                                parentCustomerSearchInput.value = `${chosen.name} (${chosen.customer_no})`;
+                            if (parentCustomerClearBtn) parentCustomerClearBtn.style.display = 'block';
+                            if (parentCustomerSearchResults) parentCustomerSearchResults.style.display = 'none';
 
-                        if (parentCustomerSelectedBadge) {
-                            parentCustomerSelectedBadge.innerHTML = `
+                            if (parentCustomerSelectedBadge) {
+                                parentCustomerSelectedBadge.innerHTML = `
                                 <i class="fa-solid fa-check-circle text-success me-1"></i> Linked Main Customer: <strong>${escapeHtml(chosen.name)}</strong> (Mobile: ${escapeHtml(chosen.mobile || 'N/A')})
                             `;
-                            parentCustomerSelectedBadge.style.display = 'block';
-                        }
+                                parentCustomerSelectedBadge.style.display = 'block';
+                            }
 
-                        // Auto-fill mobile if currently empty
-                        if (newCustomerMobile && !newCustomerMobile.value.trim() && chosen.mobile) {
-                            newCustomerMobile.value = chosen.mobile;
+                            // Auto-fill mobile if currently empty
+                            if (newCustomerMobile && !newCustomerMobile.value.trim() && chosen.mobile) {
+                                newCustomerMobile.value = chosen.mobile;
+                            }
                         }
-                    }
+                    });
                 });
-            });
-        })
-        .catch(err => {
-            if (err.name === 'AbortError') return;
-            parentCustomerSearchResults.innerHTML = `
+            })
+            .catch((err) => {
+                if (err.name === 'AbortError') return;
+                parentCustomerSearchResults.innerHTML = `
                 <div class="p-2 text-center text-danger small">Search failed</div>
             `;
-        });
+            });
     }
 
     /**
@@ -1148,7 +1155,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!newPartyState || newPartyState.options.length > 1) return;
         const locations = window.INDIA_LOCATIONS;
         if (locations && Array.isArray(locations.states)) {
-            locations.states.forEach(state => {
+            locations.states.forEach((state) => {
                 const opt = document.createElement('option');
                 opt.value = state;
                 opt.textContent = state;
@@ -1162,13 +1169,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!districtContainer) return;
 
         const locations = window.INDIA_LOCATIONS;
-        const districtList = (locations && locations.districts && locations.districts[stateName])
-            ? locations.districts[stateName]
-            : null;
+        const districtList =
+            locations && locations.districts && locations.districts[stateName] ? locations.districts[stateName] : null;
 
         if (districtList && Array.isArray(districtList) && districtList.length > 0) {
             let optionsHtml = '<option value="">Select District</option>';
-            districtList.forEach(d => {
+            districtList.forEach((d) => {
                 optionsHtml += `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`;
             });
             districtContainer.innerHTML = `
@@ -1250,7 +1256,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const parts = val.split('-');
         const year = parseInt(parts[0], 10);
 
-        if (isNaN(year) || year < 1900 || val > todayStr || (input.validity && (input.validity.rangeUnderflow || input.validity.rangeOverflow))) {
+        if (
+            isNaN(year) ||
+            year < 1900 ||
+            val > todayStr ||
+            (input.validity && (input.validity.rangeUnderflow || input.validity.rangeOverflow))
+        ) {
             showError();
             return false;
         }
@@ -1380,13 +1391,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function resetAddCustomerModalErrors() {
         const errorEls = document.querySelectorAll('#addCustomerForm .field-error-text');
-        errorEls.forEach(el => {
+        errorEls.forEach((el) => {
             el.textContent = '';
             el.style.display = 'none';
         });
 
         const invalidInputs = document.querySelectorAll('#addCustomerForm .is-invalid');
-        invalidInputs.forEach(input => input.classList.remove('is-invalid'));
+        invalidInputs.forEach((input) => input.classList.remove('is-invalid'));
     }
 
     function resetAddCustomerModalComplete() {
@@ -1640,100 +1651,128 @@ document.addEventListener('DOMContentLoaded', function () {
             fetch(storeUrl, {
                 method: 'POST',
                 headers: {
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken()
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
                 },
-                body: formData
+                body: formData,
             })
-            .then(async response => {
-                const data = await response.json();
-                if (!response.ok) {
-                    if (response.status === 422 && data.errors) {
-                        let hasAdditionalError = false;
-                        let firstErrorField = null;
+                .then(async (response) => {
+                    const data = await response.json();
+                    if (!response.ok) {
+                        if (response.status === 422 && data.errors) {
+                            let hasAdditionalError = false;
+                            let firstErrorField = null;
 
-                        const errorTargetMap = {
-                            name: { id: 'errorNewCustomerName', input: newCustomerName, inAdditional: false },
-                            mobile: { id: 'errorNewCustomerMobile', input: newCustomerMobile, inAdditional: false },
-                            email: { id: 'errorNewCustomerEmail', input: newCustomerEmail, inAdditional: false },
-                            address: { id: 'errorNewCustomerAddress', input: newCustomerAddress, inAdditional: false },
-                            parent_customer_id: { id: 'errorParentCustomerId', input: parentCustomerSearchInput, inAdditional: false },
-                            is_family_sub_profile: { id: 'errorParentCustomerId', input: parentCustomerSearchInput, inAdditional: false },
-                            profile_image: { id: 'errorPartyProfileImage', input: null, inAdditional: false },
-                            birthday: { id: 'errorNewPartyBirthday', input: newPartyBirthday, inAdditional: true },
-                            anniversary: { id: 'errorNewPartyAnniversary', input: newPartyAnniversary, inAdditional: true },
-                            aadhaar_no: { id: 'errorNewPartyAadhaar', input: newPartyAadhaar, inAdditional: true },
-                            pan_no: { id: 'errorNewPartyPan', input: newPartyPan, inAdditional: true },
-                            gst_no: { id: 'errorNewPartyGst', input: newPartyGst, inAdditional: true },
-                            lic_no: { id: 'errorNewPartyLicNo', input: newPartyLicNo, inAdditional: true },
-                            reg_no: { id: 'errorNewPartyRegNo', input: newPartyRegNo, inAdditional: true },
-                            logo_title: { id: 'errorNewPartyLogoTitle', input: newPartyLogoTitle, inAdditional: true },
-                            shop_name: { id: 'errorNewPartyShopName', input: newPartyShopName, inAdditional: true },
-                            state: { id: 'errorNewPartyState', input: newPartyState, inAdditional: true },
-                            district: { id: 'errorNewPartyDistrict', input: document.getElementById('newPartyDistrict'), inAdditional: true },
-                            area: { id: 'errorNewPartyArea', input: newPartyArea, inAdditional: true },
-                            shop_address: { id: 'errorNewPartyShopAddress', input: newPartyShopAddress, inAdditional: true },
-                            shop_logo: { id: 'errorPartyShopLogo', input: null, inAdditional: true },
-                        };
+                            const errorTargetMap = {
+                                name: { id: 'errorNewCustomerName', input: newCustomerName, inAdditional: false },
+                                mobile: { id: 'errorNewCustomerMobile', input: newCustomerMobile, inAdditional: false },
+                                email: { id: 'errorNewCustomerEmail', input: newCustomerEmail, inAdditional: false },
+                                address: {
+                                    id: 'errorNewCustomerAddress',
+                                    input: newCustomerAddress,
+                                    inAdditional: false,
+                                },
+                                parent_customer_id: {
+                                    id: 'errorParentCustomerId',
+                                    input: parentCustomerSearchInput,
+                                    inAdditional: false,
+                                },
+                                is_family_sub_profile: {
+                                    id: 'errorParentCustomerId',
+                                    input: parentCustomerSearchInput,
+                                    inAdditional: false,
+                                },
+                                profile_image: { id: 'errorPartyProfileImage', input: null, inAdditional: false },
+                                birthday: { id: 'errorNewPartyBirthday', input: newPartyBirthday, inAdditional: true },
+                                anniversary: {
+                                    id: 'errorNewPartyAnniversary',
+                                    input: newPartyAnniversary,
+                                    inAdditional: true,
+                                },
+                                aadhaar_no: { id: 'errorNewPartyAadhaar', input: newPartyAadhaar, inAdditional: true },
+                                pan_no: { id: 'errorNewPartyPan', input: newPartyPan, inAdditional: true },
+                                gst_no: { id: 'errorNewPartyGst', input: newPartyGst, inAdditional: true },
+                                lic_no: { id: 'errorNewPartyLicNo', input: newPartyLicNo, inAdditional: true },
+                                reg_no: { id: 'errorNewPartyRegNo', input: newPartyRegNo, inAdditional: true },
+                                logo_title: {
+                                    id: 'errorNewPartyLogoTitle',
+                                    input: newPartyLogoTitle,
+                                    inAdditional: true,
+                                },
+                                shop_name: { id: 'errorNewPartyShopName', input: newPartyShopName, inAdditional: true },
+                                state: { id: 'errorNewPartyState', input: newPartyState, inAdditional: true },
+                                district: {
+                                    id: 'errorNewPartyDistrict',
+                                    input: document.getElementById('newPartyDistrict'),
+                                    inAdditional: true,
+                                },
+                                area: { id: 'errorNewPartyArea', input: newPartyArea, inAdditional: true },
+                                shop_address: {
+                                    id: 'errorNewPartyShopAddress',
+                                    input: newPartyShopAddress,
+                                    inAdditional: true,
+                                },
+                                shop_logo: { id: 'errorPartyShopLogo', input: null, inAdditional: true },
+                            };
 
-                        Object.keys(data.errors).forEach(fieldKey => {
-                            const mapping = errorTargetMap[fieldKey];
-                            if (mapping) {
-                                const errEl = document.getElementById(mapping.id);
-                                if (errEl) {
-                                    errEl.textContent = data.errors[fieldKey][0];
-                                    errEl.style.display = 'block';
+                            Object.keys(data.errors).forEach((fieldKey) => {
+                                const mapping = errorTargetMap[fieldKey];
+                                if (mapping) {
+                                    const errEl = document.getElementById(mapping.id);
+                                    if (errEl) {
+                                        errEl.textContent = data.errors[fieldKey][0];
+                                        errEl.style.display = 'block';
+                                    }
+                                    if (mapping.input) {
+                                        mapping.input.classList.add('is-invalid');
+                                    }
+                                    if (mapping.inAdditional) {
+                                        hasAdditionalError = true;
+                                    }
+                                    if (!firstErrorField && mapping.input) {
+                                        firstErrorField = mapping.input;
+                                    }
                                 }
-                                if (mapping.input) {
-                                    mapping.input.classList.add('is-invalid');
-                                }
-                                if (mapping.inAdditional) {
-                                    hasAdditionalError = true;
-                                }
-                                if (!firstErrorField && mapping.input) {
-                                    firstErrorField = mapping.input;
-                                }
+                            });
+
+                            // If error is in a collapsed field, auto-expand the section and scroll to it
+                            if (hasAdditionalError && !isAdditionalSectionExpanded) {
+                                expandAdditionalSection();
                             }
-                        });
 
-                        // If error is in a collapsed field, auto-expand the section and scroll to it
-                        if (hasAdditionalError && !isAdditionalSectionExpanded) {
-                            expandAdditionalSection();
+                            if (firstErrorField) {
+                                setTimeout(() => {
+                                    firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    firstErrorField.focus();
+                                }, 100);
+                            }
+                        } else {
+                            showToast(data.message || 'Failed to create party.', 'error');
                         }
-
-                        if (firstErrorField) {
-                            setTimeout(() => {
-                                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                firstErrorField.focus();
-                            }, 100);
-                        }
-                    } else {
-                        showToast(data.message || 'Failed to create party.', 'error');
+                        throw new Error('Validation failed');
                     }
-                    throw new Error('Validation failed');
-                }
-                return data;
-            })
-            .then(newCustomer => {
-                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                    const modalInstance = bootstrap.Modal.getInstance(addCustomerModalEl);
-                    if (modalInstance) modalInstance.hide();
-                }
+                    return data;
+                })
+                .then((newCustomer) => {
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                        const modalInstance = bootstrap.Modal.getInstance(addCustomerModalEl);
+                        if (modalInstance) modalInstance.hide();
+                    }
 
-                resetAddCustomerModalComplete();
-                selectCustomer(newCustomer);
-                showToast('Party added', 'success');
+                    resetAddCustomerModalComplete();
+                    selectCustomer(newCustomer);
+                    showToast('Party added', 'success');
 
-                // Refresh recent customers cache after creating a new party
-                fetchRecentCustomers(true);
-            })
-            .catch(err => {
-                console.warn('Party store response:', err);
-            })
-            .finally(() => {
-                btnSaveNewCustomer.disabled = false;
-                btnSaveNewCustomer.innerHTML = originalButtonHtml;
-            });
+                    // Refresh recent customers cache after creating a new party
+                    fetchRecentCustomers(true);
+                })
+                .catch((err) => {
+                    console.warn('Party store response:', err);
+                })
+                .finally(() => {
+                    btnSaveNewCustomer.disabled = false;
+                    btnSaveNewCustomer.innerHTML = originalButtonHtml;
+                });
         });
     }
 
@@ -1744,7 +1783,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const btnBuy = document.getElementById('btnBuy');
     const btnSell = document.getElementById('btnSell');
-    const tradeToggleContainer = document.getElementById('tradeToggle') || document.getElementById('tradeToggleContainer');
+    const tradeToggleContainer =
+        document.getElementById('tradeToggle') || document.getElementById('tradeToggleContainer');
     const hiddenTradeType = document.getElementById('hiddenTradeType');
     const labelWeight = document.getElementById('labelWeight');
     const labelRate = document.getElementById('labelRate');
@@ -1753,7 +1793,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * Return rate unit label from config: 10 -> "(/10GM)", 1 -> "(/GM)", any other n -> "(/nGM)"
      */
     function getRateUnitLabel() {
-        const unit = (window.BHAV_CONFIG && window.BHAV_CONFIG.rate_unit_grams) ? window.BHAV_CONFIG.rate_unit_grams : 10;
+        const unit = window.BHAV_CONFIG && window.BHAV_CONFIG.rate_unit_grams ? window.BHAV_CONFIG.rate_unit_grams : 10;
         return unit == 1 ? '(/GM)' : `(/${unit}GM)`;
     }
 
@@ -1879,15 +1919,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (window.TODAY_RATES && window.TODAY_RATES[metal] && window.TODAY_RATES[metal].is_set) {
             return {
                 rate: window.TODAY_RATES[metal].rate,
-                isToday: true
+                isToday: true,
             };
         }
-        const def = (BHAV_CONFIG.default_rates && BHAV_CONFIG.default_rates[metal] !== undefined)
-            ? BHAV_CONFIG.default_rates[metal]
-            : (metal === 'GOLD' ? 165000 : 1800);
+        const def =
+            BHAV_CONFIG.default_rates && BHAV_CONFIG.default_rates[metal] !== undefined
+                ? BHAV_CONFIG.default_rates[metal]
+                : metal === 'GOLD'
+                  ? 165000
+                  : 1800;
         return {
             rate: def,
-            isToday: false
+            isToday: false,
         };
     }
 
@@ -1954,7 +1997,7 @@ document.addEventListener('DOMContentLoaded', function () {
             grandAmount,
             curWeight,
             curRate,
-            curLineAmount
+            curLineAmount,
         };
     }
 
@@ -2070,10 +2113,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Weight inputs inside table rows
         const weightInputs = entriesTableBody.querySelectorAll('.row-input-weight');
-        weightInputs.forEach(input => {
+        weightInputs.forEach((input) => {
             input.addEventListener('input', function () {
                 const itemId = parseInt(this.getAttribute('data-id'), 10);
-                const item = bookingItems.find(it => it.id === itemId);
+                const item = bookingItems.find((it) => it.id === itemId);
                 if (!item) return;
 
                 // Sanitize input characters
@@ -2099,7 +2142,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             input.addEventListener('blur', function () {
                 const itemId = parseInt(this.getAttribute('data-id'), 10);
-                const item = bookingItems.find(it => it.id === itemId);
+                const item = bookingItems.find((it) => it.id === itemId);
                 if (item) {
                     this.value = parseFloat(item.weight || 0).toFixed(3);
                 }
@@ -2118,10 +2161,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Rate inputs inside table rows
         const rateInputs = entriesTableBody.querySelectorAll('.row-input-rate');
-        rateInputs.forEach(input => {
+        rateInputs.forEach((input) => {
             input.addEventListener('input', function () {
                 const itemId = parseInt(this.getAttribute('data-id'), 10);
-                const item = bookingItems.find(it => it.id === itemId);
+                const item = bookingItems.find((it) => it.id === itemId);
                 if (!item) return;
 
                 let val = this.value.replace(/[^0-9.]/g, '');
@@ -2145,7 +2188,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             input.addEventListener('blur', function () {
                 const itemId = parseInt(this.getAttribute('data-id'), 10);
-                const item = bookingItems.find(it => it.id === itemId);
+                const item = bookingItems.find((it) => it.id === itemId);
                 if (item) {
                     this.value = parseFloat(item.rate || 0).toFixed(2);
                 }
@@ -2162,10 +2205,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Delete button for each row
         const deleteButtons = entriesTableBody.querySelectorAll('.btn-delete-entry-row');
-        deleteButtons.forEach(btn => {
+        deleteButtons.forEach((btn) => {
             btn.addEventListener('click', function () {
                 const itemId = parseInt(this.getAttribute('data-id'), 10);
-                const itemIndex = bookingItems.findIndex(it => it.id === itemId);
+                const itemIndex = bookingItems.findIndex((it) => it.id === itemId);
                 if (itemIndex !== -1) {
                     bookingItems.splice(itemIndex, 1);
                     renderEntriesTable();
@@ -2217,7 +2260,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: nextItemId++,
             weight: weightVal,
             rate: rateVal,
-            amount: rowAmount
+            amount: rowAmount,
         });
 
         // Clear weight, keep rate, re-render table, focus weight
@@ -2376,7 +2419,7 @@ document.addEventListener('DOMContentLoaded', function () {
             confirmedPaid,
             curPayAmt,
             totalPaid,
-            balance
+            balance,
         };
     }
 
@@ -2522,7 +2565,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: nextPaymentId++,
             mode: mode,
             online_method: onlineMethod,
-            amount: roundedAmt
+            amount: roundedAmt,
         });
 
         // Clears the amount, keeps the selected mode, focuses the amount again
@@ -2554,7 +2597,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2);
             this.value = val;
 
-            if (paymentError && parseFloat(val) > 0 && !paymentError.textContent.startsWith('Payment cannot be more than')) {
+            if (
+                paymentError &&
+                parseFloat(val) > 0 &&
+                !paymentError.textContent.startsWith('Payment cannot be more than')
+            ) {
                 paymentError.style.display = 'none';
                 this.classList.remove('is-invalid');
             }
@@ -2645,10 +2692,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Inline amount editing
         const amtInputs = paymentEntriesTableBody.querySelectorAll('.row-input-payment-amount');
-        amtInputs.forEach(input => {
+        amtInputs.forEach((input) => {
             input.addEventListener('input', function () {
                 const payId = parseInt(this.getAttribute('data-id'), 10);
-                const payment = bookingPayments.find(p => p.id === payId);
+                const payment = bookingPayments.find((p) => p.id === payId);
                 if (!payment) return;
 
                 let val = this.value.replace(/[^0-9.]/g, '');
@@ -2665,7 +2712,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             input.addEventListener('blur', function () {
                 const payId = parseInt(this.getAttribute('data-id'), 10);
-                const payment = bookingPayments.find(p => p.id === payId);
+                const payment = bookingPayments.find((p) => p.id === payId);
                 if (payment) {
                     this.value = parseFloat(payment.amount || 0).toFixed(2);
                 }
@@ -2675,10 +2722,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Delete button for payment rows
         const deleteButtons = paymentEntriesTableBody.querySelectorAll('.btn-delete-payment-row');
-        deleteButtons.forEach(btn => {
+        deleteButtons.forEach((btn) => {
             btn.addEventListener('click', function () {
                 const payId = parseInt(this.getAttribute('data-id'), 10);
-                const pIndex = bookingPayments.findIndex(p => p.id === payId);
+                const pIndex = bookingPayments.findIndex((p) => p.id === payId);
                 if (pIndex !== -1) {
                     bookingPayments.splice(pIndex, 1);
                     renderPaymentEntriesTable();
@@ -2809,12 +2856,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (inputPaymentAmount) inputPaymentAmount.classList.remove('is-invalid');
 
         if (paymentEntriesTableBody) {
-            paymentEntriesTableBody.querySelectorAll('.payment-entry-row').forEach(r => r.classList.remove('table-danger'));
-            paymentEntriesTableBody.querySelectorAll('.row-input-payment-amount').forEach(i => i.classList.remove('is-invalid'));
+            paymentEntriesTableBody
+                .querySelectorAll('.payment-entry-row')
+                .forEach((r) => r.classList.remove('table-danger'));
+            paymentEntriesTableBody
+                .querySelectorAll('.row-input-payment-amount')
+                .forEach((i) => i.classList.remove('is-invalid'));
         }
 
         const tableInputs = entriesTableBody ? entriesTableBody.querySelectorAll('.entry-cell-input') : [];
-        tableInputs.forEach(input => input.classList.remove('is-invalid'));
+        tableInputs.forEach((input) => input.classList.remove('is-invalid'));
     }
 
     /**
@@ -2888,9 +2939,12 @@ document.addEventListener('DOMContentLoaded', function () {
             bNoEl.textContent = savedBooking.booking_no || (isEditMode ? editingBookingNo : '-');
         }
 
-        const customerName = (savedBooking.customer && savedBooking.customer.name)
-            ? savedBooking.customer.name
-            : (selectedCustomer ? selectedCustomer.name : '-');
+        const customerName =
+            savedBooking.customer && savedBooking.customer.name
+                ? savedBooking.customer.name
+                : selectedCustomer
+                  ? selectedCustomer.name
+                  : '-';
         if (custEl) custEl.textContent = customerName;
 
         const isBuy = (savedBooking.trade_type || '').toUpperCase() === 'BUY';
@@ -2918,7 +2972,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const payments = Array.isArray(savedBooking.payments) ? savedBooking.payments : [];
         let cashAmt = 0;
         let onlineAmt = 0;
-        payments.forEach(p => {
+        payments.forEach((p) => {
             const amt = parseFloat(p.amount) || 0;
             if ((p.mode || '').toUpperCase() === 'CASH') {
                 cashAmt += amt;
@@ -2995,7 +3049,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         id: nextItemId++,
                         weight: currentWeight,
                         rate: currentRate,
-                        amount: rowAmount
+                        amount: rowAmount,
                     });
                     inputWeight.value = '';
                     renderEntriesTable();
@@ -3018,8 +3072,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     bookingPayments.push({
                         id: nextPaymentId++,
                         mode: currentPaymentMode,
-                        online_method: currentPaymentMode === 'ONLINE' ? (paymentOnlineMethod ? paymentOnlineMethod.value : 'UPI') : null,
-                        amount: typedPayAmt
+                        online_method:
+                            currentPaymentMode === 'ONLINE'
+                                ? paymentOnlineMethod
+                                    ? paymentOnlineMethod.value
+                                    : 'UPI'
+                                : null,
+                        amount: typedPayAmt,
                     });
                     inputPaymentAmount.value = '';
                     renderPaymentEntriesTable();
@@ -3094,17 +3153,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     trade_type: hiddenTradeType ? hiddenTradeType.value : 'SELL',
                     entry_type: typeSelect ? typeSelect.value : 'ONLY_ENTRY',
                     metal: categorySelect ? categorySelect.value : 'GOLD',
-                    items: bookingItems.map(item => ({
+                    items: bookingItems.map((item) => ({
                         weight: parseFloat(item.weight),
-                        rate: parseFloat(item.rate)
+                        rate: parseFloat(item.rate),
                     })),
-                    payments: bookingPayments.map(p => ({
+                    payments: bookingPayments.map((p) => ({
                         mode: p.mode,
-                        online_method: p.mode === 'ONLINE' ? (p.online_method || 'UPI') : null,
-                        amount: parseFloat(p.amount)
+                        online_method: p.mode === 'ONLINE' ? p.online_method || 'UPI' : null,
+                        amount: parseFloat(p.amount),
                     })),
                     narration: inputNarration ? inputNarration.value.trim() : null,
-                    send_whatsapp: whatsappSwitch ? whatsappSwitch.checked : false
+                    send_whatsapp: whatsappSwitch ? whatsappSwitch.checked : false,
                 };
 
                 // Only send customer_id and request_token on CREATE (store). Updates do not change customer or request_token.
@@ -3115,7 +3174,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const targetUrl = isEditMode
                     ? getRoute('bhavBookingUpdate', editingBookingId)
-                    : (window.APP_ROUTES && window.APP_ROUTES.bhavBookingStore ? window.APP_ROUTES.bhavBookingStore : '/bhav-bookings');
+                    : window.APP_ROUTES && window.APP_ROUTES.bhavBookingStore
+                      ? window.APP_ROUTES.bhavBookingStore
+                      : '/bhav-bookings';
 
                 const targetMethod = isEditMode ? 'PUT' : 'POST';
 
@@ -3123,70 +3184,73 @@ document.addEventListener('DOMContentLoaded', function () {
                     method: targetMethod,
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken()
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken(),
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
                 })
-                .then(async response => {
-                    let data = {};
-                    try {
-                        data = await response.json();
-                    } catch (parseErr) {
-                        data = {};
-                    }
+                    .then(async (response) => {
+                        let data = {};
+                        try {
+                            data = await response.json();
+                        } catch (parseErr) {
+                            data = {};
+                        }
 
-                    if (!response.ok) {
-                        // Handle Laravel 422 validation errors or business rule rejection
-                        if (response.status === 422 && data.errors) {
-                            handleValidationErrors(data.errors);
-                        } else if (response.status === 422 && data.message) {
-                            showToast(data.message, 'error');
-                        } else if (response.status === 429) {
-                            showToast(data.message || 'Too many requests. Please slow down and try again shortly.', 'warning');
+                        if (!response.ok) {
+                            // Handle Laravel 422 validation errors or business rule rejection
+                            if (response.status === 422 && data.errors) {
+                                handleValidationErrors(data.errors);
+                            } else if (response.status === 422 && data.message) {
+                                showToast(data.message, 'error');
+                            } else if (response.status === 429) {
+                                showToast(
+                                    data.message || 'Too many requests. Please slow down and try again shortly.',
+                                    'warning'
+                                );
+                            } else {
+                                showToast('Server error while saving. Please try again.', 'error');
+                            }
+                            const err = new Error(isEditMode ? 'Update failed' : 'Save failed');
+                            err.isHandledHttpError = true;
+                            throw err;
+                        }
+
+                        return data;
+                    })
+                    .then((savedBooking) => {
+                        // Remember last saved booking ID for the form PRINT button
+                        lastSavedBookingId = savedBooking.id;
+
+                        // Refresh recent customers cache after booking save
+                        fetchRecentCustomers(true);
+
+                        if (isEditMode) {
+                            exitEditMode(true);
+                            // Stay on current page when editing
+                            fetchBookingList(currentListPage);
+                            showSaveSuccessModal(savedBooking, true);
                         } else {
+                            resetFormAfterSave(true);
+                            // Reload list from page 1 after new creation
+                            fetchBookingList(1);
+                            showSaveSuccessModal(savedBooking, false);
+                        }
+                    })
+                    .catch((err) => {
+                        console.error(isEditMode ? 'Booking update error:' : 'Booking save error:', err);
+                        if (!err.isHandledHttpError) {
                             showToast('Server error while saving. Please try again.', 'error');
                         }
-                        const err = new Error(isEditMode ? 'Update failed' : 'Save failed');
-                        err.isHandledHttpError = true;
-                        throw err;
-                    }
-
-                    return data;
-                })
-                .then(savedBooking => {
-                    // Remember last saved booking ID for the form PRINT button
-                    lastSavedBookingId = savedBooking.id;
-
-                    // Refresh recent customers cache after booking save
-                    fetchRecentCustomers(true);
-
-                    if (isEditMode) {
-                        exitEditMode(true);
-                        // Stay on current page when editing
-                        fetchBookingList(currentListPage);
-                        showSaveSuccessModal(savedBooking, true);
-                    } else {
-                        resetFormAfterSave(true);
-                        // Reload list from page 1 after new creation
-                        fetchBookingList(1);
-                        showSaveSuccessModal(savedBooking, false);
-                    }
-                })
-                .catch(err => {
-                    console.error(isEditMode ? 'Booking update error:' : 'Booking save error:', err);
-                    if (!err.isHandledHttpError) {
-                        showToast('Server error while saving. Please try again.', 'error');
-                    }
-                })
-                .finally(() => {
-                    btnSave.disabled = false;
-                    if (editingBookingId) {
-                        btnSave.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i> UPDATE';
-                    } else {
-                        btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
-                    }
-                });
+                    })
+                    .finally(() => {
+                        btnSave.disabled = false;
+                        if (editingBookingId) {
+                            btnSave.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i> UPDATE';
+                        } else {
+                            btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
+                        }
+                    });
             } catch (syncErr) {
                 console.error('Something went wrong while saving:', syncErr);
                 showToast('Something went wrong while saving. Please try again.', 'error');
@@ -3226,7 +3290,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // 3. Check for row item errors like items.0.weight or items.1.rate
-        Object.keys(errors).forEach(key => {
+        Object.keys(errors).forEach((key) => {
             const match = key.match(/^items\.(\d+)\.(weight|rate)$/);
             if (match) {
                 handledKeys.push(key);
@@ -3267,7 +3331,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // 6. payments.N.amount / payments.N.mode / payments.N.online_method
-        Object.keys(errors).forEach(key => {
+        Object.keys(errors).forEach((key) => {
             const match = key.match(/^payments\.(\d+)\.(amount|mode|online_method)$/);
             if (match) {
                 handledKeys.push(key);
@@ -3297,7 +3361,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // 7. Any other 422 key -> toast with its message
-        Object.keys(errors).forEach(key => {
+        Object.keys(errors).forEach((key) => {
             if (!handledKeys.includes(key)) {
                 const msg = Array.isArray(errors[key]) ? errors[key][0] : errors[key];
                 showToast(msg, 'error');
@@ -3446,7 +3510,7 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function getVisibleColumnCount() {
         const tradeVal = filterTradeSelect ? filterTradeSelect.value : 'ALL';
-        return (tradeVal === 'BUY' || tradeVal === 'SELL') ? 8 : 11;
+        return tradeVal === 'BUY' || tradeVal === 'SELL' ? 8 : 11;
     }
 
     /**
@@ -3482,8 +3546,10 @@ document.addEventListener('DOMContentLoaded', function () {
         hours = hours ? hours : 12;
         const minutes = pad2(d.getMinutes());
 
-        return `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
-               `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${pad2(hours)}:${minutes} ${ampm}</div>`;
+        return (
+            `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
+            `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${pad2(hours)}:${minutes} ${ampm}</div>`
+        );
     }
 
     /**
@@ -3514,8 +3580,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (totalBuyAmt) totalBuyAmt.textContent = '₹0.00';
         if (totalSellWt) totalSellWt.innerHTML = '<div class="text-nowrap" style="line-height: 1.25;">0.000 gm</div>';
         if (totalSellAmt) totalSellAmt.textContent = '₹0.00';
-        if (totalGiven) totalGiven.innerHTML = '<div class="text-danger fw-bold text-nowrap" style="line-height: 1.25;">G: ₹0.00</div>';
-        if (totalReceived) totalReceived.innerHTML = '<div class="text-success fw-bold text-nowrap" style="line-height: 1.25;">R: ₹0.00</div>';
+        if (totalGiven)
+            totalGiven.innerHTML =
+                '<div class="text-danger fw-bold text-nowrap" style="line-height: 1.25;">G: ₹0.00</div>';
+        if (totalReceived)
+            totalReceived.innerHTML =
+                '<div class="text-success fw-bold text-nowrap" style="line-height: 1.25;">R: ₹0.00</div>';
     }
 
     /**
@@ -3624,7 +3694,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const startFrom = (pagination && typeof pagination.from === 'number') ? pagination.from : 1;
+        const startFrom = pagination && typeof pagination.from === 'number' ? pagination.from : 1;
         lastLoadedBookingsMap = {};
 
         let html = '';
@@ -3689,8 +3759,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const wtFormatted = (parseFloat(booking.total_weight) || 0).toFixed(3);
             const amtFormatted = '₹' + formatIndianCurrency(booking.total_amount || 0);
 
-            let buyWt = emptyCell, buyRate = emptyCell, buyAmt = emptyCell;
-            let sellWt = emptyCell, sellRate = emptyCell, sellAmt = emptyCell;
+            let buyWt = emptyCell,
+                buyRate = emptyCell,
+                buyAmt = emptyCell;
+            let sellWt = emptyCell,
+                sellRate = emptyCell,
+                sellAmt = emptyCell;
 
             if (isBuy) {
                 buyWt = `<span class="text-success fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10px; font-weight: normal;">gm</span></span>`;
@@ -3741,7 +3815,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Dispose existing tooltips before re-rendering to prevent memory build-up
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const oldTooltips = bhavTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
-            oldTooltips.forEach(el => {
+            oldTooltips.forEach((el) => {
                 const inst = bootstrap.Tooltip.getInstance(el);
                 if (inst) inst.dispose();
             });
@@ -3752,7 +3826,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Initialize tooltips if Bootstrap Tooltip is loaded (disposing existing first)
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const tooltipElements = bhavTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
-            tooltipElements.forEach(el => {
+            tooltipElements.forEach((el) => {
                 const inst = bootstrap.Tooltip.getInstance(el);
                 if (inst) inst.dispose();
                 new bootstrap.Tooltip(el);
@@ -3826,7 +3900,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Attach click handlers to pagination buttons
         const pageButtons = listPaginationLinks.querySelectorAll('button[data-page]');
-        pageButtons.forEach(btn => {
+        pageButtons.forEach((btn) => {
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 if (this.disabled) return;
@@ -3865,9 +3939,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        const baseUrl = (window.APP_ROUTES && window.APP_ROUTES.bhavBookingList)
-            ? window.APP_ROUTES.bhavBookingList
-            : '/bhav-bookings/list';
+        const baseUrl =
+            window.APP_ROUTES && window.APP_ROUTES.bhavBookingList
+                ? window.APP_ROUTES.bhavBookingList
+                : '/bhav-bookings/list';
 
         const params = new URLSearchParams();
         params.set('view', currentListView);
@@ -3909,48 +3984,48 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(fullUrl, {
             method: 'GET',
             headers: {
-                'Accept': 'application/json'
+                Accept: 'application/json',
             },
-            signal: signal
+            signal: signal,
         })
-        .then(async response => {
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to load booking list.');
-            }
-            return data;
-        })
-        .then(data => {
-            if (tableLoadingBar) tableLoadingBar.classList.remove('active');
-            if (bhavTableBody) {
-                bhavTableBody.style.opacity = '1';
-                bhavTableBody.style.pointerEvents = 'auto';
-            }
-            isFirstBookingListLoad = false;
+            .then(async (response) => {
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to load booking list.');
+                }
+                return data;
+            })
+            .then((data) => {
+                if (tableLoadingBar) tableLoadingBar.classList.remove('active');
+                if (bhavTableBody) {
+                    bhavTableBody.style.opacity = '1';
+                    bhavTableBody.style.pointerEvents = 'auto';
+                }
+                isFirstBookingListLoad = false;
 
-            // Use strictly allowed keys: rows, pagination, totals
-            const rows = data.rows || [];
-            const pagination = data.pagination || null;
-            const totals = data.totals || null;
+                // Use strictly allowed keys: rows, pagination, totals
+                const rows = data.rows || [];
+                const pagination = data.pagination || null;
+                const totals = data.totals || null;
 
-            renderTableRows(rows, pagination);
-            renderPagination(pagination);
-            renderTotals(totals);
-        })
-        .catch(error => {
-            if (tableLoadingBar) tableLoadingBar.classList.remove('active');
-            if (bhavTableBody) {
-                bhavTableBody.style.opacity = '1';
-                bhavTableBody.style.pointerEvents = 'auto';
-            }
+                renderTableRows(rows, pagination);
+                renderPagination(pagination);
+                renderTotals(totals);
+            })
+            .catch((error) => {
+                if (tableLoadingBar) tableLoadingBar.classList.remove('active');
+                if (bhavTableBody) {
+                    bhavTableBody.style.opacity = '1';
+                    bhavTableBody.style.pointerEvents = 'auto';
+                }
 
-            if (error.name === 'AbortError') {
-                // Ignore aborted requests
-                return;
-            }
-            console.warn('Booking list fetch error:', error);
-            renderErrorState(error.message);
-        });
+                if (error.name === 'AbortError') {
+                    // Ignore aborted requests
+                    return;
+                }
+                console.warn('Booking list fetch error:', error);
+                renderErrorState(error.message);
+            });
     }
 
     // Party Search Input: 250ms debounce
@@ -4002,7 +4077,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (dateRangeDropdown) {
             const buttons = dateRangeDropdown.querySelectorAll('.date-preset-btn');
-            buttons.forEach(btn => {
+            buttons.forEach((btn) => {
                 if (btn.getAttribute('data-preset') === presetName) {
                     btn.classList.add('active');
                 } else {
@@ -4025,7 +4100,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (dateRangeDropdown) {
         const presetButtons = dateRangeDropdown.querySelectorAll('.date-preset-btn');
-        presetButtons.forEach(button => {
+        presetButtons.forEach((button) => {
             button.addEventListener('click', function (e) {
                 e.stopPropagation();
                 const preset = this.getAttribute('data-preset');
@@ -4038,7 +4113,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (customDateFrom && dateFilterFrom) customDateFrom.value = dateFilterFrom.value;
                         if (customDateTo && dateFilterTo) customDateTo.value = dateFilterTo.value;
                     }
-                    presetButtons.forEach(b => b.classList.remove('active'));
+                    presetButtons.forEach((b) => b.classList.remove('active'));
                     this.classList.add('active');
                     return;
                 }
@@ -4129,94 +4204,95 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(showUrl, {
             method: 'GET',
             headers: {
-                'Accept': 'application/json'
-            }
+                Accept: 'application/json',
+            },
         })
-        .then(async response => {
-            const data = await response.json();
-            if (!response.ok) {
-                showToast(data.message || 'Booking not found', 'error');
-                throw new Error(data.message || 'View failed');
-            }
-            return data;
-        })
-        .then(booking => {
-            // Populate Modal Fields
-            const viewBookingNo = document.getElementById('viewBookingNo');
-            const viewBookingDateTime = document.getElementById('viewBookingDateTime');
-            const viewTradeTypeBadge = document.getElementById('viewTradeTypeBadge');
-            const viewMetalBadge = document.getElementById('viewMetalBadge');
-            const viewTypeBadge = document.getElementById('viewTypeBadge');
-            const viewStatusBadge = document.getElementById('viewStatusBadge');
+            .then(async (response) => {
+                const data = await response.json();
+                if (!response.ok) {
+                    showToast(data.message || 'Booking not found', 'error');
+                    throw new Error(data.message || 'View failed');
+                }
+                return data;
+            })
+            .then((booking) => {
+                // Populate Modal Fields
+                const viewBookingNo = document.getElementById('viewBookingNo');
+                const viewBookingDateTime = document.getElementById('viewBookingDateTime');
+                const viewTradeTypeBadge = document.getElementById('viewTradeTypeBadge');
+                const viewMetalBadge = document.getElementById('viewMetalBadge');
+                const viewTypeBadge = document.getElementById('viewTypeBadge');
+                const viewStatusBadge = document.getElementById('viewStatusBadge');
 
-            const viewCustomerName = document.getElementById('viewCustomerName');
-            const viewCustomerNo = document.getElementById('viewCustomerNo');
-            const viewCustomerMobile = document.getElementById('viewCustomerMobile');
-            const viewCustomerCity = document.getElementById('viewCustomerCity');
+                const viewCustomerName = document.getElementById('viewCustomerName');
+                const viewCustomerNo = document.getElementById('viewCustomerNo');
+                const viewCustomerMobile = document.getElementById('viewCustomerMobile');
+                const viewCustomerCity = document.getElementById('viewCustomerCity');
 
-            const viewItemsTableBody = document.getElementById('viewItemsTableBody');
-            const viewTotalWeight = document.getElementById('viewTotalWeight');
-            const viewTotalAmount = document.getElementById('viewTotalAmount');
-            const viewDeliveredWeight = document.getElementById('viewDeliveredWeight');
-            const viewPendingWeight = document.getElementById('viewPendingWeight');
-            const viewNarration = document.getElementById('viewNarration');
-            const btnViewModalPrint = document.getElementById('btnViewModalPrint');
+                const viewItemsTableBody = document.getElementById('viewItemsTableBody');
+                const viewTotalWeight = document.getElementById('viewTotalWeight');
+                const viewTotalAmount = document.getElementById('viewTotalAmount');
+                const viewDeliveredWeight = document.getElementById('viewDeliveredWeight');
+                const viewPendingWeight = document.getElementById('viewPendingWeight');
+                const viewNarration = document.getElementById('viewNarration');
+                const btnViewModalPrint = document.getElementById('btnViewModalPrint');
 
-            if (viewBookingNo) viewBookingNo.textContent = booking.booking_no || '-';
-            if (viewBookingDateTime) viewBookingDateTime.textContent = formatDateTimeDisplay(booking.booked_at);
+                if (viewBookingNo) viewBookingNo.textContent = booking.booking_no || '-';
+                if (viewBookingDateTime) viewBookingDateTime.textContent = formatDateTimeDisplay(booking.booked_at);
 
-            // Trade Type Badge
-            if (viewTradeTypeBadge) {
-                const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
-                viewTradeTypeBadge.textContent = booking.trade_type;
-                viewTradeTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
-            }
+                // Trade Type Badge
+                if (viewTradeTypeBadge) {
+                    const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
+                    viewTradeTypeBadge.textContent = booking.trade_type;
+                    viewTradeTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
+                }
 
-            // Metal Badge
-            if (viewMetalBadge) {
-                const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
-                viewMetalBadge.textContent = booking.metal;
-                viewMetalBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
-            }
+                // Metal Badge
+                if (viewMetalBadge) {
+                    const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
+                    viewMetalBadge.textContent = booking.metal;
+                    viewMetalBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
+                }
 
-            // Type Badge
-            if (viewTypeBadge) {
-                const isEntry = (booking.entry_type || '').toUpperCase() === 'ONLY_ENTRY';
-                viewTypeBadge.textContent = isEntry ? 'Only Entry' : 'Bhav Cut + Ledger';
-                viewTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isEntry ? 'badge-type-entry' : 'badge-type-ledger'}`;
-            }
+                // Type Badge
+                if (viewTypeBadge) {
+                    const isEntry = (booking.entry_type || '').toUpperCase() === 'ONLY_ENTRY';
+                    viewTypeBadge.textContent = isEntry ? 'Only Entry' : 'Bhav Cut + Ledger';
+                    viewTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isEntry ? 'badge-type-entry' : 'badge-type-ledger'}`;
+                }
 
-            // Status Badge
-            if (viewStatusBadge) {
-                const st = (booking.status || 'PENDING').toUpperCase();
-                viewStatusBadge.textContent = st;
-                let stClass = 'badge-status-pending';
-                if (st === 'PARTIAL') stClass = 'badge-status-partial';
-                else if (st === 'DELIVERED') stClass = 'badge-status-delivered';
-                else if (st === 'CANCELLED') stClass = 'badge-status-cancelled';
-                viewStatusBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${stClass}`;
-            }
+                // Status Badge
+                if (viewStatusBadge) {
+                    const st = (booking.status || 'PENDING').toUpperCase();
+                    viewStatusBadge.textContent = st;
+                    let stClass = 'badge-status-pending';
+                    if (st === 'PARTIAL') stClass = 'badge-status-partial';
+                    else if (st === 'DELIVERED') stClass = 'badge-status-delivered';
+                    else if (st === 'CANCELLED') stClass = 'badge-status-cancelled';
+                    viewStatusBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${stClass}`;
+                }
 
-            // Customer Details
-            const customer = booking.customer || {};
-            if (viewCustomerName) viewCustomerName.textContent = customer.name || '-';
-            if (viewCustomerNo) viewCustomerNo.textContent = customer.customer_no || '-';
-            if (viewCustomerMobile) viewCustomerMobile.textContent = customer.mobile || 'N/A';
-            if (viewCustomerCity) viewCustomerCity.textContent = customer.city || 'N/A';
+                // Customer Details
+                const customer = booking.customer || {};
+                if (viewCustomerName) viewCustomerName.textContent = customer.name || '-';
+                if (viewCustomerNo) viewCustomerNo.textContent = customer.customer_no || '-';
+                if (viewCustomerMobile) viewCustomerMobile.textContent = customer.mobile || 'N/A';
+                if (viewCustomerCity) viewCustomerCity.textContent = customer.city || 'N/A';
 
-            // Items Table
-            if (viewItemsTableBody) {
-                const items = Array.isArray(booking.items) ? booking.items : [];
-                if (items.length === 0) {
-                    viewItemsTableBody.innerHTML = '<tr><td colspan="4" class="py-3 text-muted text-center">No items recorded</td></tr>';
-                } else {
-                    let itemsHtml = '';
-                    items.forEach((it, idx) => {
-                        const sn = it.sort_order || (idx + 1);
-                        const w = (parseFloat(it.weight) || 0).toFixed(3);
-                        const r = formatIndianCurrency(it.rate || 0);
-                        const a = formatIndianCurrency(it.amount || 0);
-                        itemsHtml += `
+                // Items Table
+                if (viewItemsTableBody) {
+                    const items = Array.isArray(booking.items) ? booking.items : [];
+                    if (items.length === 0) {
+                        viewItemsTableBody.innerHTML =
+                            '<tr><td colspan="4" class="py-3 text-muted text-center">No items recorded</td></tr>';
+                    } else {
+                        let itemsHtml = '';
+                        items.forEach((it, idx) => {
+                            const sn = it.sort_order || idx + 1;
+                            const w = (parseFloat(it.weight) || 0).toFixed(3);
+                            const r = formatIndianCurrency(it.rate || 0);
+                            const a = formatIndianCurrency(it.amount || 0);
+                            itemsHtml += `
                             <tr>
                                 <td class="text-center fw-bold text-muted">${sn}</td>
                                 <td class="text-end fw-semibold">${w} gm</td>
@@ -4224,44 +4300,50 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <td class="text-end fw-bold text-dark">₹${a}</td>
                             </tr>
                         `;
-                    });
-                    viewItemsTableBody.innerHTML = itemsHtml;
+                        });
+                        viewItemsTableBody.innerHTML = itemsHtml;
+                    }
                 }
-            }
 
-            // Totals
-            if (viewTotalWeight) viewTotalWeight.textContent = `${(parseFloat(booking.total_weight) || 0).toFixed(3)} gm`;
-            if (viewTotalAmount) viewTotalAmount.textContent = `₹${formatIndianCurrency(booking.total_amount || 0)}`;
-            if (viewDeliveredWeight) viewDeliveredWeight.textContent = `${(parseFloat(booking.delivered_weight) || 0).toFixed(3)} gm`;
-            if (viewPendingWeight) viewPendingWeight.textContent = `${(parseFloat(booking.pending_weight) || 0).toFixed(3)} gm`;
+                // Totals
+                if (viewTotalWeight)
+                    viewTotalWeight.textContent = `${(parseFloat(booking.total_weight) || 0).toFixed(3)} gm`;
+                if (viewTotalAmount)
+                    viewTotalAmount.textContent = `₹${formatIndianCurrency(booking.total_amount || 0)}`;
+                if (viewDeliveredWeight)
+                    viewDeliveredWeight.textContent = `${(parseFloat(booking.delivered_weight) || 0).toFixed(3)} gm`;
+                if (viewPendingWeight)
+                    viewPendingWeight.textContent = `${(parseFloat(booking.pending_weight) || 0).toFixed(3)} gm`;
 
-            // Narration
-            if (viewNarration) viewNarration.textContent = booking.narration || 'None';
+                // Narration
+                if (viewNarration) viewNarration.textContent = booking.narration || 'None';
 
-            // Payments Section
-            const viewPaymentsCard = document.getElementById('viewPaymentsCard');
-            const viewPaymentsTableBody = document.getElementById('viewPaymentsTableBody');
-            const viewTotalPaidAmount = document.getElementById('viewTotalPaidAmount');
-            const viewPaymentBalanceAmount = document.getElementById('viewPaymentBalanceAmount');
+                // Payments Section
+                const viewPaymentsCard = document.getElementById('viewPaymentsCard');
+                const viewPaymentsTableBody = document.getElementById('viewPaymentsTableBody');
+                const viewTotalPaidAmount = document.getElementById('viewTotalPaidAmount');
+                const viewPaymentBalanceAmount = document.getElementById('viewPaymentBalanceAmount');
 
-            const payments = Array.isArray(booking.payments) ? booking.payments : [];
-            let totalPaid = 0;
-            if (viewPaymentsCard) {
-                if (payments.length > 0) {
-                    viewPaymentsCard.style.display = 'block';
-                    let payHtml = '';
-                    payments.forEach((p, idx) => {
-                        const sn = p.sort_order || (idx + 1);
-                        const isCash = (p.mode || '').toUpperCase() === 'CASH';
-                        const badgeClass = isCash ? 'badge-payment-cash' : 'badge-payment-online';
-                        let modeText = isCash ? 'CASH' : 'ONLINE';
-                        if (!isCash && p.online_method) {
-                            modeText += ` (${p.online_method})`;
-                        }
-                        const ref = p.reference_no ? `<span class="text-muted ms-1 small">Ref: ${escapeHtml(p.reference_no)}</span>` : '<span class="text-muted small">-</span>';
-                        const amt = parseFloat(p.amount) || 0;
-                        totalPaid += amt;
-                        payHtml += `
+                const payments = Array.isArray(booking.payments) ? booking.payments : [];
+                let totalPaid = 0;
+                if (viewPaymentsCard) {
+                    if (payments.length > 0) {
+                        viewPaymentsCard.style.display = 'block';
+                        let payHtml = '';
+                        payments.forEach((p, idx) => {
+                            const sn = p.sort_order || idx + 1;
+                            const isCash = (p.mode || '').toUpperCase() === 'CASH';
+                            const badgeClass = isCash ? 'badge-payment-cash' : 'badge-payment-online';
+                            let modeText = isCash ? 'CASH' : 'ONLINE';
+                            if (!isCash && p.online_method) {
+                                modeText += ` (${p.online_method})`;
+                            }
+                            const ref = p.reference_no
+                                ? `<span class="text-muted ms-1 small">Ref: ${escapeHtml(p.reference_no)}</span>`
+                                : '<span class="text-muted small">-</span>';
+                            const amt = parseFloat(p.amount) || 0;
+                            totalPaid += amt;
+                            payHtml += `
                             <tr>
                                 <td class="text-center fw-bold text-muted">${sn}</td>
                                 <td>
@@ -4271,39 +4353,40 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <td class="text-end fw-bold text-dark">₹${formatIndianCurrency(amt)}</td>
                             </tr>
                         `;
-                    });
-                    if (viewPaymentsTableBody) viewPaymentsTableBody.innerHTML = payHtml;
-                } else {
-                    viewPaymentsCard.style.display = 'none';
-                    if (viewPaymentsTableBody) viewPaymentsTableBody.innerHTML = '';
+                        });
+                        if (viewPaymentsTableBody) viewPaymentsTableBody.innerHTML = payHtml;
+                    } else {
+                        viewPaymentsCard.style.display = 'none';
+                        if (viewPaymentsTableBody) viewPaymentsTableBody.innerHTML = '';
+                    }
                 }
-            }
 
-            const bookingTotalAmt = parseFloat(booking.total_amount) || 0;
-            const balanceAmt = Math.max(0, bookingTotalAmt - totalPaid);
-            if (viewTotalPaidAmount) viewTotalPaidAmount.textContent = `₹${formatIndianCurrency(totalPaid)}`;
-            if (viewPaymentBalanceAmount) {
-                viewPaymentBalanceAmount.textContent = `₹${formatIndianCurrency(balanceAmt)}`;
-                viewPaymentBalanceAmount.className = balanceAmt > 0 ? 'fw-bold text-danger' : 'fw-bold text-success';
-            }
+                const bookingTotalAmt = parseFloat(booking.total_amount) || 0;
+                const balanceAmt = Math.max(0, bookingTotalAmt - totalPaid);
+                if (viewTotalPaidAmount) viewTotalPaidAmount.textContent = `₹${formatIndianCurrency(totalPaid)}`;
+                if (viewPaymentBalanceAmount) {
+                    viewPaymentBalanceAmount.textContent = `₹${formatIndianCurrency(balanceAmt)}`;
+                    viewPaymentBalanceAmount.className =
+                        balanceAmt > 0 ? 'fw-bold text-danger' : 'fw-bold text-success';
+                }
 
-            // Wire print button inside view modal
-            if (btnViewModalPrint) {
-                btnViewModalPrint.onclick = function () {
-                    window.open(getRoute('bhavBookingPrint', booking.id), '_blank');
-                };
-            }
+                // Wire print button inside view modal
+                if (btnViewModalPrint) {
+                    btnViewModalPrint.onclick = function () {
+                        window.open(getRoute('bhavBookingPrint', booking.id), '_blank');
+                    };
+                }
 
-            // Open Bootstrap Modal
-            const modalEl = document.getElementById('viewBookingModal');
-            if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
-                modalInstance.show();
-            }
-        })
-        .catch(err => {
-            console.warn('View details error:', err);
-        });
+                // Open Bootstrap Modal
+                const modalEl = document.getElementById('viewBookingModal');
+                if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+                    modalInstance.show();
+                }
+            })
+            .catch((err) => {
+                console.warn('View details error:', err);
+            });
     }
 
     /**
@@ -4318,7 +4401,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const hasWeight = Boolean(inputWeight && inputWeight.value && inputWeight.value.trim() !== '');
         const hasCustomer = Boolean(selectedCustomer || (hiddenCustomerId && hiddenCustomerId.value));
         const hasPayments = Array.isArray(bookingPayments) && bookingPayments.length > 0;
-        const hasPaymentAmount = Boolean(inputPaymentAmount && inputPaymentAmount.value && parseFloat(inputPaymentAmount.value) > 0);
+        const hasPaymentAmount = Boolean(
+            inputPaymentAmount && inputPaymentAmount.value && parseFloat(inputPaymentAmount.value) > 0
+        );
         return hasRows || hasWeight || hasCustomer || hasPayments || hasPaymentAmount;
     }
 
@@ -4345,137 +4430,138 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(showUrl, {
             method: 'GET',
             headers: {
-                'Accept': 'application/json'
-            }
+                Accept: 'application/json',
+            },
         })
-        .then(async response => {
-            const data = await response.json();
-            if (!response.ok) {
-                showToast(data.message || 'Booking not found', 'error');
-                throw new Error(data.message || 'Edit load failed');
-            }
-            return data;
-        })
-        .then(booking => {
-            // If target booking number was not known upfront (e.g. from ?edit=) and user has unsaved entries, confirm now
-            if (!knownBookingNo && hasUnsavedEntries()) {
-                const bNo = booking.booking_no || `BB-${String(booking.id).padStart(6, '0')}`;
-                const confirmed = window.confirm(`You have unsaved entries. Discard them and edit ${bNo}?`);
-                if (!confirmed) {
+            .then(async (response) => {
+                const data = await response.json();
+                if (!response.ok) {
+                    showToast(data.message || 'Booking not found', 'error');
+                    throw new Error(data.message || 'Edit load failed');
+                }
+                return data;
+            })
+            .then((booking) => {
+                // If target booking number was not known upfront (e.g. from ?edit=) and user has unsaved entries, confirm now
+                if (!knownBookingNo && hasUnsavedEntries()) {
+                    const bNo = booking.booking_no || `BB-${String(booking.id).padStart(6, '0')}`;
+                    const confirmed = window.confirm(`You have unsaved entries. Discard them and edit ${bNo}?`);
+                    if (!confirmed) {
+                        return;
+                    }
+                }
+                // Restriction check: allowed if status = PENDING, delivered_weight = 0, and NO payments with source BUY_SELL
+                const statusUpper = (booking.status || '').toUpperCase();
+                const isModifiable =
+                    statusUpper === 'PENDING' &&
+                    (parseFloat(booking.delivered_weight) || 0) === 0 &&
+                    !booking.has_external_payments;
+
+                if (!isModifiable) {
+                    showToast('This booking has delivery/payment and cannot be edited', 'warning');
                     return;
                 }
-            }
-            // Restriction check: allowed if status = PENDING, delivered_weight = 0, and NO payments with source BUY_SELL
-            const statusUpper = (booking.status || '').toUpperCase();
-            const isModifiable = statusUpper === 'PENDING'
-                && (parseFloat(booking.delivered_weight) || 0) === 0
-                && !booking.has_external_payments;
 
-            if (!isModifiable) {
-                showToast('This booking has delivery/payment and cannot be edited', 'warning');
-                return;
-            }
+                // Clear any lingering validation errors
+                resetValidationErrors();
 
-            // Clear any lingering validation errors
-            resetValidationErrors();
-
-            // 1. Customer
-            if (booking.customer) {
-                selectCustomer(booking.customer);
-            }
-
-            // 2. Trade mode (BUY / SELL)
-            setTradeMode(booking.trade_type || 'SELL');
-
-            // 3. Type
-            if (typeSelect) {
-                typeSelect.value = booking.entry_type || 'ONLY_ENTRY';
-            }
-
-            // 4. Metal (Update currentMetal before select to avoid triggering confirmation prompt)
-            currentMetal = booking.metal || 'GOLD';
-            if (categorySelect) {
-                categorySelect.value = currentMetal;
-            }
-
-            // 5. Multi-weight Items
-            bookingItems = [];
-            if (Array.isArray(booking.items) && booking.items.length > 0) {
-                booking.items.forEach(it => {
-                    const w = parseFloat(it.weight) || 0;
-                    const r = parseFloat(it.rate) || 0;
-                    const a = parseFloat(it.amount) || calculateRowAmount(w, r);
-                    bookingItems.push({
-                        id: nextItemId++,
-                        weight: w,
-                        rate: r,
-                        amount: a
-                    });
-                });
-            }
-            renderEntriesTable();
-
-            // 5b. Multi-entry Payments (load booking's BOOKING source payments)
-            bookingPayments = [];
-            nextPaymentId = 1;
-            if (Array.isArray(booking.payments) && booking.payments.length > 0) {
-                booking.payments.forEach(p => {
-                    if (!p.source || p.source === 'BOOKING') {
-                        bookingPayments.push({
-                            id: nextPaymentId++,
-                            mode: (p.mode || 'CASH').toUpperCase(),
-                            online_method: p.online_method || 'UPI',
-                            amount: parseFloat(p.amount) || 0
-                        });
-                    }
-                });
-            }
-            renderPaymentEntriesTable();
-            setPaymentMode('CASH');
-            if (inputPaymentAmount) inputPaymentAmount.value = '';
-            if (paymentOnlineMethod) paymentOnlineMethod.value = 'UPI';
-
-            // 6. Current entry line inputs
-            if (inputWeight) inputWeight.value = '';
-            if (inputRate) {
-                if (booking.items && booking.items.length > 0) {
-                    inputRate.value = parseFloat(booking.items[0].rate).toFixed(2);
-                } else if (BHAV_CONFIG.default_rates && BHAV_CONFIG.default_rates[currentMetal]) {
-                    inputRate.value = BHAV_CONFIG.default_rates[currentMetal];
+                // 1. Customer
+                if (booking.customer) {
+                    selectCustomer(booking.customer);
                 }
-            }
 
-            // 7. Narration
-            if (inputNarration) {
-                inputNarration.value = booking.narration || '';
-            }
-            if (narrationCounter) {
-                narrationCounter.textContent = `${(booking.narration || '').length}/255`;
-            }
+                // 2. Trade mode (BUY / SELL)
+                setTradeMode(booking.trade_type || 'SELL');
 
-            // 8. WhatsApp switch
-            if (whatsappSwitch) {
-                whatsappSwitch.checked = Boolean(booking.send_whatsapp);
-            }
+                // 3. Type
+                if (typeSelect) {
+                    typeSelect.value = booking.entry_type || 'ONLY_ENTRY';
+                }
 
-            // 9. Update grand totals
-            updateAllTotals();
+                // 4. Metal (Update currentMetal before select to avoid triggering confirmation prompt)
+                currentMetal = booking.metal || 'GOLD';
+                if (categorySelect) {
+                    categorySelect.value = currentMetal;
+                }
 
-            // 10. Switch UI to Edit Mode
-            enterEditMode(booking);
+                // 5. Multi-weight Items
+                bookingItems = [];
+                if (Array.isArray(booking.items) && booking.items.length > 0) {
+                    booking.items.forEach((it) => {
+                        const w = parseFloat(it.weight) || 0;
+                        const r = parseFloat(it.rate) || 0;
+                        const a = parseFloat(it.amount) || calculateRowAmount(w, r);
+                        bookingItems.push({
+                            id: nextItemId++,
+                            weight: w,
+                            rate: r,
+                            amount: a,
+                        });
+                    });
+                }
+                renderEntriesTable();
 
-            // Smoothly scroll to the form and focus weight input
-            const formEl = document.getElementById('bhavBookingForm');
-            if (formEl) {
-                formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            if (inputWeight) {
-                inputWeight.focus();
-            }
-        })
-        .catch(err => {
-            console.warn('Booking edit load error:', err);
-        });
+                // 5b. Multi-entry Payments (load booking's BOOKING source payments)
+                bookingPayments = [];
+                nextPaymentId = 1;
+                if (Array.isArray(booking.payments) && booking.payments.length > 0) {
+                    booking.payments.forEach((p) => {
+                        if (!p.source || p.source === 'BOOKING') {
+                            bookingPayments.push({
+                                id: nextPaymentId++,
+                                mode: (p.mode || 'CASH').toUpperCase(),
+                                online_method: p.online_method || 'UPI',
+                                amount: parseFloat(p.amount) || 0,
+                            });
+                        }
+                    });
+                }
+                renderPaymentEntriesTable();
+                setPaymentMode('CASH');
+                if (inputPaymentAmount) inputPaymentAmount.value = '';
+                if (paymentOnlineMethod) paymentOnlineMethod.value = 'UPI';
+
+                // 6. Current entry line inputs
+                if (inputWeight) inputWeight.value = '';
+                if (inputRate) {
+                    if (booking.items && booking.items.length > 0) {
+                        inputRate.value = parseFloat(booking.items[0].rate).toFixed(2);
+                    } else if (BHAV_CONFIG.default_rates && BHAV_CONFIG.default_rates[currentMetal]) {
+                        inputRate.value = BHAV_CONFIG.default_rates[currentMetal];
+                    }
+                }
+
+                // 7. Narration
+                if (inputNarration) {
+                    inputNarration.value = booking.narration || '';
+                }
+                if (narrationCounter) {
+                    narrationCounter.textContent = `${(booking.narration || '').length}/255`;
+                }
+
+                // 8. WhatsApp switch
+                if (whatsappSwitch) {
+                    whatsappSwitch.checked = Boolean(booking.send_whatsapp);
+                }
+
+                // 9. Update grand totals
+                updateAllTotals();
+
+                // 10. Switch UI to Edit Mode
+                enterEditMode(booking);
+
+                // Smoothly scroll to the form and focus weight input
+                const formEl = document.getElementById('bhavBookingForm');
+                if (formEl) {
+                    formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                if (inputWeight) {
+                    inputWeight.focus();
+                }
+            })
+            .catch((err) => {
+                console.warn('Booking edit load error:', err);
+            });
     }
 
     /**
@@ -4492,32 +4578,32 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(deleteUrl, {
             method: 'DELETE',
             headers: {
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': getCsrfToken()
-            }
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
+            },
         })
-        .then(async response => {
-            const data = await response.json();
-            if (!response.ok) {
-                showToast(data.message || 'Failed to delete booking.', 'error');
-                throw new Error(data.message || 'Delete failed');
-            }
-            return data;
-        })
-        .then(() => {
-            showToast(`Booking ${bookingNo} deleted`, 'success');
+            .then(async (response) => {
+                const data = await response.json();
+                if (!response.ok) {
+                    showToast(data.message || 'Failed to delete booking.', 'error');
+                    throw new Error(data.message || 'Delete failed');
+                }
+                return data;
+            })
+            .then(() => {
+                showToast(`Booking ${bookingNo} deleted`, 'success');
 
-            // If the deleted booking was currently being edited, exit edit mode immediately
-            if (editingBookingId === bookingId) {
-                exitEditMode();
-            }
+                // If the deleted booking was currently being edited, exit edit mode immediately
+                if (editingBookingId === bookingId) {
+                    exitEditMode();
+                }
 
-            // Reload the list staying on the current page
-            fetchBookingList(currentListPage);
-        })
-        .catch(err => {
-            console.warn('Booking delete error:', err);
-        });
+                // Reload the list staying on the current page
+                fetchBookingList(currentListPage);
+            })
+            .catch((err) => {
+                console.warn('Booking delete error:', err);
+            });
     }
 
     // =========================================================================
@@ -4527,8 +4613,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!window.APP_ROUTES || !window.APP_ROUTES.dailyRatesToday) return;
 
         fetch(window.APP_ROUTES.dailyRatesToday)
-            .then(res => res.json())
-            .then(rates => {
+            .then((res) => res.json())
+            .then((rates) => {
                 window.TODAY_RATES = rates;
 
                 const badgeGold = document.getElementById('badgeTodayGold');
@@ -4551,7 +4637,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateAllTotals();
                 }
             })
-            .catch(err => console.warn('Could not fetch daily rates:', err));
+            .catch((err) => console.warn('Could not fetch daily rates:', err));
     }
 
     function initDailyRateModal() {
@@ -4571,12 +4657,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (silverError) silverError.style.display = 'none';
             if (globalError) globalError.classList.add('d-none');
 
-            const goldVal = (window.TODAY_RATES && window.TODAY_RATES.GOLD)
-                ? window.TODAY_RATES.GOLD.rate
-                : (BHAV_CONFIG.default_rates?.GOLD || 165000);
-            const silverVal = (window.TODAY_RATES && window.TODAY_RATES.SILVER)
-                ? window.TODAY_RATES.SILVER.rate
-                : (BHAV_CONFIG.default_rates?.SILVER || 1800);
+            const goldVal =
+                window.TODAY_RATES && window.TODAY_RATES.GOLD
+                    ? window.TODAY_RATES.GOLD.rate
+                    : BHAV_CONFIG.default_rates?.GOLD || 165000;
+            const silverVal =
+                window.TODAY_RATES && window.TODAY_RATES.SILVER
+                    ? window.TODAY_RATES.SILVER.rate
+                    : BHAV_CONFIG.default_rates?.SILVER || 1800;
 
             if (goldInput) goldInput.value = goldVal;
             if (silverInput) silverInput.value = silverVal;
@@ -4623,38 +4711,38 @@ document.addEventListener('DOMContentLoaded', function () {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken()
+                        'X-CSRF-TOKEN': getCsrfToken(),
                     },
                     body: JSON.stringify({
                         gold_rate: gVal,
-                        silver_rate: sVal
+                        silver_rate: sVal,
+                    }),
+                })
+                    .then((res) => {
+                        if (res.status === 429) {
+                            showGlobalToast('Too many requests. Please slow down and try again shortly.', 'warning');
+                            throw new Error('Throttle');
+                        }
+                        return res.json();
                     })
-                })
-                .then(res => {
-                    if (res.status === 429) {
-                        showGlobalToast('Too many requests. Please slow down and try again shortly.', 'warning');
-                        throw new Error('Throttle');
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    if (btnSave) btnSave.disabled = false;
-                    if (data.rates) {
-                        window.TODAY_RATES = data.rates;
-                        fetchTodayRates();
-                    }
-                    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                        bootstrap.Modal.getInstance(modalEl)?.hide();
-                    }
-                    showGlobalToast("Today's rates updated successfully.", 'success');
-                })
-                .catch(err => {
-                    if (btnSave) btnSave.disabled = false;
-                    if (err.message !== 'Throttle' && globalError) {
-                        globalError.textContent = 'Failed to save rates. Please check inputs.';
-                        globalError.classList.remove('d-none');
-                    }
-                });
+                    .then((data) => {
+                        if (btnSave) btnSave.disabled = false;
+                        if (data.rates) {
+                            window.TODAY_RATES = data.rates;
+                            fetchTodayRates();
+                        }
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                            bootstrap.Modal.getInstance(modalEl)?.hide();
+                        }
+                        showGlobalToast("Today's rates updated successfully.", 'success');
+                    })
+                    .catch((err) => {
+                        if (btnSave) btnSave.disabled = false;
+                        if (err.message !== 'Throttle' && globalError) {
+                            globalError.textContent = 'Failed to save rates. Please check inputs.';
+                            globalError.classList.remove('d-none');
+                        }
+                    });
             });
         }
     }
@@ -4671,7 +4759,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         exitEditMode();
                     }
                     fetchBookingList(currentListPage);
-                }
+                },
             });
         });
     }
@@ -4702,5 +4790,4 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     }
-
 });

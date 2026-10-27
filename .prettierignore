@@ -1,0 +1,8 @@
+vendor
+node_modules
+storage
+public/storage
+public/build
+*.min.js
+*.min.css
+*.blade.php

@@ -16,33 +16,33 @@ class BhavBookingPrintQATest extends TestCase
     {
         $customer = Customer::create([
             'customer_no' => 'CUST-0001',
-            'name'        => 'Print Test Customer',
-            'mobile'      => '9826011122',
-            'party_type'  => 'CUSTOMER',
-            'city'        => 'Indore',
+            'name' => 'Print Test Customer',
+            'mobile' => '9826011122',
+            'party_type' => 'CUSTOMER',
+            'city' => 'Indore',
         ]);
 
         $booking = BhavBooking::create([
-            'booking_no'       => 'BB-000001',
-            'customer_id'      => $customer->id,
-            'request_token'    => Str::uuid()->toString(),
-            'trade_type'       => 'SELL',
-            'entry_type'       => 'ONLY_ENTRY',
-            'metal'            => 'GOLD',
-            'status'           => 'PENDING',
-            'total_weight'     => 10.000,
+            'booking_no' => 'BB-000001',
+            'customer_id' => $customer->id,
+            'request_token' => Str::uuid()->toString(),
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'status' => 'PENDING',
+            'total_weight' => 10.000,
             'delivered_weight' => 0.000,
-            'total_amount'     => 70000.00,
-            'received_amount'  => 20000.00,
-            'given_amount'     => 0.00,
-            'booked_at'        => now(),
+            'total_amount' => 70000.00,
+            'received_amount' => 20000.00,
+            'given_amount' => 0.00,
+            'booked_at' => now(),
         ]);
 
         $booking->items()->create([
             'sort_order' => 1,
-            'weight'     => 10.000,
-            'rate'       => 70000.00,
-            'amount'     => 70000.00,
+            'weight' => 10.000,
+            'rate' => 70000.00,
+            'amount' => 70000.00,
         ]);
 
         $response = $this->get("/bhav-bookings/{$booking->id}/print");
@@ -55,7 +55,7 @@ class BhavBookingPrintQATest extends TestCase
 
     public function test_print_page_returns_404_for_missing_booking(): void
     {
-        $response = $this->get("/bhav-bookings/999999/print");
+        $response = $this->get('/bhav-bookings/999999/print');
         $response->assertStatus(404);
     }
 }

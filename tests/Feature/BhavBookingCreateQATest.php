@@ -16,10 +16,10 @@ class BhavBookingCreateQATest extends TestCase
     {
         return Customer::create([
             'customer_no' => 'CUST-0001',
-            'name'        => 'Test Customer',
-            'mobile'      => '9826011122',
-            'party_type'  => 'CUSTOMER',
-            'city'        => 'Indore',
+            'name' => 'Test Customer',
+            'mobile' => '9826011122',
+            'party_type' => 'CUSTOMER',
+            'city' => 'Indore',
         ]);
     }
 
@@ -30,11 +30,11 @@ class BhavBookingCreateQATest extends TestCase
         // 10gm at 70,000/10gm = 70,000
         $response = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00],
             ],
         ]);
@@ -43,7 +43,7 @@ class BhavBookingCreateQATest extends TestCase
         $response->assertJson([
             'total_weight' => '10.000',
             'total_amount' => '70000.00',
-            'status'       => 'PENDING',
+            'status' => 'PENDING',
         ]);
     }
 
@@ -56,11 +56,11 @@ class BhavBookingCreateQATest extends TestCase
         // Total = 74,000
         $response = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 2.000, 'rate' => 148000.00],
                 ['weight' => 3.000, 'rate' => 148000.00],
             ],
@@ -84,11 +84,11 @@ class BhavBookingCreateQATest extends TestCase
 
         $response = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'BUY',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $customer->id,
+            'trade_type' => 'BUY',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 2.125, 'rate' => 70000.00],
                 ['weight' => 0.875, 'rate' => 70000.00],
             ],
@@ -108,12 +108,12 @@ class BhavBookingCreateQATest extends TestCase
         // Browser attempts to send fake amount: 10gm at 70,000/10gm, but claims amount is 1.00
         $response = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'total_amount'  => 1.00, // Fake total amount sent by client
-            'items'         => [
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'total_amount' => 1.00, // Fake total amount sent by client
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00, 'amount' => 1.00], // Fake item amount
             ],
         ]);
@@ -131,11 +131,11 @@ class BhavBookingCreateQATest extends TestCase
         // 1. Zero weight
         $res1 = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 0, 'rate' => 70000.00],
             ],
         ]);
@@ -145,11 +145,11 @@ class BhavBookingCreateQATest extends TestCase
         // 2. Negative rate
         $res2 = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => -500],
             ],
         ]);
@@ -159,11 +159,11 @@ class BhavBookingCreateQATest extends TestCase
         // 3. Blank weight
         $res3 = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => '', 'rate' => 70000.00],
             ],
         ]);
@@ -173,11 +173,11 @@ class BhavBookingCreateQATest extends TestCase
         // 4. Too large weight (> 99999.999)
         $res4 = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 1000000.000, 'rate' => 70000.00],
             ],
         ]);
@@ -189,11 +189,11 @@ class BhavBookingCreateQATest extends TestCase
     {
         $response = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => null,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => null,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00],
             ],
         ]);
@@ -213,11 +213,11 @@ class BhavBookingCreateQATest extends TestCase
 
         $response = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => $items,
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => $items,
         ]);
 
         $response->assertStatus(422);
@@ -231,11 +231,11 @@ class BhavBookingCreateQATest extends TestCase
 
         $payload = [
             'request_token' => $token,
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00],
             ],
         ];
@@ -260,22 +260,22 @@ class BhavBookingCreateQATest extends TestCase
 
         $res1 = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [['weight' => 1.000, 'rate' => 70000.00]],
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [['weight' => 1.000, 'rate' => 70000.00]],
         ]);
         $res1->assertStatus(201);
         $this->assertEquals('BB-000001', $res1->json('booking_no'));
 
         $res2 = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [['weight' => 1.000, 'rate' => 70000.00]],
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [['weight' => 1.000, 'rate' => 70000.00]],
         ]);
         $res2->assertStatus(201);
         $this->assertEquals('BB-000002', $res2->json('booking_no'));
@@ -288,28 +288,28 @@ class BhavBookingCreateQATest extends TestCase
 
         // Create BB-000001 manually
         BhavBooking::create([
-            'booking_no'       => 'BB-000001',
-            'customer_id'      => $customer->id,
-            'request_token'    => Str::uuid()->toString(),
-            'trade_type'       => 'SELL',
-            'entry_type'       => 'ONLY_ENTRY',
-            'metal'            => 'GOLD',
-            'status'           => 'PENDING',
-            'total_weight'     => 10.000,
+            'booking_no' => 'BB-000001',
+            'customer_id' => $customer->id,
+            'request_token' => Str::uuid()->toString(),
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'status' => 'PENDING',
+            'total_weight' => 10.000,
             'delivered_weight' => 0.000,
-            'total_amount'     => 70000.00,
-            'received_amount'  => 0.00,
-            'given_amount'     => 0.00,
-            'booked_at'        => now(),
+            'total_amount' => 70000.00,
+            'received_amount' => 0.00,
+            'given_amount' => 0.00,
+            'booked_at' => now(),
         ]);
 
         $response = $this->postJson('/bhav-bookings', [
             'request_token' => Str::uuid()->toString(),
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [['weight' => 1.000, 'rate' => 70000.00]],
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [['weight' => 1.000, 'rate' => 70000.00]],
         ]);
 
         $response->assertStatus(201);
@@ -324,28 +324,28 @@ class BhavBookingCreateQATest extends TestCase
         $token = Str::uuid()->toString();
 
         $existing = BhavBooking::create([
-            'booking_no'       => 'BB-000001',
-            'customer_id'      => $customer->id,
-            'request_token'    => $token,
-            'trade_type'       => 'SELL',
-            'entry_type'       => 'ONLY_ENTRY',
-            'metal'            => 'GOLD',
-            'status'           => 'PENDING',
-            'total_weight'     => 10.000,
+            'booking_no' => 'BB-000001',
+            'customer_id' => $customer->id,
+            'request_token' => $token,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'status' => 'PENDING',
+            'total_weight' => 10.000,
             'delivered_weight' => 0.000,
-            'total_amount'     => 70000.00,
-            'received_amount'  => 0.00,
-            'given_amount'     => 0.00,
-            'booked_at'        => now(),
+            'total_amount' => 70000.00,
+            'received_amount' => 0.00,
+            'given_amount' => 0.00,
+            'booked_at' => now(),
         ]);
 
         $response = $this->postJson('/bhav-bookings', [
             'request_token' => $token,
-            'customer_id'   => $customer->id,
-            'trade_type'    => 'SELL',
-            'entry_type'    => 'ONLY_ENTRY',
-            'metal'         => 'GOLD',
-            'items'         => [['weight' => 10.000, 'rate' => 70000.00]],
+            'customer_id' => $customer->id,
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [['weight' => 10.000, 'rate' => 70000.00]],
         ]);
 
         $response->assertStatus(200);

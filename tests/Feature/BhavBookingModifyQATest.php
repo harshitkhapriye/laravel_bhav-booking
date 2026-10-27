@@ -16,37 +16,37 @@ class BhavBookingModifyQATest extends TestCase
     private function createCustomer(string $name = 'Primary Customer'): Customer
     {
         return Customer::create([
-            'customer_no' => 'CUST-' . rand(1000, 9999),
-            'name'        => $name,
-            'mobile'      => '98' . rand(10000000, 99999999),
-            'party_type'  => 'CUSTOMER',
-            'city'        => 'Indore',
+            'customer_no' => 'CUST-'.rand(1000, 9999),
+            'name' => $name,
+            'mobile' => '98'.rand(10000000, 99999999),
+            'party_type' => 'CUSTOMER',
+            'city' => 'Indore',
         ]);
     }
 
     private function createPendingBooking(Customer $customer): BhavBooking
     {
         $booking = BhavBooking::create([
-            'booking_no'       => 'BB-' . rand(100000, 999999),
-            'customer_id'      => $customer->id,
-            'request_token'    => Str::uuid()->toString(),
-            'trade_type'       => 'SELL',
-            'entry_type'       => 'ONLY_ENTRY',
-            'metal'            => 'GOLD',
-            'status'           => 'PENDING',
-            'total_weight'     => 10.000,
+            'booking_no' => 'BB-'.rand(100000, 999999),
+            'customer_id' => $customer->id,
+            'request_token' => Str::uuid()->toString(),
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'status' => 'PENDING',
+            'total_weight' => 10.000,
             'delivered_weight' => 0.000,
-            'total_amount'     => 70000.00,
-            'received_amount'  => 0.00,
-            'given_amount'     => 0.00,
-            'booked_at'        => now(),
+            'total_amount' => 70000.00,
+            'received_amount' => 0.00,
+            'given_amount' => 0.00,
+            'booked_at' => now(),
         ]);
 
         $booking->items()->create([
             'sort_order' => 1,
-            'weight'     => 10.000,
-            'rate'       => 70000.00,
-            'amount'     => 70000.00,
+            'weight' => 10.000,
+            'rate' => 70000.00,
+            'amount' => 70000.00,
         ]);
 
         return $booking;
@@ -60,10 +60,10 @@ class BhavBookingModifyQATest extends TestCase
 
         $response = $this->putJson("/bhav-bookings/{$booking->id}", [
             'customer_id' => $differentCustomer->id, // Attempt to tamper customer
-            'trade_type'  => 'SELL',
-            'entry_type'  => 'ONLY_ENTRY',
-            'metal'       => 'GOLD',
-            'items'       => [
+            'trade_type' => 'SELL',
+            'entry_type' => 'ONLY_ENTRY',
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00],
             ],
         ]);
@@ -83,8 +83,8 @@ class BhavBookingModifyQATest extends TestCase
         $response = $this->putJson("/bhav-bookings/{$booking->id}", [
             'trade_type' => 'SELL',
             'entry_type' => 'ONLY_ENTRY',
-            'metal'      => 'GOLD',
-            'items'      => [
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 5.000, 'rate' => 72000.00],
                 ['weight' => 5.000, 'rate' => 72000.00],
             ],
@@ -108,15 +108,15 @@ class BhavBookingModifyQATest extends TestCase
 
         // Mark as PARTIAL delivery (delivered_weight > 0)
         $booking->update([
-            'status'           => 'PARTIAL',
+            'status' => 'PARTIAL',
             'delivered_weight' => 2.000,
         ]);
 
         $response = $this->putJson("/bhav-bookings/{$booking->id}", [
             'trade_type' => 'SELL',
             'entry_type' => 'ONLY_ENTRY',
-            'metal'      => 'GOLD',
-            'items'      => [
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00],
             ],
         ]);
@@ -130,11 +130,11 @@ class BhavBookingModifyQATest extends TestCase
 
     public function test_update_returns_404_for_missing_booking_id(): void
     {
-        $response = $this->putJson("/bhav-bookings/999999", [
+        $response = $this->putJson('/bhav-bookings/999999', [
             'trade_type' => 'SELL',
             'entry_type' => 'ONLY_ENTRY',
-            'metal'      => 'GOLD',
-            'items'      => [
+            'metal' => 'GOLD',
+            'items' => [
                 ['weight' => 10.000, 'rate' => 70000.00],
             ],
         ]);
@@ -162,11 +162,11 @@ class BhavBookingModifyQATest extends TestCase
         // Add external BUY_SELL payment
         BhavBookingPayment::create([
             'bhav_booking_id' => $booking->id,
-            'mode'            => 'CASH',
-            'amount'          => 10000.00,
-            'source'          => 'BUY_SELL',
-            'sort_order'      => 1,
-            'paid_at'         => now(),
+            'mode' => 'CASH',
+            'amount' => 10000.00,
+            'source' => 'BUY_SELL',
+            'sort_order' => 1,
+            'paid_at' => now(),
         ]);
 
         $response = $this->deleteJson("/bhav-bookings/{$booking->id}");

@@ -98,15 +98,13 @@ class BhavBooking extends Model
     {
         $total = (float) ($this->total_weight ?? 0);
         $delivered = (float) ($this->delivered_weight ?? 0);
+
         return round($total - $delivered, 3);
     }
 
     /**
      * Generate the next unique booking number formatted like "BB-000001".
      * Supports optional row locking inside database transactions.
-     *
-     * @param bool $lock
-     * @return string
      */
     public static function nextBookingNo(bool $lock = false): string
     {

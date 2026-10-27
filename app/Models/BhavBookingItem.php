@@ -46,8 +46,6 @@ class BhavBookingItem extends Model
 
     /**
      * Each item line belongs to a parent BhavBooking.
-     *
-     * @return BelongsTo
      */
     public function booking(): BelongsTo
     {

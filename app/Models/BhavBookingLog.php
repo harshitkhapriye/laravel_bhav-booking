@@ -50,8 +50,6 @@ class BhavBookingLog extends Model
 
     /**
      * Booking relationship.
-     *
-     * @return BelongsTo
      */
     public function booking(): BelongsTo
     {
@@ -60,8 +58,6 @@ class BhavBookingLog extends Model
 
     /**
      * Generate a concise human-readable summary of the log entry.
-     *
-     * @return string
      */
     public function getSummaryAttribute(): string
     {
@@ -69,6 +65,7 @@ class BhavBookingLog extends Model
             case 'CREATED':
                 $weight = $this->new_values['total_weight'] ?? 0;
                 $amount = isset($this->new_values['total_amount']) ? number_format((float) $this->new_values['total_amount'], 2) : '0.00';
+
                 return "Created booking (Weight: {$weight} gm, Amount: ₹{$amount})";
 
             case 'UPDATED':
@@ -91,13 +88,13 @@ class BhavBookingLog extends Model
                     $diffs[] = "Metal {$old['metal']} → {$new['metal']}";
                 }
                 if (isset($old['narration'], $new['narration']) && $old['narration'] !== $new['narration']) {
-                    $diffs[] = "Narration updated";
+                    $diffs[] = 'Narration updated';
                 }
                 if (isset($old['payments_count'], $new['payments_count']) && $old['payments_count'] !== $new['payments_count']) {
-                    $diffs[] = "Payments updated";
+                    $diffs[] = 'Payments updated';
                 }
 
-                return !empty($diffs) ? implode(', ', $diffs) : 'Updated booking details';
+                return ! empty($diffs) ? implode(', ', $diffs) : 'Updated booking details';
 
             case 'DELETED':
                 return 'Soft deleted booking';

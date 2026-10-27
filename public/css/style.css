@@ -22,7 +22,13 @@
 }
 
 body {
-    font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family:
+        'Quicksand',
+        -apple-system,
+        BlinkMacSystemFont,
+        'Segoe UI',
+        Roboto,
+        sans-serif;
     font-weight: 500;
     background-color: var(--bg-page);
     color: var(--text-dark);
@@ -32,34 +38,59 @@ body {
 }
 
 /* Form inputs, selects, textareas: 600 */
-input, select, textarea,
-.form-control, .form-select,
-.form-input-pill, .party-input-pill, .party-textarea-rounded,
-.filter-pill-input, .filter-pill-select {
+input,
+select,
+textarea,
+.form-control,
+.form-select,
+.form-input-pill,
+.party-input-pill,
+.party-textarea-rounded,
+.filter-pill-input,
+.filter-pill-select {
     font-weight: 600;
 }
 
 /* Labels and table headers: 700 */
-label, .form-label, .party-field-label,
-th, thead th, .table thead th,
-.bhav-table thead th, .old-bhav-table thead th, .parties-table thead th {
+label,
+.form-label,
+.party-field-label,
+th,
+thead th,
+.table thead th,
+.bhav-table thead th,
+.old-bhav-table thead th,
+.parties-table thead th {
     font-weight: 700;
 }
 
 /* Table body text: 500 */
-td, tbody td, .table tbody td,
-.bhav-table tbody td, .old-bhav-table tbody td, .parties-table tbody td {
+td,
+tbody td,
+.table tbody td,
+.bhav-table tbody td,
+.old-bhav-table tbody td,
+.parties-table tbody td {
     font-weight: 500;
 }
 
 /* Numbers (weights, rates, amounts): 600 */
 .font-monospace,
-.col-buy, .col-sell,
-td.col-buy, td.col-sell,
-td.cell-buy-wt, td.cell-buy-rate, td.cell-buy-amt,
-td.cell-sell-wt, td.cell-sell-rate, td.cell-sell-amt,
-td.cell-given-amt, td.cell-received-amt,
-.weight-number, .rate-number, .amount-number {
+.col-buy,
+.col-sell,
+td.col-buy,
+td.col-sell,
+td.cell-buy-wt,
+td.cell-buy-rate,
+td.cell-buy-amt,
+td.cell-sell-wt,
+td.cell-sell-rate,
+td.cell-sell-amt,
+td.cell-given-amt,
+td.cell-received-amt,
+.weight-number,
+.rate-number,
+.amount-number {
     font-weight: 600;
 }
 
@@ -103,8 +134,12 @@ textarea::placeholder,
 }
 
 @keyframes tableBarSlide {
-    0% { left: -35%; }
-    100% { left: 100%; }
+    0% {
+        left: -35%;
+    }
+    100% {
+        left: 100%;
+    }
 }
 
 /* --------------------------------------------------------------------------
@@ -499,13 +534,16 @@ textarea::placeholder,
     left: 2px;
     width: 95px;
     border-radius: 50px;
-    transition: transform 250ms ease, background 250ms ease, box-shadow 250ms ease;
+    transition:
+        transform 250ms ease,
+        background 250ms ease,
+        box-shadow 250ms ease;
     z-index: 1;
     pointer-events: none;
 }
 
 /* When BUY is active (pill on left): green gradient + soft green shadow */
-.trade-toggle-container[data-mode="BUY"] .trade-toggle-pill,
+.trade-toggle-container[data-mode='BUY'] .trade-toggle-pill,
 .trade-toggle-container.mode-buy .trade-toggle-pill {
     transform: translateX(0);
     background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
@@ -513,7 +551,7 @@ textarea::placeholder,
 }
 
 /* When SELL is active (pill on right): coral/red gradient + soft red shadow */
-.trade-toggle-container[data-mode="SELL"] .trade-toggle-pill,
+.trade-toggle-container[data-mode='SELL'] .trade-toggle-pill,
 .trade-toggle-container.mode-sell .trade-toggle-pill {
     transform: translateX(95px);
     background: var(--coral-red-gradient);
@@ -573,7 +611,10 @@ textarea::placeholder,
 .entry-cell-input,
 .form-control,
 .form-select {
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
 }
 
 .form-input-pill {
@@ -657,7 +698,9 @@ textarea::placeholder,
     justify-content: center;
     font-size: 11px;
     cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.15s ease;
+    transition:
+        background-color 0.2s ease,
+        transform 0.15s ease;
 }
 
 .btn-round-navy:hover {
@@ -1073,7 +1116,9 @@ textarea::placeholder,
     border: 1px solid var(--border-light);
     border-radius: 14px;
     z-index: 1050;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+    box-shadow:
+        0 10px 25px -5px rgba(0, 0, 0, 0.1),
+        0 8px 10px -6px rgba(0, 0, 0, 0.08);
 }
 
 .customer-dropdown-header {
@@ -1156,7 +1201,9 @@ textarea::placeholder,
     border-radius: 14px;
     z-index: 1050;
     padding: 8px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+    box-shadow:
+        0 10px 25px -5px rgba(0, 0, 0, 0.12),
+        0 8px 10px -6px rgba(0, 0, 0, 0.08);
 }
 
 .date-preset-btn {
@@ -1171,7 +1218,9 @@ textarea::placeholder,
     color: #334155;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
 }
 
 .date-preset-btn:hover {
@@ -1198,7 +1247,7 @@ textarea::placeholder,
     margin-bottom: 2px;
 }
 
-.date-custom-panel input[type="date"] {
+.date-custom-panel input[type='date'] {
     font-size: 12px;
     padding: 4px 8px;
     border-radius: 8px;
@@ -1327,8 +1376,6 @@ textarea::placeholder,
     padding-top: 2px;
     padding-bottom: 2px;
 }
-
-
 
 .active-list-item {
     background-color: #f1f5f9;
@@ -1521,7 +1568,7 @@ textarea::placeholder,
 }
 
 .btn-action-kebab:hover,
-.btn-action-kebab[aria-expanded="true"] {
+.btn-action-kebab[aria-expanded='true'] {
     background-color: #f1f5f9;
     border-color: #cbd5e1;
     color: var(--navy-dark);
@@ -1531,7 +1578,9 @@ textarea::placeholder,
 .action-kebab-menu {
     border-radius: 12px;
     border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    box-shadow:
+        0 10px 25px -5px rgba(0, 0, 0, 0.1),
+        0 8px 10px -6px rgba(0, 0, 0, 0.1);
     z-index: 9999 !important;
 }
 
@@ -1962,11 +2011,11 @@ textarea::placeholder,
     pointer-events: none;
 }
 
-.party-segmented-toggle[data-type="CUSTOMER"] .party-toggle-slider {
+.party-segmented-toggle[data-type='CUSTOMER'] .party-toggle-slider {
     transform: translateX(0);
 }
 
-.party-segmented-toggle[data-type="SUPPLIER"] .party-toggle-slider {
+.party-segmented-toggle[data-type='SUPPLIER'] .party-toggle-slider {
     transform: translateX(105px);
 }
 
@@ -2198,7 +2247,9 @@ textarea::placeholder,
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    transition: max-height 250ms ease, opacity 250ms ease;
+    transition:
+        max-height 250ms ease,
+        opacity 250ms ease;
 }
 
 .additional-info-panel.expanded {
@@ -2334,19 +2385,22 @@ textarea::placeholder,
     left: 2px;
     width: 63px;
     border-radius: 50px;
-    transition: transform 250ms ease, background 250ms ease, box-shadow 250ms ease;
+    transition:
+        transform 250ms ease,
+        background 250ms ease,
+        box-shadow 250ms ease;
     z-index: 1;
     pointer-events: none;
 }
 
-.payment-mode-toggle-container[data-mode="CASH"] .payment-mode-toggle-pill,
+.payment-mode-toggle-container[data-mode='CASH'] .payment-mode-toggle-pill,
 .payment-mode-toggle-container.mode-cash .payment-mode-toggle-pill {
     transform: translateX(0);
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
 }
 
-.payment-mode-toggle-container[data-mode="ONLINE"] .payment-mode-toggle-pill,
+.payment-mode-toggle-container[data-mode='ONLINE'] .payment-mode-toggle-pill,
 .payment-mode-toggle-container.mode-online .payment-mode-toggle-pill {
     transform: translateX(63px);
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
@@ -2402,4 +2456,3 @@ textarea::placeholder,
     align-items: center;
     gap: 4px;
 }
-

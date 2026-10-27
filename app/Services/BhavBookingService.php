@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\BhavBooking;
 use App\Models\BhavBookingLog;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -15,7 +17,6 @@ class BhavBookingService
      * Why: In Indian bullion markets, rates are quoted per 10 grams (1 tola).
      * Server-side calculation ensures consistent calculations that client cannot tamper with.
      *
-     * @param array $items
      * @return array{items: array, total_weight: float, total_amount: float}
      */
     public function calculateItems(array $items): array
@@ -38,9 +39,9 @@ class BhavBookingService
 
             $calculatedItems[] = [
                 'sort_order' => $index + 1,
-                'weight'     => $weight,
-                'rate'       => $rate,
-                'amount'     => $rowAmount,
+                'weight' => $weight,
+                'rate' => $rate,
+                'amount' => $rowAmount,
             ];
         }
 
@@ -49,7 +50,7 @@ class BhavBookingService
         $totalAmount = round($totalAmount, 2);
 
         return [
-            'items'        => $calculatedItems,
+            'items' => $calculatedItems,
             'total_weight' => $totalWeight,
             'total_amount' => $totalAmount,
         ];
@@ -59,9 +60,6 @@ class BhavBookingService
      * Check whether a booking can be edited or deleted.
      * Allowed only if status = PENDING and delivered_weight = 0 and NO payments with source BUY_SELL.
      * Payments made at booking time (source BOOKING) do NOT block edit/delete.
-     *
-     * @param BhavBooking $booking
-     * @return bool
      */
     public function canModify(BhavBooking $booking): bool
     {
@@ -80,7 +78,6 @@ class BhavBookingService
      * Create a new Bhav Booking.
      * Includes idempotency check, server calculation, and DB transaction with locking.
      *
-     * @param array $validated
      * @return array{booking: BhavBooking, created: bool}
      */
     public function create(array $validated): array
@@ -114,7 +111,7 @@ class BhavBookingService
 
         if ($totalPayments > $calculated['total_amount']) {
             throw ValidationException::withMessages([
-                'payments' => ["Payment cannot be more than booking amount ₹" . indian_money($calculated['total_amount'])],
+                'payments' => ['Payment cannot be more than booking amount ₹'.indian_money($calculated['total_amount'])],
             ]);
         }
 
@@ -136,41 +133,41 @@ class BhavBookingService
                     $bookingNo = BhavBooking::nextBookingNo(true);
 
                     $newBooking = BhavBooking::create([
-                        'booking_no'       => $bookingNo,
-                        'customer_id'      => $validated['customer_id'],
-                        'trade_type'       => $validated['trade_type'],
-                        'entry_type'       => $validated['entry_type'],
-                        'metal'            => $validated['metal'],
-                        'total_weight'     => $calculated['total_weight'],
-                        'total_amount'     => $calculated['total_amount'],
+                        'booking_no' => $bookingNo,
+                        'customer_id' => $validated['customer_id'],
+                        'trade_type' => $validated['trade_type'],
+                        'entry_type' => $validated['entry_type'],
+                        'metal' => $validated['metal'],
+                        'total_weight' => $calculated['total_weight'],
+                        'total_amount' => $calculated['total_amount'],
                         'delivered_weight' => 0.000,
-                        'given_amount'     => $givenAmount,
-                        'received_amount'  => $receivedAmount,
-                        'status'           => 'PENDING',
-                        'narration'        => $validated['narration'] ?? null,
-                        'send_whatsapp'    => $validated['send_whatsapp'] ?? false,
-                        'request_token'    => $validated['request_token'],
-                        'booked_at'        => now(),
+                        'given_amount' => $givenAmount,
+                        'received_amount' => $receivedAmount,
+                        'status' => 'PENDING',
+                        'narration' => $validated['narration'] ?? null,
+                        'send_whatsapp' => $validated['send_whatsapp'] ?? false,
+                        'request_token' => $validated['request_token'],
+                        'booked_at' => now(),
                     ]);
 
                     // Save line items
                     $newBooking->items()->createMany($calculated['items']);
 
                     // Save payments with source = 'BOOKING'
-                    if (!empty($paymentsData)) {
+                    if (! empty($paymentsData)) {
                         $now = now();
                         $paymentRows = [];
                         foreach ($paymentsData as $index => $payment) {
                             $paymentRows[] = [
-                                'mode'          => $payment['mode'],
+                                'mode' => $payment['mode'],
                                 'online_method' => $payment['mode'] === 'ONLINE' ? ($payment['online_method'] ?? 'UPI') : null,
-                                'reference_no'  => $payment['reference_no'] ?? null,
-                                'amount'        => round((float) $payment['amount'], 2),
-                                'source'        => 'BOOKING',
-                                'sort_order'    => $index + 1,
-                                'paid_at'       => $now,
-                                'created_at'    => $now,
-                                'updated_at'    => $now,
+                                'reference_no' => $payment['reference_no'] ?? null,
+                                'amount' => round((float) $payment['amount'], 2),
+                                'source' => 'BOOKING',
+                                'sort_order' => $index + 1,
+                                'paid_at' => $now,
+                                'created_at' => $now,
+                                'updated_at' => $now,
                             ];
                         }
                         $newBooking->payments()->createMany($paymentRows);
@@ -179,21 +176,21 @@ class BhavBookingService
                     // Activity log: booking created
                     BhavBookingLog::create([
                         'bhav_booking_id' => $newBooking->id,
-                        'action'          => 'CREATED',
-                        'old_values'      => null,
-                        'new_values'      => [
-                            'booking_no'      => $newBooking->booking_no,
-                            'trade_type'      => $newBooking->trade_type,
-                            'metal'           => $newBooking->metal,
-                            'total_weight'    => (float) $newBooking->total_weight,
-                            'total_amount'    => (float) $newBooking->total_amount,
-                            'given_amount'    => (float) $newBooking->given_amount,
+                        'action' => 'CREATED',
+                        'old_values' => null,
+                        'new_values' => [
+                            'booking_no' => $newBooking->booking_no,
+                            'trade_type' => $newBooking->trade_type,
+                            'metal' => $newBooking->metal,
+                            'total_weight' => (float) $newBooking->total_weight,
+                            'total_amount' => (float) $newBooking->total_amount,
+                            'given_amount' => (float) $newBooking->given_amount,
                             'received_amount' => (float) $newBooking->received_amount,
-                            'payments_count'  => count($paymentsData),
+                            'payments_count' => count($paymentsData),
                         ],
-                        'ip_address'      => request()->ip(),
-                        'user_agent'      => request()->userAgent(),
-                        'created_at'      => now(),
+                        'ip_address' => request()->ip(),
+                        'user_agent' => request()->userAgent(),
+                        'created_at' => now(),
                     ]);
 
                     return $newBooking;
@@ -205,7 +202,7 @@ class BhavBookingService
                     'booking' => $booking,
                     'created' => true,
                 ];
-            } catch (\Illuminate\Database\UniqueConstraintViolationException|\Illuminate\Database\QueryException $e) {
+            } catch (UniqueConstraintViolationException|QueryException $e) {
                 // Bug c: If inserting fails because request_token already exists, return existing booking with 200
                 $existing = BhavBooking::where('request_token', $validated['request_token'])
                     ->with(['items', 'customer', 'payments'])
@@ -232,10 +229,6 @@ class BhavBookingService
      * Update an existing Bhav Booking.
      * Recalculates totals and atomically replaces line items and BOOKING payments inside a DB transaction.
      * Never touches BUY_SELL source payments.
-     *
-     * @param BhavBooking $booking
-     * @param array $validated
-     * @return BhavBooking
      */
     public function update(BhavBooking $booking, array $validated): BhavBooking
     {
@@ -265,21 +258,21 @@ class BhavBookingService
 
         if ($totalPayments > $calculated['total_amount']) {
             throw ValidationException::withMessages([
-                'payments' => ["Payment cannot be more than booking amount ₹" . indian_money($calculated['total_amount'])],
+                'payments' => ['Payment cannot be more than booking amount ₹'.indian_money($calculated['total_amount'])],
             ]);
         }
 
         // Snapshot old values before update
         $oldValues = [
-            'booking_no'      => $booking->booking_no,
-            'trade_type'      => $booking->trade_type,
-            'metal'           => $booking->metal,
-            'total_weight'    => (float) $booking->total_weight,
-            'total_amount'    => (float) $booking->total_amount,
-            'given_amount'    => (float) $booking->given_amount,
+            'booking_no' => $booking->booking_no,
+            'trade_type' => $booking->trade_type,
+            'metal' => $booking->metal,
+            'total_weight' => (float) $booking->total_weight,
+            'total_amount' => (float) $booking->total_amount,
+            'given_amount' => (float) $booking->given_amount,
             'received_amount' => (float) $booking->received_amount,
-            'narration'       => $booking->narration,
-            'payments_count'  => $booking->payments()->count(),
+            'narration' => $booking->narration,
+            'payments_count' => $booking->payments()->count(),
         ];
 
         // Recalculate given_amount / received_amount based on current trade_type
@@ -291,15 +284,15 @@ class BhavBookingService
         DB::transaction(function () use ($booking, $validated, $calculated, $paymentsData, $givenAmount, $receivedAmount, $oldValues) {
             $booking->update([
                 // customer_id is immutable in edit mode: always retain original value from database
-                'trade_type'      => $validated['trade_type'],
-                'entry_type'      => $validated['entry_type'],
-                'metal'           => $validated['metal'],
-                'total_weight'    => $calculated['total_weight'],
-                'total_amount'    => $calculated['total_amount'],
-                'given_amount'    => $givenAmount,
+                'trade_type' => $validated['trade_type'],
+                'entry_type' => $validated['entry_type'],
+                'metal' => $validated['metal'],
+                'total_weight' => $calculated['total_weight'],
+                'total_amount' => $calculated['total_amount'],
+                'given_amount' => $givenAmount,
                 'received_amount' => $receivedAmount,
-                'narration'       => $validated['narration'] ?? null,
-                'send_whatsapp'   => $validated['send_whatsapp'] ?? false,
+                'narration' => $validated['narration'] ?? null,
+                'send_whatsapp' => $validated['send_whatsapp'] ?? false,
             ]);
 
             // Delete old items and insert fresh calculated items
@@ -309,20 +302,20 @@ class BhavBookingService
             // Replace only the payments with source BOOKING; never touch source BUY_SELL payments
             $booking->payments()->where('source', 'BOOKING')->delete();
 
-            if (!empty($paymentsData)) {
+            if (! empty($paymentsData)) {
                 $now = now();
                 $paymentRows = [];
                 foreach ($paymentsData as $index => $payment) {
                     $paymentRows[] = [
-                        'mode'          => $payment['mode'],
+                        'mode' => $payment['mode'],
                         'online_method' => $payment['mode'] === 'ONLINE' ? ($payment['online_method'] ?? 'UPI') : null,
-                        'reference_no'  => $payment['reference_no'] ?? null,
-                        'amount'        => round((float) $payment['amount'], 2),
-                        'source'        => 'BOOKING',
-                        'sort_order'    => $index + 1,
-                        'paid_at'       => $now,
-                        'created_at'    => $now,
-                        'updated_at'    => $now,
+                        'reference_no' => $payment['reference_no'] ?? null,
+                        'amount' => round((float) $payment['amount'], 2),
+                        'source' => 'BOOKING',
+                        'sort_order' => $index + 1,
+                        'paid_at' => $now,
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ];
                 }
                 $booking->payments()->createMany($paymentRows);
@@ -331,22 +324,22 @@ class BhavBookingService
             // Activity log: booking updated
             BhavBookingLog::create([
                 'bhav_booking_id' => $booking->id,
-                'action'          => 'UPDATED',
-                'old_values'      => $oldValues,
-                'new_values'      => [
-                    'booking_no'      => $booking->booking_no,
-                    'trade_type'      => $validated['trade_type'],
-                    'metal'           => $validated['metal'],
-                    'total_weight'    => $calculated['total_weight'],
-                    'total_amount'    => $calculated['total_amount'],
-                    'given_amount'    => $givenAmount,
+                'action' => 'UPDATED',
+                'old_values' => $oldValues,
+                'new_values' => [
+                    'booking_no' => $booking->booking_no,
+                    'trade_type' => $validated['trade_type'],
+                    'metal' => $validated['metal'],
+                    'total_weight' => $calculated['total_weight'],
+                    'total_amount' => $calculated['total_amount'],
+                    'given_amount' => $givenAmount,
                     'received_amount' => $receivedAmount,
-                    'narration'       => $validated['narration'] ?? null,
-                    'payments_count'  => count($paymentsData),
+                    'narration' => $validated['narration'] ?? null,
+                    'payments_count' => count($paymentsData),
                 ],
-                'ip_address'      => request()->ip(),
-                'user_agent'      => request()->userAgent(),
-                'created_at'      => now(),
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'created_at' => now(),
             ]);
         });
 
@@ -357,10 +350,6 @@ class BhavBookingService
 
     /**
      * Soft delete an existing Bhav Booking.
-     *
-     * @param BhavBooking $booking
-     * @param bool $silent
-     * @return bool
      */
     public function delete(BhavBooking $booking, bool $silent = false): bool
     {
@@ -372,19 +361,19 @@ class BhavBookingService
         }
 
         $oldValues = [
-            'booking_no'   => $booking->booking_no,
+            'booking_no' => $booking->booking_no,
             'total_weight' => (float) $booking->total_weight,
             'total_amount' => (float) $booking->total_amount,
         ];
 
         BhavBookingLog::create([
             'bhav_booking_id' => $booking->id,
-            'action'          => $silent ? 'SILENT_DELETED' : 'DELETED',
-            'old_values'      => $oldValues,
-            'new_values'      => null,
-            'ip_address'      => request()->ip(),
-            'user_agent'      => request()->userAgent(),
-            'created_at'      => now(),
+            'action' => $silent ? 'SILENT_DELETED' : 'DELETED',
+            'old_values' => $oldValues,
+            'new_values' => null,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
         ]);
 
         return (bool) $booking->delete();
@@ -392,22 +381,17 @@ class BhavBookingService
 
     /**
      * Log an external action on a booking (e.g. PRINTED, SHARED).
-     *
-     * @param BhavBooking $booking
-     * @param string $action
-     * @param array|null $meta
-     * @return BhavBookingLog
      */
     public function logAction(BhavBooking $booking, string $action, ?array $meta = null): BhavBookingLog
     {
         return BhavBookingLog::create([
             'bhav_booking_id' => $booking->id,
-            'action'          => strtoupper($action),
-            'old_values'      => null,
-            'new_values'      => $meta,
-            'ip_address'      => request()->ip(),
-            'user_agent'      => request()->userAgent(),
-            'created_at'      => now(),
+            'action' => strtoupper($action),
+            'old_values' => null,
+            'new_values' => $meta,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
         ]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -61,7 +62,7 @@ class ListBhavBookingRequest extends FormRequest
             $merge['page'] = (int) $this->page;
         }
 
-        if (!empty($merge)) {
+        if (! empty($merge)) {
             $this->merge($merge);
         }
     }
@@ -69,14 +70,14 @@ class ListBhavBookingRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'party'      => ['nullable', 'string', 'max:100'],
-            'date_from'  => ['nullable', 'date_format:Y-m-d'],
-            'date_to'    => [
+            'party' => ['nullable', 'string', 'max:100'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => [
                 'nullable',
                 'date_format:Y-m-d',
                 function ($attribute, $value, $fail) {
@@ -88,11 +89,11 @@ class ListBhavBookingRequest extends FormRequest
                 },
             ],
             'trade_type' => ['nullable', 'string', 'in:ALL,BUY,SELL'],
-            'metal'      => ['nullable', 'string', 'in:ALL,GOLD,SILVER'],
+            'metal' => ['nullable', 'string', 'in:ALL,GOLD,SILVER'],
             'entry_type' => ['nullable', 'string', 'in:ALL,ONLY_ENTRY,BHAV_CUT_LEDGER'],
-            'view'       => ['nullable', 'string', 'in:current,old'],
-            'per_page'   => ['nullable', 'integer', 'in:10,50,100'],
-            'page'       => ['nullable', 'integer', 'min:1'],
+            'view' => ['nullable', 'string', 'in:current,old'],
+            'per_page' => ['nullable', 'integer', 'in:10,50,100'],
+            'page' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -100,8 +101,6 @@ class ListBhavBookingRequest extends FormRequest
      * Handle a failed validation attempt.
      * Always return a JSON response even when accessed via browser address bar.
      *
-     * @param Validator $validator
-     * @return void
      *
      * @throws HttpResponseException
      */
@@ -109,7 +108,7 @@ class ListBhavBookingRequest extends FormRequest
     {
         throw new HttpResponseException(response()->json([
             'message' => 'The given data was invalid.',
-            'errors'  => $validator->errors(),
+            'errors' => $validator->errors(),
         ], 422));
     }
 }

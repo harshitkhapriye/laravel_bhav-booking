@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePartyRequest;
 use App\Models\BhavBooking;
 use App\Models\Customer;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,9 +15,6 @@ class CustomerController extends Controller
 {
     /**
      * Search customers by name, mobile, or customer number.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function search(Request $request): JsonResponse
     {
@@ -32,8 +30,8 @@ class CustomerController extends Controller
             ->select(['id', 'customer_no', 'name', 'mobile', 'city', 'party_type', 'profile_image'])
             ->where(function ($query) use ($q) {
                 $query->where('name', 'LIKE', "%{$q}%")
-                      ->orWhere('mobile', 'LIKE', "{$q}%")
-                      ->orWhere('customer_no', 'LIKE', "{$q}%");
+                    ->orWhere('mobile', 'LIKE', "{$q}%")
+                    ->orWhere('customer_no', 'LIKE', "{$q}%");
             })
             ->orderBy('name', 'asc')
             ->limit(10)
@@ -46,8 +44,6 @@ class CustomerController extends Controller
      * Get recent customers ordered by their latest Bhav Booking.
      * Fills remaining slots up to 8 with newest customers by id desc without duplicates.
      * Selects only required columns.
-     *
-     * @return JsonResponse
      */
     public function recent(): JsonResponse
     {
@@ -63,7 +59,7 @@ class CustomerController extends Controller
 
         // 2. Fetch the corresponding Customer models, preserving the order of recent bookings
         $recentCustomers = collect();
-        if (!empty($recentCustomerIds)) {
+        if (! empty($recentCustomerIds)) {
             $recentCustomers = Customer::query()
                 ->select(['id', 'customer_no', 'name', 'mobile', 'city', 'party_type', 'profile_image'])
                 ->whereIn('id', $recentCustomerIds)
@@ -97,8 +93,7 @@ class CustomerController extends Controller
      * Store a newly created party (Customer or Supplier).
      * Accepts multipart/form-data for image uploads.
      *
-     * @param Request $request
-     * @return JsonResponse
+     * @param  Request  $request
      */
     public function store(StorePartyRequest $request): JsonResponse
     {
@@ -118,7 +113,7 @@ class CustomerController extends Controller
         }
 
         // City fallback: city if provided, otherwise district
-        $city = !empty($validated['city']) ? $validated['city'] : ($validated['district'] ?? null);
+        $city = ! empty($validated['city']) ? $validated['city'] : ($validated['district'] ?? null);
 
         $customer = null;
         $maxRetries = 3;
@@ -128,14 +123,14 @@ class CustomerController extends Controller
                 $customer = DB::transaction(function () use ($validated, $isFamilySubProfile, $city, $profileImagePath, $shopLogoPath) {
                     // Mobile duplicate race: before insert, re-check uniqueness inside transaction
                     $allowSameMobileAsParent = false;
-                    if ($isFamilySubProfile && !empty($validated['parent_customer_id'] ?? null)) {
+                    if ($isFamilySubProfile && ! empty($validated['parent_customer_id'] ?? null)) {
                         $parent = Customer::find($validated['parent_customer_id']);
                         if ($parent && (string) $parent->mobile === (string) $validated['mobile']) {
                             $allowSameMobileAsParent = true;
                         }
                     }
 
-                    if (!$allowSameMobileAsParent) {
+                    if (! $allowSameMobileAsParent) {
                         $exists = Customer::where('mobile', $validated['mobile'])->lockForUpdate()->exists();
                         if ($exists) {
                             throw ValidationException::withMessages([
@@ -148,33 +143,33 @@ class CustomerController extends Controller
                     $customerNo = Customer::generateNextCustomerNo(true);
 
                     return Customer::create([
-                        'customer_no'        => $customerNo,
-                        'name'               => $validated['name'],
-                        'party_type'         => $validated['party_type'] ?? 'CUSTOMER',
+                        'customer_no' => $customerNo,
+                        'name' => $validated['name'],
+                        'party_type' => $validated['party_type'] ?? 'CUSTOMER',
                         'parent_customer_id' => $isFamilySubProfile ? ($validated['parent_customer_id'] ?? null) : null,
-                        'mobile'             => $validated['mobile'],
-                        'city'               => $city,
-                        'email'              => $validated['email'] ?? null,
-                        'address'            => $validated['address'] ?? null,
-                        'profile_image'      => $profileImagePath,
-                        'birthday'           => $validated['birthday'] ?? null,
-                        'anniversary'        => $validated['anniversary'] ?? null,
-                        'aadhaar_no'         => $validated['aadhaar_no'] ?? null,
-                        'pan_no'             => $validated['pan_no'] ?? null,
-                        'gst_no'             => $validated['gst_no'] ?? null,
-                        'lic_no'             => $validated['lic_no'] ?? null,
-                        'reg_no'             => $validated['reg_no'] ?? null,
-                        'logo_title'         => $validated['logo_title'] ?? null,
-                        'shop_name'          => $validated['shop_name'] ?? null,
-                        'state'              => $validated['state'] ?? null,
-                        'district'           => $validated['district'] ?? null,
-                        'area'               => $validated['area'] ?? null,
-                        'shop_address'       => $validated['shop_address'] ?? null,
-                        'shop_logo'          => $shopLogoPath,
+                        'mobile' => $validated['mobile'],
+                        'city' => $city,
+                        'email' => $validated['email'] ?? null,
+                        'address' => $validated['address'] ?? null,
+                        'profile_image' => $profileImagePath,
+                        'birthday' => $validated['birthday'] ?? null,
+                        'anniversary' => $validated['anniversary'] ?? null,
+                        'aadhaar_no' => $validated['aadhaar_no'] ?? null,
+                        'pan_no' => $validated['pan_no'] ?? null,
+                        'gst_no' => $validated['gst_no'] ?? null,
+                        'lic_no' => $validated['lic_no'] ?? null,
+                        'reg_no' => $validated['reg_no'] ?? null,
+                        'logo_title' => $validated['logo_title'] ?? null,
+                        'shop_name' => $validated['shop_name'] ?? null,
+                        'state' => $validated['state'] ?? null,
+                        'district' => $validated['district'] ?? null,
+                        'area' => $validated['area'] ?? null,
+                        'shop_address' => $validated['shop_address'] ?? null,
+                        'shop_logo' => $shopLogoPath,
                     ]);
                 });
                 break;
-            } catch (\Illuminate\Database\QueryException $e) {
+            } catch (QueryException $e) {
                 if ($attempt < $maxRetries && (($e->errorInfo[1] ?? 0) === 1062 || $e->getCode() === '23000')) {
                     continue;
                 }
@@ -183,12 +178,12 @@ class CustomerController extends Controller
         }
 
         return response()->json([
-            'id'                => $customer->id,
-            'customer_no'       => $customer->customer_no,
-            'name'              => $customer->name,
-            'mobile'            => $customer->mobile,
-            'city'              => $customer->city,
-            'party_type'        => $customer->party_type,
+            'id' => $customer->id,
+            'customer_no' => $customer->customer_no,
+            'name' => $customer->name,
+            'mobile' => $customer->mobile,
+            'city' => $customer->city,
+            'party_type' => $customer->party_type,
             'profile_image_url' => $customer->profile_image_url,
         ], 201);
     }

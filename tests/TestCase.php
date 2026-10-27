@@ -16,7 +16,7 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         if (config('database.connections.mysql.database') !== 'myapp10_test') {
-            throw new \RuntimeException("Refusing to run tests on a non-test database");
+            throw new \RuntimeException('Refusing to run tests on a non-test database');
         }
     }
 }

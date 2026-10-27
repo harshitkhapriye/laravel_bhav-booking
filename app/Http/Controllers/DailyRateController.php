@@ -10,9 +10,6 @@ class DailyRateController extends Controller
 {
     /**
      * Get today's bullion rates for Gold and Silver.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function today(Request $request): JsonResponse
     {
@@ -23,18 +20,15 @@ class DailyRateController extends Controller
      * Store or update today's bullion rates.
      * Accepts gold_rate / silver_rate directly or an array of rates.
      * Rate must be strictly greater than 0.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'gold_rate'      => ['nullable', 'numeric', 'gt:0'],
-            'silver_rate'    => ['nullable', 'numeric', 'gt:0'],
-            'rates'          => ['nullable', 'array'],
-            'rates.*.metal'  => ['required_with:rates', 'in:GOLD,SILVER'],
-            'rates.*.rate'   => ['required_with:rates', 'numeric', 'gt:0'],
+            'gold_rate' => ['nullable', 'numeric', 'gt:0'],
+            'silver_rate' => ['nullable', 'numeric', 'gt:0'],
+            'rates' => ['nullable', 'array'],
+            'rates.*.metal' => ['required_with:rates', 'in:GOLD,SILVER'],
+            'rates.*.rate' => ['required_with:rates', 'numeric', 'gt:0'],
         ]);
 
         $today = now()->toDateString();
@@ -55,7 +49,7 @@ class DailyRateController extends Controller
         }
 
         // Handle array of rates
-        if (!empty($validated['rates'])) {
+        if (! empty($validated['rates'])) {
             foreach ($validated['rates'] as $rateItem) {
                 DailyRate::updateOrCreate(
                     ['metal' => strtoupper($rateItem['metal']), 'rate_date' => $today],
@@ -66,7 +60,7 @@ class DailyRateController extends Controller
 
         return response()->json([
             'message' => "Today's rates updated successfully.",
-            'rates'   => DailyRate::getTodayRates(),
+            'rates' => DailyRate::getTodayRates(),
         ]);
     }
 }

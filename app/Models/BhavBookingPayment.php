@@ -39,15 +39,13 @@ class BhavBookingPayment extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'amount'     => 'decimal:2',
+        'amount' => 'decimal:2',
         'sort_order' => 'integer',
-        'paid_at'    => 'datetime',
+        'paid_at' => 'datetime',
     ];
 
     /**
      * Each payment belongs to a parent BhavBooking.
-     *
-     * @return BelongsTo
      */
     public function booking(): BelongsTo
     {
