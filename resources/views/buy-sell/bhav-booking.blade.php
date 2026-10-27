@@ -56,7 +56,7 @@
                 </ul>
             </div>
 
-            <a href="#" class="btn-home-link" title="Dashboard">
+            <a href="#" class="btn-home-link" title="Dashboard" aria-label="Dashboard">
                 <i class="fa-solid fa-house"></i>
             </a>
 
@@ -132,7 +132,7 @@
                                         <!-- Autocomplete Results Dropdown -->
                                         <div class="customer-dropdown-menu shadow" id="customerSearchResults" style="display: none;"></div>
                                     </div>
-                                    <button type="button" class="btn btn-round-navy flex-shrink-0" id="btnOpenAddCustomerModal" title="Add Customer">
+                                    <button type="button" class="btn btn-round-navy flex-shrink-0" id="btnOpenAddCustomerModal" title="Add Customer" aria-label="Add Customer">
                                         <i class="fa-solid fa-user-plus"></i>
                                     </button>
                                 </div>
@@ -186,7 +186,7 @@
                                         <input type="text" inputmode="decimal" class="form-control form-input-pill pe-5" id="inputWeight" placeholder="0.000">
                                         <span class="field-suffix">GM</span>
                                     </div>
-                                    <button type="button" class="btn btn-round-navy flex-shrink-0" id="btnAddWeight" title="Add Weight Entry">
+                                    <button type="button" class="btn btn-round-navy flex-shrink-0" id="btnAddWeight" title="Add Weight Entry" aria-label="Add Weight Entry">
                                         <i class="fa-solid fa-plus"></i>
                                     </button>
                                 </div>
@@ -237,6 +237,7 @@
                                             <thead class="bg-light text-secondary small">
                                                 <tr>
                                                     <th class="text-center py-2 col-entry-sn">#</th>
+                                                    <th class="text-center py-2 col-entry-metal" style="width: 70px;">METAL</th>
                                                     <th class="text-end py-2 col-entry-wt">WEIGHT (GM)</th>
                                                     <th class="text-end py-2 col-entry-rt">RATE (₹)</th>
                                                     <th class="text-end py-2 col-entry-amt">AMOUNT (₹)</th>
@@ -246,12 +247,26 @@
                                             <tbody id="entriesTableBody">
                                                 <!-- Dynamic rows rendered from single source of truth in JS -->
                                             </tbody>
-                                            <tfoot class="table-light fw-bold small">
-                                                <tr>
-                                                    <td class="text-center text-muted">TOTAL</td>
-                                                    <td class="text-end text-primary" id="entriesTotalWeight">0.000 gm</td>
+                                            <tfoot class="table-light fw-bold small" id="entriesTableFoot">
+                                                <tr id="entriesGoldTotalRow" style="display: none;">
+                                                    <td colspan="2" class="text-start ps-2"><span class="badge bg-warning text-dark me-1">GOLD</span> TOTAL</td>
+                                                    <td class="text-end text-primary" id="entriesGoldWeight">0.000 gm</td>
                                                     <td></td>
-                                                    <td class="text-end text-success" id="entriesTotalAmount">₹0.00</td>
+                                                    <td class="text-end text-success" id="entriesGoldAmount">₹0.00</td>
+                                                    <td></td>
+                                                </tr>
+                                                <tr id="entriesSilverTotalRow" style="display: none;">
+                                                    <td colspan="2" class="text-start ps-2"><span class="badge bg-secondary me-1">SILVER</span> TOTAL</td>
+                                                    <td class="text-end text-primary" id="entriesSilverWeight">0.000 gm</td>
+                                                    <td></td>
+                                                    <td class="text-end text-success" id="entriesSilverAmount">₹0.00</td>
+                                                    <td></td>
+                                                </tr>
+                                                <tr id="entriesGrandTotalRow">
+                                                    <td colspan="2" class="text-start ps-2 text-muted">TOTAL AMOUNT</td>
+                                                    <td class="text-end text-muted small" id="entriesTotalWeight">-</td>
+                                                    <td></td>
+                                                    <td class="text-end text-success fs-6" id="entriesTotalAmount">₹0.00</td>
                                                     <td></td>
                                                 </tr>
                                             </tfoot>
@@ -293,7 +308,7 @@
                                     </div>
 
                                     <!-- Add Payment Button -->
-                                    <button type="button" class="btn btn-round-navy flex-shrink-0" id="btnAddPayment" title="Add Payment Entry">
+                                    <button type="button" class="btn btn-round-navy flex-shrink-0" id="btnAddPayment" title="Add Payment Entry" aria-label="Add Payment Entry">
                                         <i class="fa-solid fa-plus"></i>
                                     </button>
                                 </div>
@@ -348,7 +363,7 @@
                         <div class="mb-2">
                             <div class="remarks-input-wrapper">
                                 <i class="fa-solid fa-pen remarks-icon"></i>
-                                <textarea class="form-control remarks-textarea" id="inputNarration" rows="2" maxlength="255" placeholder="Enter narration or transaction remarks..."></textarea>
+                                <textarea class="form-control remarks-textarea" id="inputNarration" rows="2" maxlength="255" placeholder="Enter narration or transaction remarks..." aria-label="Narration or remarks"></textarea>
                             </div>
                             <div id="narrationCounter" class="text-end small text-muted mt-0 pe-2" style="font-size: 11px;">0/255</div>
                         </div>
@@ -359,7 +374,7 @@
                                 <i class="fa-brands fa-whatsapp text-success whatsapp-icon"></i>
                                 <span class="whatsapp-text">Send on WhatsApp</span>
                                 <div class="form-check form-switch m-0 ms-2">
-                                    <input class="form-check-input whatsapp-switch-input" type="checkbox" role="switch" id="whatsappSwitch">
+                                    <input class="form-check-input whatsapp-switch-input" type="checkbox" role="switch" id="whatsappSwitch" aria-label="Send on WhatsApp">
                                 </div>
                             </div>
                         </div>
@@ -409,7 +424,7 @@
                         <div class="col-12 col-md-6">
                             <div class="input-with-icon">
                                 <i class="fa-solid fa-magnifying-glass field-icon text-muted"></i>
-                                <input type="text" class="form-control form-input-pill ps-5" id="filterPartyInput" placeholder="Search Party, Mobile, Booking No...">
+                                <input type="text" class="form-control form-input-pill ps-5" id="filterPartyInput" placeholder="Search Party, Mobile, Booking No..." aria-label="Filter bookings by party or booking number">
                             </div>
                         </div>
 
@@ -422,7 +437,8 @@
                                        class="form-control form-input-pill text-center pe-5 cursor-pointer"
                                        id="dateRangeInput"
                                        value="{{ date('d-m-Y') }} - {{ date('d-m-Y') }}"
-                                       readonly>
+                                       readonly
+                                       aria-label="Filter date range">
                                 <span class="field-suffix text-muted">
                                     <i class="fa-regular fa-calendar-days"></i>
                                 </span>
@@ -457,7 +473,7 @@
                     <div class="row g-2 align-items-center mb-3">
                         <!-- Trade Filter -->
                         <div class="col-3 col-sm-3">
-                            <select class="form-select form-input-pill text-center" id="filterTradeSelect">
+                            <select class="form-select form-input-pill text-center" id="filterTradeSelect" aria-label="Filter by trade type">
                                 <option value="ALL" selected>Trade: All</option>
                                 <option value="BUY">Buy</option>
                                 <option value="SELL">Sell</option>
@@ -466,7 +482,7 @@
 
                         <!-- Metal Filter -->
                         <div class="col-3 col-sm-3">
-                            <select class="form-select form-input-pill text-center" id="filterMetalSelect">
+                            <select class="form-select form-input-pill text-center" id="filterMetalSelect" aria-label="Filter by metal">
                                 <option value="ALL" selected>Metal: All</option>
                                 <option value="GOLD">Gold</option>
                                 <option value="SILVER">Silver</option>
@@ -475,7 +491,7 @@
 
                         <!-- Type Filter -->
                         <div class="col-3 col-sm-3">
-                            <select class="form-select form-input-pill text-center" id="filterTypeSelect">
+                            <select class="form-select form-input-pill text-center" id="filterTypeSelect" aria-label="Filter by entry type">
                                 <option value="ALL" selected>Type: All</option>
                                 <option value="ONLY_ENTRY">Only Entry</option>
                                 <option value="BHAV_CUT_LEDGER">Bhav Cut + Ledger</option>
@@ -484,7 +500,7 @@
 
                         <!-- Page Size Selector -->
                         <div class="col-3 col-sm-3">
-                            <select class="form-select form-input-pill text-center" id="pageSizeSelect">
+                            <select class="form-select form-input-pill text-center" id="pageSizeSelect" aria-label="Bookings per page">
                                 <option value="10" selected>10 / page</option>
                                 <option value="50">50 / page</option>
                                 <option value="100">100 / page</option>
@@ -595,6 +611,7 @@
         bhavBookingUpdate: "{{ route('bhav-bookings.update', ['bhavBooking' => '__ID__']) }}",
         bhavBookingDelete: "{{ route('bhav-bookings.destroy', ['bhavBooking' => '__ID__']) }}",
         bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingGroupPrint: "{{ route('bhav-bookings.group.print', ['groupId' => '__GROUP_ID__']) }}",
         bhavBookingExport: "{{ route('bhav-bookings.export') }}",
         bhavBookingLogAction: "{{ route('bhav-bookings.log-action', ['bhavBooking' => '__ID__']) }}",
         dailyRatesToday: "{{ route('daily-rates.today') }}",
@@ -604,8 +621,8 @@
 @endsection
 
 @section('scripts')
-    <script src="{{ asset('js/bhav-common.js') }}" defer></script>
-    <script src="{{ asset('js/bhav-booking.js') }}" defer></script>
+    <script src="{{ asset('js/bhav-common.js') }}?v={{ filemtime(public_path('js/bhav-common.js')) }}" defer></script>
+    <script src="{{ asset('js/bhav-booking.js') }}?v={{ filemtime(public_path('js/bhav-booking.js')) }}" defer></script>
 @endsection
 
 

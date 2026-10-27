@@ -17,6 +17,25 @@ class StoreBhavBookingRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     * Backwards compatibility: if top-level metal is provided and items.*.metal is missing, default item metal to top-level metal.
+     */
+    protected function prepareForValidation(): void
+    {
+        $items = $this->input('items');
+        $metal = $this->input('metal');
+
+        if (is_array($items) && $metal) {
+            foreach ($items as &$item) {
+                if (is_array($item) && ! isset($item['metal'])) {
+                    $item['metal'] = $metal;
+                }
+            }
+            $this->merge(['items' => $items]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -30,8 +49,9 @@ class StoreBhavBookingRequest extends FormRequest
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'trade_type' => ['required', 'in:BUY,SELL'],
             'entry_type' => ['required', 'in:ONLY_ENTRY,BHAV_CUT_LEDGER'],
-            'metal' => ['required', 'in:GOLD,SILVER'],
+            'metal' => ['nullable', 'in:GOLD,SILVER'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
+            'items.*.metal' => ['required', 'in:GOLD,SILVER'],
             'items.*.weight' => ['required', 'numeric', 'gt:0', "max:{$maxWeight}"],
             'items.*.rate' => ['required', 'numeric', 'gt:0', "max:{$maxRate}"],
             'payments' => ['nullable', 'array', 'max:20'],

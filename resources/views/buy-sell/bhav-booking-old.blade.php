@@ -43,7 +43,7 @@
                 </ul>
             </div>
 
-            <a href="{{ route('bhav-booking.index') }}" class="btn-home-link" title="Dashboard">
+            <a href="{{ route('bhav-booking.index') }}" class="btn-home-link" title="Dashboard" aria-label="Dashboard">
                 <i class="fa-solid fa-house"></i>
             </a>
 
@@ -132,7 +132,7 @@
                 </button>
 
                 <!-- Far Right: Round Orange Back Button -->
-                <button type="button" class="btn btn-round-orange ms-auto" id="btnBackNavigation" title="Back">
+                <button type="button" class="btn btn-round-orange ms-auto" id="btnBackNavigation" title="Back" aria-label="Back">
                     <i class="fa-solid fa-chevron-left"></i>
                 </button>
             </div>
@@ -151,7 +151,7 @@
                         <tr>
                             <th class="text-center" style="width: 75px;">
                                 <div class="d-flex align-items-center justify-content-center gap-1">
-                                    <input type="checkbox" class="form-check-input m-0 cursor-pointer" id="selectAllRowsCheckbox" title="Select all rows">
+                                    <input type="checkbox" class="form-check-input m-0 cursor-pointer" id="selectAllRowsCheckbox" title="Select all rows" aria-label="Select all rows">
                                     <span>SN</span>
                                 </div>
                             </th>
@@ -219,6 +219,6 @@
 @endsection
 
 @section('scripts')
-    <script src="{{ asset('js/bhav-common.js') }}" defer></script>
-    <script src="{{ asset('js/bhav-booking-old.js') }}" defer></script>
+    <script src="{{ asset('js/bhav-common.js') }}?v={{ filemtime(public_path('js/bhav-common.js')) }}" defer></script>
+    <script src="{{ asset('js/bhav-booking-old.js') }}?v={{ filemtime(public_path('js/bhav-booking-old.js')) }}" defer></script>
 @endsection

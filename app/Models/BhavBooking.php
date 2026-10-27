@@ -19,6 +19,7 @@ class BhavBooking extends Model
      */
     protected $fillable = [
         'booking_no',
+        'booking_group_id',
         'customer_id',
         'trade_type',
         'entry_type',

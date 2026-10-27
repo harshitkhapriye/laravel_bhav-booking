@@ -23,6 +23,27 @@ class UpdateBhavBookingRequest extends StoreBhavBookingRequest
         // Existing bookings retain their permanent request_token, and customer cannot be changed in edit mode
         unset($rules['request_token'], $rules['customer_id']);
 
+        // Metal is required for single booking update
+        $rules['metal'] = ['required', 'in:GOLD,SILVER'];
+
         return $rules;
+    }
+
+    /**
+     * Configure the validator instance to reject rows of a different metal.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $metal = $this->input('metal');
+            $items = $this->input('items', []);
+            if ($metal && is_array($items)) {
+                foreach ($items as $index => $item) {
+                    if (isset($item['metal']) && $item['metal'] !== $metal) {
+                        $validator->errors()->add("items.{$index}.metal", "All items must be of {$metal} metal for this booking.");
+                    }
+                }
+            }
+        });
     }
 }

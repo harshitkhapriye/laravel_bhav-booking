@@ -1,3 +1,4 @@
+/* global escapeHtml, formatDateDisplay, showToast, apiFetch */
 /**
  * Party Master JavaScript Module
  * Application: Just Udhari
@@ -20,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentSearch = '';
     let currentPartyType = 'ALL';
     let searchDebounceTimer = null;
+    let partiesListAbortController = null;
     let currentViewingPartyId = null;
     let isAdditionalExpanded = false;
     let parentSearchDebounceTimer = null;
@@ -34,8 +36,6 @@ document.addEventListener('DOMContentLoaded', function () {
         customerStore: '/customers',
         customerSearch: '/customers/search',
     };
-
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     // =========================================================================
     // DOM ELEMENTS - LIST & FILTERS
@@ -115,7 +115,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // DOM ELEMENTS - MODAL: VIEW PARTY
     // =========================================================================
     const partyViewModalEl = document.getElementById('partyViewModal');
-    const partyViewModalLabel = document.getElementById('partyViewModalLabel');
     const viewPartyTypeBadge = document.getElementById('viewPartyTypeBadge');
     const viewPartyProfilePlaceholder = document.getElementById('viewPartyProfilePlaceholder');
     const viewPartyProfileImg = document.getElementById('viewPartyProfileImg');
@@ -159,6 +158,12 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function fetchParties(page = 1) {
         currentPage = page;
+
+        if (partiesListAbortController) {
+            partiesListAbortController.abort();
+        }
+        partiesListAbortController = new AbortController();
+
         showLoadingState();
 
         const params = new URLSearchParams({
@@ -168,21 +173,15 @@ document.addEventListener('DOMContentLoaded', function () {
             q: currentSearch,
         });
 
-        fetch(`${routes.partiesList}?${params.toString()}`, {
-            headers: {
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+        apiFetch(`${routes.partiesList}?${params.toString()}`, {
+            signal: partiesListAbortController.signal,
         })
-            .then((res) => {
-                if (!res.ok) throw new Error('Failed to fetch parties');
-                return res.json();
-            })
             .then((data) => {
                 renderPartiesTable(data.rows || data.data || [], data.pagination || {});
                 renderPagination(data.pagination || {});
             })
             .catch((err) => {
+                if (err.name === 'AbortError') return;
                 console.error('Error fetching parties:', err);
                 renderErrorState('Failed to load parties. Please try again.');
             });
@@ -331,7 +330,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         partiesTableBody.innerHTML = html;
-        wireActionMenuEvents();
     }
 
     /**
@@ -405,17 +403,6 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
 
         partiesPaginationLinks.innerHTML = linksHtml;
-
-        // Wire page click events
-        partiesPaginationLinks.querySelectorAll('.page-link[data-page]').forEach((btn) => {
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                const targetPage = parseInt(this.getAttribute('data-page'), 10);
-                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= lastPage) {
-                    fetchParties(targetPage);
-                }
-            });
-        });
     }
 
     // =========================================================================
@@ -450,37 +437,46 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // =========================================================================
-    // 3. ACTION MENU EVENTS (VIEW, EDIT, DELETE)
-    // =========================================================================
-
-    function wireActionMenuEvents() {
-        // View Party
-        document.querySelectorAll('.action-party-view').forEach((btn) => {
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                const partyId = this.getAttribute('data-id');
-                openViewModal(partyId);
-            });
+    // Delegated pagination link clicks
+    if (partiesPaginationLinks) {
+        partiesPaginationLinks.addEventListener('click', function (e) {
+            const link = e.target.closest('.page-link[data-page]');
+            if (!link || link.parentElement.classList.contains('disabled')) return;
+            e.preventDefault();
+            const targetPage = parseInt(link.getAttribute('data-page'), 10);
+            if (targetPage && targetPage !== currentPage && targetPage >= 1) {
+                fetchParties(targetPage);
+            }
         });
+    }
 
-        // Edit Party
-        document.querySelectorAll('.action-party-edit').forEach((btn) => {
-            btn.addEventListener('click', function (e) {
+    // Delegated action menu events (View, Edit, Delete) on partiesTableBody
+    if (partiesTableBody) {
+        partiesTableBody.addEventListener('click', function (e) {
+            const viewBtn = e.target.closest('.action-party-view');
+            if (viewBtn) {
                 e.preventDefault();
-                const partyId = this.getAttribute('data-id');
-                openEditModal(partyId);
-            });
-        });
+                const partyId = viewBtn.getAttribute('data-id');
+                if (partyId) openViewModal(partyId);
+                return;
+            }
 
-        // Delete Party
-        document.querySelectorAll('.action-party-delete').forEach((btn) => {
-            btn.addEventListener('click', function (e) {
+            const editBtn = e.target.closest('.action-party-edit');
+            if (editBtn) {
                 e.preventDefault();
-                const partyId = this.getAttribute('data-id');
-                const partyName = this.getAttribute('data-name') || 'this party';
-                confirmDeleteParty(partyId, partyName);
-            });
+                const partyId = editBtn.getAttribute('data-id');
+                if (partyId) openEditModal(partyId);
+                return;
+            }
+
+            const deleteBtn = e.target.closest('.action-party-delete');
+            if (deleteBtn) {
+                e.preventDefault();
+                const partyId = deleteBtn.getAttribute('data-id');
+                const partyName = deleteBtn.getAttribute('data-name') || 'this party';
+                if (partyId) confirmDeleteParty(partyId, partyName);
+                return;
+            }
         });
     }
 
@@ -498,22 +494,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const showUrl = routes.partiesShow.replace('__ID__', partyId);
 
-        fetch(showUrl, {
-            headers: {
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        })
-            .then((res) => {
-                if (!res.ok) throw new Error('Party not found');
-                return res.json();
-            })
+        apiFetch(showUrl)
             .then((party) => {
                 populateViewModal(party);
             })
             .catch((err) => {
                 console.error('Error fetching party details:', err);
-                showToast('Failed to load party details', 'error');
                 if (partyViewModal) partyViewModal.hide();
             });
     }
@@ -669,14 +655,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 famHtml += '</div>';
                 viewFamilyMembersContainer.innerHTML = famHtml;
-
-                // Click handler for viewing family sub-profile directly
-                viewFamilyMembersContainer.querySelectorAll('.btn-view-family-member').forEach((btn) => {
-                    btn.addEventListener('click', function () {
-                        const mid = this.getAttribute('data-id');
-                        openViewModal(mid);
-                    });
-                });
             }
         }
 
@@ -733,14 +711,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function formatDateDisplay(dateStr) {
-        if (!dateStr) return '-';
-        const parts = dateStr.split('-');
-        if (parts.length === 3) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-        return dateStr;
+    if (viewFamilyMembersContainer) {
+        viewFamilyMembersContainer.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-view-family-member');
+            if (btn) {
+                e.preventDefault();
+                const mid = btn.getAttribute('data-id');
+                if (mid) openViewModal(mid);
+            }
+        });
     }
+
+    // formatDateDisplay is provided by bhav-common.js
 
     // =========================================================================
     // 5. ADD / EDIT PARTY DETAIL MODAL LOGIC
@@ -788,23 +770,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const showUrl = routes.partiesShow.replace('__ID__', partyId);
 
-        fetch(showUrl, {
-            headers: {
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        })
-            .then((res) => {
-                if (!res.ok) throw new Error('Party not found');
-                return res.json();
-            })
+        apiFetch(showUrl)
             .then((party) => {
                 prefillEditForm(party);
                 if (addCustomerModal) addCustomerModal.show();
             })
             .catch((err) => {
                 console.error('Error opening edit modal:', err);
-                showToast('Failed to load party details for edit', 'error');
             });
     }
 
@@ -1150,11 +1122,9 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
         parentCustomerSearchResults.style.display = 'block';
 
-        fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
+        apiFetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
             signal: parentSearchAbortController.signal,
-            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
-            .then((res) => res.json())
             .then((results) => {
                 // Exclude current editing party from parent list to prevent self-referencing
                 const currentEditId = editPartyIdInput ? parseInt(editPartyIdInput.value, 10) : null;
@@ -1177,42 +1147,45 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
                 });
                 parentCustomerSearchResults.innerHTML = html;
-
-                parentCustomerSearchResults.querySelectorAll('.parent-search-item').forEach((item) => {
-                    item.addEventListener('click', function () {
-                        const chosen = {
-                            id: this.getAttribute('data-id'),
-                            name: this.getAttribute('data-name'),
-                            mobile: this.getAttribute('data-mobile'),
-                            customer_no: this.getAttribute('data-no'),
-                        };
-
-                        selectedParentCustomer = chosen;
-                        if (hiddenParentCustomerId) hiddenParentCustomerId.value = chosen.id;
-                        if (parentCustomerSearchInput) parentCustomerSearchInput.value = chosen.name;
-                        if (parentCustomerSearchResults) parentCustomerSearchResults.style.display = 'none';
-
-                        if (parentCustomerSelectedBadge) {
-                            parentCustomerSelectedBadge.style.display = 'block';
-                            parentCustomerSelectedBadge.innerHTML = `
-                            <div class="alert alert-info py-1 px-2 m-0 small d-flex align-items-center justify-content-between">
-                                <span><strong>Selected Parent:</strong> ${escapeHtml(chosen.name)} (${escapeHtml(chosen.customer_no)})</span>
-                            </div>
-                        `;
-                        }
-
-                        if (newCustomerMobile && !newCustomerMobile.value.trim() && chosen.mobile) {
-                            newCustomerMobile.value = chosen.mobile;
-                        }
-                    });
-                });
             })
             .catch((err) => {
                 if (err.name === 'AbortError') return;
+                console.warn('Parent search error:', err);
                 parentCustomerSearchResults.innerHTML = `
-                <div class="p-2 text-center text-danger small">Search failed</div>
-            `;
+                    <div class="p-2 text-center text-danger small">Search failed</div>
+                `;
             });
+    }
+
+    if (parentCustomerSearchResults) {
+        parentCustomerSearchResults.addEventListener('click', function (e) {
+            const item = e.target.closest('.parent-search-item');
+            if (!item) return;
+            const chosen = {
+                id: item.getAttribute('data-id'),
+                name: item.getAttribute('data-name'),
+                mobile: item.getAttribute('data-mobile'),
+                customer_no: item.getAttribute('data-no'),
+            };
+
+            selectedParentCustomer = chosen;
+            if (hiddenParentCustomerId) hiddenParentCustomerId.value = chosen.id;
+            if (parentCustomerSearchInput) parentCustomerSearchInput.value = chosen.name;
+            parentCustomerSearchResults.style.display = 'none';
+
+            if (parentCustomerSelectedBadge) {
+                parentCustomerSelectedBadge.style.display = 'block';
+                parentCustomerSelectedBadge.innerHTML = `
+                    <div class="alert alert-info py-1 px-2 m-0 small d-flex align-items-center justify-content-between">
+                        <span><strong>Selected Parent:</strong> ${escapeHtml(chosen.name)} (${escapeHtml(chosen.customer_no)})</span>
+                    </div>
+                `;
+            }
+
+            if (newCustomerMobile && !newCustomerMobile.value.trim() && chosen.mobile) {
+                newCustomerMobile.value = chosen.mobile;
+            }
+        });
     }
 
     // State & Dynamic District Population
@@ -1529,32 +1502,22 @@ document.addEventListener('DOMContentLoaded', function () {
             btnSaveNewCustomer.disabled = true;
             btnSaveNewCustomer.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Saving...';
 
-            fetch(targetUrl, {
+            apiFetch(targetUrl, {
                 method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
                 body: formData,
             })
-                .then((res) => {
-                    return res.json().then((data) => {
-                        if (!res.ok) {
-                            handleValidationErrors(data);
-                            throw new Error(data.message || 'Validation failed');
-                        }
-                        return data;
-                    });
-                })
-                .then((data) => {
+                .then(() => {
                     if (addCustomerModal) addCustomerModal.hide();
                     resetPartyModal();
                     showToast(isEdit ? 'Party updated successfully' : 'Party created successfully', 'success');
                     fetchParties(isEdit ? currentPage : 1);
                 })
                 .catch((err) => {
-                    console.warn('Save party response:', err);
+                    if (err.status === 422 && err.data) {
+                        handleValidationErrors(err.data);
+                    } else {
+                        console.warn('Save party response error:', err);
+                    }
                 })
                 .finally(() => {
                     btnSaveNewCustomer.disabled = false;
@@ -1649,31 +1612,24 @@ document.addEventListener('DOMContentLoaded', function () {
         const confirmed = window.confirm(`Are you sure you want to delete ${partyName}? This action cannot be undone.`);
         if (!confirmed) return;
 
-        const deleteUrl = routes.partiesDestroy.replace('__ID__', partyId);
+        const originalConfirmHtml = document.getElementById('btnConfirmDeleteParty')?.innerHTML;
+        const confirmBtn = document.getElementById('btnConfirmDeleteParty');
+        if (confirmBtn) confirmBtn.disabled = true;
 
-        fetch(deleteUrl, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        })
-            .then((res) => {
-                return res.json().then((data) => {
-                    if (!res.ok) {
-                        throw new Error(data.message || 'Cannot delete party');
-                    }
-                    return data;
-                });
-            })
+        const deleteUrl = routes.partiesDestroy.replace('__ID__', partyId);
+        apiFetch(deleteUrl, { method: 'DELETE' })
             .then((data) => {
                 showToast(data.message || 'Party deleted successfully', 'success');
                 fetchParties(currentPage);
             })
             .catch((err) => {
                 console.error('Delete party error:', err);
-                showToast(err.message || 'Failed to delete party', 'error');
+            })
+            .finally(() => {
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    if (originalConfirmHtml) confirmBtn.innerHTML = originalConfirmHtml;
+                }
             });
     }
 

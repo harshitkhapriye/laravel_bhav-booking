@@ -142,6 +142,7 @@ class BhavBookingController extends Controller
         $paginator = $query->select([
             'id',
             'booking_no',
+            'booking_group_id',
             'customer_id',
             'trade_type',
             'entry_type',
@@ -169,6 +170,7 @@ class BhavBookingController extends Controller
             return [
                 'id' => $booking->id,
                 'booking_no' => $booking->booking_no,
+                'booking_group_id' => $booking->booking_group_id,
                 'customer' => $booking->customer ? [
                     'id' => $booking->customer->id,
                     'customer_no' => $booking->customer->customer_no,
@@ -236,7 +238,16 @@ class BhavBookingController extends Controller
         $validated = $request->validated();
         $result = $this->bhavBookingService->create($validated);
 
-        return response()->json($result['booking'], $result['created'] ? 201 : 200);
+        $primary = $result['bookings'][0] ?? null;
+        $payload = array_merge(
+            $primary ? $primary->toArray() : [],
+            [
+                'bookings' => $result['bookings'],
+                'group_id' => $result['group_id'],
+            ]
+        );
+
+        return response()->json($payload, $result['created'] ? 201 : 200);
     }
 
     /**
@@ -403,5 +414,23 @@ class BhavBookingController extends Controller
         $booking = $bhavBooking->load(['customer', 'items', 'payments']);
 
         return view('buy-sell.bhav-booking-print', compact('booking'));
+    }
+
+    /**
+     * Print voucher view for all bookings in a group on one page.
+     */
+    public function printGroup(string $groupId)
+    {
+        $bookings = BhavBooking::where('booking_group_id', $groupId)
+            ->orWhere('request_token', $groupId)
+            ->with(['customer', 'items', 'payments'])
+            ->orderBy('id')
+            ->get();
+
+        if ($bookings->isEmpty()) {
+            abort(404, 'Booking group not found');
+        }
+
+        return view('buy-sell.bhav-booking-group-print', compact('bookings', 'groupId'));
     }
 }

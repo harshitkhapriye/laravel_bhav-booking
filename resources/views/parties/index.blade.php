@@ -43,7 +43,7 @@
                 </ul>
             </div>
 
-            <a href="{{ route('bhav-booking.index') }}" class="btn-home-link" title="Dashboard">
+            <a href="{{ route('bhav-booking.index') }}" class="btn-home-link" title="Dashboard" aria-label="Dashboard">
                 <i class="fa-solid fa-house"></i>
             </a>
 
@@ -166,6 +166,6 @@
 @endsection
 
 @section('scripts')
-    <script src="{{ asset('js/bhav-common.js') }}" defer></script>
-    <script src="{{ asset('js/parties.js') }}" defer></script>
+    <script src="{{ asset('js/bhav-common.js') }}?v={{ filemtime(public_path('js/bhav-common.js')) }}" defer></script>
+    <script src="{{ asset('js/parties.js') }}?v={{ filemtime(public_path('js/parties.js')) }}" defer></script>
 @endsection

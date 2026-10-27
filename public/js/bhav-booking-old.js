@@ -1,3 +1,4 @@
+/* global escapeHtml, formatIndianCurrency, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, getRoute, renderActionKebabMenu, handleActionKebabMenuClick, apiFetch */
 /**
  * Old Bhav Booking List - Page JavaScript Logic
  * Application: Just Udhari - Buy-Sell Module
@@ -140,32 +141,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Format server ISO/SQL datetime string into two compact lines:
-     * Line 1: DD-MM-YYYY (12px)
-     * Line 2: hh:mm AM/PM (10px grey)
-     */
-    function formatDateTimeTwoLines(dateString) {
-        if (!dateString) return '<span class="text-muted opacity-50">–</span>';
-        const d = new Date(dateString);
-        if (isNaN(d.getTime())) return `<div>${escapeHtml(dateString)}</div>`;
-
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-
-        let hours = d.getHours();
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-
-        return (
-            `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
-            `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${String(hours).padStart(2, '0')}:${minutes} ${ampm}</div>`
-        );
-    }
-
-    /**
      * Render table rows matching Old Booking specifications:
      * Columns: [checkbox] SN | Date/Time | C. No/C. Name | Narration Remark | Sell Weight (Gm) | Sell Rate (₹) | Buy Weight (Gm) | Buy Rate (₹) | Action
      */
@@ -299,11 +274,7 @@ document.addEventListener('DOMContentLoaded', function () {
             tooltipElements.forEach((el) => new bootstrap.Tooltip(el));
         }
 
-        // Attach row checkbox change listeners to update header checkbox state
-        const rowCheckboxes = oldTableBody.querySelectorAll('.row-select-checkbox');
-        rowCheckboxes.forEach((cb) => {
-            cb.addEventListener('change', updateSelectAllCheckboxState);
-        });
+        // Row checkbox state is tracked via a single delegated event listener on oldTableBody
     }
 
     /**
@@ -394,19 +365,6 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
 
         oldPaginationLinks.innerHTML = linksHtml;
-
-        // Wire page buttons
-        const pageButtons = oldPaginationLinks.querySelectorAll('button[data-page]');
-        pageButtons.forEach((btn) => {
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                if (this.disabled) return;
-                const targetPage = parseInt(this.getAttribute('data-page'), 10);
-                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= lastPage) {
-                    fetchOldBookings(targetPage);
-                }
-            });
-        });
     }
 
     // =========================================================================
@@ -463,20 +421,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const fullUrl = `${baseUrl}?${params.toString()}`;
 
-        fetch(fullUrl, {
+        apiFetch(fullUrl, {
             method: 'GET',
-            headers: {
-                Accept: 'application/json',
-            },
             signal: signal,
         })
-            .then(async (response) => {
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.message || 'Failed to load old bookings.');
-                }
-                return data;
-            })
             .then((data) => {
                 if (oldTableLoadingBar) oldTableLoadingBar.classList.remove('active');
                 if (oldTableBody) {
@@ -519,6 +467,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
             });
         });
+
+        // Delegated change listener for row-level checkboxes
+        oldTableBody.addEventListener('change', function (e) {
+            if (e.target && e.target.classList.contains('row-select-checkbox')) {
+                updateSelectAllCheckboxState();
+            }
+        });
     }
 
     // =========================================================================
@@ -539,6 +494,19 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pageSizeSelect) {
         pageSizeSelect.addEventListener('change', function () {
             fetchOldBookings(1);
+        });
+    }
+
+    // Delegated pagination links listener
+    if (oldPaginationLinks) {
+        oldPaginationLinks.addEventListener('click', function (e) {
+            const btn = e.target.closest('button[data-page]');
+            if (!btn || btn.disabled) return;
+            e.preventDefault();
+            const targetPage = parseInt(btn.getAttribute('data-page'), 10);
+            if (targetPage && targetPage !== currentOldPage && targetPage >= 1) {
+                fetchOldBookings(targetPage);
+            }
         });
     }
 

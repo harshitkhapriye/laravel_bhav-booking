@@ -1,3 +1,4 @@
+/* exported escapeHtml, formatIndianCurrency, formatDateTimeDisplay, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, pad2, getCsrfToken, getRoute, showToast, isBookingModifiable, generateBookingSummary, shareBooking, copySummaryToClipboard, fallbackClipboardCopy, whatsappBooking, deleteBookingWithConfirm, viewBookingDetails, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, initExportHandler, initKeyboardShortcuts */
 /**
  * Bhav Booking - Shared JavaScript Utilities & Handlers
  * Application: Just Udhari - Buy-Sell Module
@@ -9,6 +10,7 @@
  * - Toast notification dispenser
  * - Action Column 3-dot Kebab menu renderer and event handlers (View, Print, Share, WhatsApp, Delete, Silent Delete)
  * - View Booking Modal fetch and DOM populator
+ * - Unified apiFetch wrapper with consistent error/session handling
  */
 
 // Global helper: Escape HTML to prevent XSS injection
@@ -47,6 +49,11 @@ function formatIndianCurrency(amount) {
     return (isNegative ? '-' : '') + formattedInteger + '.' + decimalPart;
 }
 
+// Global helper: Zero-pad single-digit numbers
+function pad2(n) {
+    return String(n).padStart(2, '0');
+}
+
 // Global helper: Format date-time string into DD-MM-YYYY HH:MM AM/PM
 function formatDateTimeDisplay(dateStr) {
     if (!dateStr) return '-';
@@ -69,18 +76,59 @@ function formatDateTimeDisplay(dateStr) {
 
 // Global helper: Format Date object to YYYY-MM-DD
 function formatDateISO(d) {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    if (!d) return '';
+    const dateObj = d instanceof Date ? d : new Date(d);
+    if (isNaN(dateObj.getTime())) return String(d);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
 
-// Global helper: Format Date object to DD-MM-YYYY
+// Global helper: Format Date object or YYYY-MM-DD string to DD-MM-YYYY
 function formatDateDisplay(d) {
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
+    if (!d) return '-';
+    if (typeof d === 'string') {
+        const parts = d.split('-');
+        if (parts.length === 3 && parts[0].length === 4) {
+            return `${parts[2].padStart(2, '0')}-${parts[1].padStart(2, '0')}-${parts[0]}`;
+        }
+        const parsed = new Date(d);
+        if (!isNaN(parsed.getTime())) {
+            d = parsed;
+        } else {
+            return String(d);
+        }
+    }
+    if (d instanceof Date && !isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}-${month}-${year}`;
+    }
+    return String(d);
+}
+
+// Global helper: Format server ISO/SQL datetime string into two compact lines
+function formatDateTimeTwoLines(dateString) {
+    if (!dateString) return '<span class="text-muted opacity-50">–</span>';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return `<div>${escapeHtml(dateString)}</div>`;
+
+    const day = pad2(d.getDate());
+    const month = pad2(d.getMonth() + 1);
     const year = d.getFullYear();
-    return `${day}-${month}-${year}`;
+
+    let hours = d.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const minutes = pad2(d.getMinutes());
+
+    return (
+        `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
+        `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${pad2(hours)}:${minutes} ${ampm}</div>`
+    );
 }
 
 // Global helper: Retrieve CSRF token from page meta tag
@@ -99,12 +147,28 @@ function getRoute(routeName, id = null) {
     return id !== null ? url.replace('__ID__', id) : url;
 }
 
-// Global helper: Display floating Bootstrap toast notifications
-function showToast(message, type = 'info') {
+// Global helper: Display floating Bootstrap toast notifications (escaped by default, trusted HTML via options.html = true)
+function showToast(message, type = 'info', delay = 4500, options = {}) {
     const toastContainer = document.getElementById('toastContainer');
     if (!toastContainer) {
         alert(message);
         return;
+    }
+
+    let toastDelay = 4500;
+    let isTrustedHtml = false;
+
+    if (typeof delay === 'object' && delay !== null) {
+        isTrustedHtml = Boolean(delay.html);
+    } else {
+        if (typeof delay === 'number') {
+            toastDelay = delay;
+        }
+        if (typeof options === 'object' && options !== null) {
+            isTrustedHtml = Boolean(options.html);
+        } else if (typeof options === 'boolean') {
+            isTrustedHtml = options;
+        }
     }
 
     const toastId = 'toast-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -122,6 +186,8 @@ function showToast(message, type = 'info') {
         iconHtml = '<i class="fa-solid fa-triangle-exclamation text-warning me-2"></i>';
     }
 
+    // Always escape by default. Only allow unescaped HTML when explicitly requested with { html: true }
+    const contentHtml = isTrustedHtml ? String(message) : escapeHtml(String(message ?? ''));
     const toastEl = document.createElement('div');
     toastEl.id = toastId;
     toastEl.className = `toast align-items-center bg-white border-start border-4 ${borderClass} shadow-sm mb-2`;
@@ -133,7 +199,7 @@ function showToast(message, type = 'info') {
         <div class="d-flex">
             <div class="toast-body d-flex align-items-center py-2 px-3 fw-semibold text-dark small">
                 ${iconHtml}
-                <span>${escapeHtml(message)}</span>
+                <span>${contentHtml}</span>
             </div>
             <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
@@ -142,12 +208,155 @@ function showToast(message, type = 'info') {
     toastContainer.appendChild(toastEl);
 
     if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-        const bsToast = new bootstrap.Toast(toastEl, { delay: 3500 });
+        const bsToast = new bootstrap.Toast(toastEl, { delay: toastDelay });
         bsToast.show();
         toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
     } else {
-        setTimeout(() => toastEl.remove(), 3500);
+        setTimeout(() => toastEl.remove(), toastDelay);
     }
+}
+
+// Global helper: Centralized fetch wrapper with robust CSRF, error handling, and JSON safety
+async function apiFetch(url, options = {}) {
+    const opts = Object.assign({}, options);
+    opts.headers = Object.assign(
+        {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        opts.headers || {}
+    );
+
+    const method = (opts.method || 'GET').toUpperCase();
+    if (method !== 'GET' && method !== 'HEAD' && !opts.headers['X-CSRF-TOKEN']) {
+        const token = getCsrfToken();
+        if (token) {
+            opts.headers['X-CSRF-TOKEN'] = token;
+        }
+    }
+
+    let response;
+    try {
+        response = await fetch(url, opts);
+    } catch (networkError) {
+        if (networkError.name === 'AbortError') {
+            throw networkError;
+        }
+        console.error('Network request failed:', networkError);
+        showToast('Server error / no internet. Please try again.', 'error');
+        throw networkError;
+    }
+
+    let data = null;
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        try {
+            data = await response.json();
+        } catch (e) {
+            console.error('Failed to parse JSON response:', e);
+            data = null;
+        }
+    } else {
+        try {
+            const text = await response.text();
+            try {
+                data = JSON.parse(text);
+            } catch (_) {
+                data = text ? { message: text } : null;
+            }
+        } catch (_) {
+            data = null;
+        }
+    }
+
+    if (response.status === 419) {
+        showToast(
+            'Session expired. Please refresh the page. <button type="button" class="btn btn-sm btn-outline-primary ms-2 py-0 px-2" onclick="window.location.reload()">Refresh</button>',
+            'warning',
+            10000,
+            { html: true }
+        );
+        const err = new Error('Session expired');
+        err.status = 419;
+        err.response = response;
+        err.data = data;
+        throw err;
+    }
+
+    if (response.status === 429) {
+        showToast('Too many requests, please wait a moment.', 'warning');
+        const err = new Error('Too many requests');
+        err.status = 429;
+        err.response = response;
+        err.data = data;
+        throw err;
+    }
+
+    if (response.status === 404) {
+        const msg = data && data.message ? data.message : 'Record not found';
+        showToast(msg, 'error');
+        const err = new Error(msg);
+        err.status = 404;
+        err.response = response;
+        err.data = data;
+        throw err;
+    }
+
+    if (response.status === 422) {
+        const err = new Error(data && data.message ? data.message : 'Validation failed');
+        err.status = 422;
+        err.response = response;
+        err.data = data;
+        throw err;
+    }
+
+    if (!response.ok) {
+        if (response.status >= 500) {
+            console.error('Server error response:', response.status, data);
+            showToast('Server error / no internet. Please try again.', 'error');
+        } else {
+            const msg = data && data.message ? data.message : `Request failed (${response.status})`;
+            showToast(msg, 'error');
+        }
+        const err = new Error(data && data.message ? data.message : `HTTP ${response.status}`);
+        err.status = response.status;
+        err.response = response;
+        err.data = data;
+        throw err;
+    }
+
+    return data !== null ? data : {};
+}
+
+// Global helper: Modal focus accessibility (focus first field on open, return to opener on close)
+function setupModalAccessibility(modalEl, defaultFocusEl = null) {
+    if (!modalEl || modalEl.dataset.a11yInitialized === 'true') return;
+    modalEl.dataset.a11yInitialized = 'true';
+
+    let openerButton = null;
+    modalEl.addEventListener('show.bs.modal', function (e) {
+        openerButton = e.relatedTarget || document.activeElement;
+    });
+    modalEl.addEventListener('shown.bs.modal', function () {
+        if (defaultFocusEl) {
+            const target = typeof defaultFocusEl === 'string' ? modalEl.querySelector(defaultFocusEl) : defaultFocusEl;
+            if (target && typeof target.focus === 'function') {
+                target.focus();
+                return;
+            }
+        }
+        const firstField = modalEl.querySelector(
+            'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]):not(.btn-close)'
+        );
+        if (firstField && typeof firstField.focus === 'function') {
+            firstField.focus();
+        }
+    });
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        if (openerButton && typeof openerButton.focus === 'function') {
+            openerButton.focus();
+        }
+    });
 }
 
 // Global helper: Check whether a booking can be edited or deleted (PENDING, 0 delivered, and NO external BUY_SELL payments)
@@ -159,25 +368,71 @@ function isBookingModifiable(booking) {
     );
 }
 
-// Global helper: Generate a concise text summary of a booking
-function generateBookingSummary(booking) {
-    if (!booking) return '';
-    const bookingNo = booking.booking_no || '-';
-    const dateStr = formatDateTimeDisplay(booking.booked_at);
-    const customer = booking.customer || {};
+// Global helper: Generate a concise text summary of a booking or booking group
+function generateBookingSummary(input) {
+    if (!input) return '';
+    const bookings = Array.isArray(input)
+        ? input
+        : Array.isArray(input.bookings) && input.bookings.length > 0
+          ? input.bookings
+          : [input];
+    if (bookings.length === 0) return '';
+
+    if (bookings.length === 1) {
+        const booking = bookings[0];
+        const bookingNo = booking.booking_no || '-';
+        const dateStr = formatDateTimeDisplay(booking.booked_at);
+        const customer = booking.customer || {};
+        const customerName = customer.name || 'Customer';
+        const trade = (booking.trade_type || '').toUpperCase();
+        const metal = (booking.metal || '').toUpperCase();
+        const wt = (parseFloat(booking.total_weight) || 0).toFixed(3);
+        const amt = formatIndianCurrency(booking.total_amount || 0);
+
+        const payments = Array.isArray(booking.payments) ? booking.payments : [];
+        const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        const totalAmt = parseFloat(booking.total_amount) || 0;
+        const balance = Math.max(0, totalAmt - totalPaid);
+
+        let summaryText = `Booking: ${bookingNo}\nDate: ${dateStr}\nCustomer: ${customerName}\nTrade: ${trade}\nMetal: ${metal}\nWeight: ${wt} gm\nAmount: ₹${amt}`;
+        summaryText += `\nPaid: ₹${formatIndianCurrency(totalPaid)}\nBalance: ₹${formatIndianCurrency(balance)}`;
+
+        return summaryText;
+    }
+
+    // Multiple bookings in group
+    const first = bookings[0];
+    const customer = first.customer || {};
     const customerName = customer.name || 'Customer';
-    const trade = (booking.trade_type || '').toUpperCase();
-    const metal = (booking.metal || '').toUpperCase();
-    const wt = (parseFloat(booking.total_weight) || 0).toFixed(3);
-    const amt = formatIndianCurrency(booking.total_amount || 0);
+    const dateStr = formatDateTimeDisplay(first.booked_at);
+    const trade = (first.trade_type || '').toUpperCase();
 
-    const payments = Array.isArray(booking.payments) ? booking.payments : [];
-    const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-    const totalAmt = parseFloat(booking.total_amount) || 0;
-    const balance = Math.max(0, totalAmt - totalPaid);
+    let summaryText = `Booking Group Confirmation\nDate: ${dateStr}\nCustomer: ${customerName}\nTrade: ${trade}`;
 
-    let summaryText = `Booking: ${bookingNo}\nDate: ${dateStr}\nCustomer: ${customerName}\nTrade: ${trade}\nMetal: ${metal}\nWeight: ${wt} gm\nAmount: ₹${amt}`;
-    summaryText += `\nPaid: ₹${formatIndianCurrency(totalPaid)}\nBalance: ₹${formatIndianCurrency(balance)}`;
+    let grandAmount = 0;
+    let grandPaid = 0;
+
+    bookings.forEach((b) => {
+        const bNo = b.booking_no || '-';
+        const metal = (b.metal || '').toUpperCase();
+        const wt = (parseFloat(b.total_weight) || 0).toFixed(3);
+        const amt = parseFloat(b.total_amount) || 0;
+        const payments = Array.isArray(b.payments) ? b.payments : [];
+        const paid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
+        grandAmount += amt;
+        grandPaid += paid;
+
+        summaryText += `\n\n• ${bNo} (${metal}): ${wt} gm | ₹${formatIndianCurrency(amt)}`;
+        if (paid > 0) {
+            summaryText += ` | Paid: ₹${formatIndianCurrency(paid)}`;
+        }
+    });
+
+    const balance = Math.max(0, grandAmount - grandPaid);
+    summaryText += `\n\nTotal Amount: ₹${formatIndianCurrency(grandAmount)}`;
+    summaryText += `\nTotal Paid: ₹${formatIndianCurrency(grandPaid)}`;
+    summaryText += `\nBalance: ₹${formatIndianCurrency(balance)}`;
 
     return summaryText;
 }
@@ -185,10 +440,13 @@ function generateBookingSummary(booking) {
 // Global helper: Share booking details via Web Share API or Clipboard fallback
 function shareBooking(booking) {
     const summary = generateBookingSummary(booking);
+    const title = Array.isArray(booking)
+        ? 'Bhav Booking Group'
+        : `Bhav Booking ${booking.booking_no || ''}`;
     if (navigator.share) {
         navigator
             .share({
-                title: `Bhav Booking ${booking.booking_no || ''}`,
+                title: title,
                 text: summary,
             })
             .catch((err) => {
@@ -233,15 +491,21 @@ function fallbackClipboardCopy(text) {
 }
 
 // Global helper: Open WhatsApp web chat prefilled with booking summary
-function whatsappBooking(booking) {
-    const customer = booking.customer || {};
+function whatsappBooking(input) {
+    const bookings = Array.isArray(input)
+        ? input
+        : Array.isArray(input.bookings) && input.bookings.length > 0
+          ? input.bookings
+          : [input];
+    const first = bookings[0] || {};
+    const customer = first.customer || {};
     const rawMobile = String(customer.mobile || '').replace(/\D/g, '');
     if (!rawMobile || rawMobile.length < 10) {
         showToast('Customer mobile number not available', 'warning');
         return;
     }
     const clean10 = rawMobile.slice(-10);
-    const summary = generateBookingSummary(booking);
+    const summary = generateBookingSummary(input);
     const url = `https://wa.me/91${clean10}?text=${encodeURIComponent(summary)}`;
     window.open(url, '_blank');
 }
@@ -259,21 +523,7 @@ function deleteBookingWithConfirm(bookingId, bookingNo, amount, isSilent, onDele
     // but bypassed for Silent Delete.
     const deleteUrl = getRoute('bhavBookingDelete', bookingId);
 
-    fetch(deleteUrl, {
-        method: 'DELETE',
-        headers: {
-            Accept: 'application/json',
-            'X-CSRF-TOKEN': getCsrfToken(),
-        },
-    })
-        .then(async (response) => {
-            const data = await response.json();
-            if (!response.ok) {
-                showToast(data.message || 'Failed to delete booking.', 'error');
-                throw new Error(data.message || 'Delete failed');
-            }
-            return data;
-        })
+    apiFetch(deleteUrl, { method: 'DELETE' })
         .then(() => {
             const msg = isSilent ? `Booking ${bookingNo} silently deleted` : `Booking ${bookingNo} deleted`;
             showToast(msg, 'success');
@@ -290,20 +540,7 @@ function deleteBookingWithConfirm(bookingId, bookingNo, amount, isSilent, onDele
 function viewBookingDetails(bookingId) {
     const showUrl = getRoute('bhavBookingShow', bookingId);
 
-    fetch(showUrl, {
-        method: 'GET',
-        headers: {
-            Accept: 'application/json',
-        },
-    })
-        .then(async (response) => {
-            const data = await response.json();
-            if (!response.ok) {
-                showToast(data.message || 'Booking not found', 'error');
-                throw new Error(data.message || 'View failed');
-            }
-            return data;
-        })
+    apiFetch(showUrl)
         .then((booking) => {
             const viewBookingNo = document.getElementById('viewBookingNo');
             const viewBookingDateTime = document.getElementById('viewBookingDateTime');
@@ -531,12 +768,9 @@ function viewBookingDetails(bookingId) {
             if (btnViewModalPrint) {
                 btnViewModalPrint.onclick = function () {
                     if (window.APP_ROUTES && window.APP_ROUTES.bhavBookingLogAction) {
-                        fetch(getRoute('bhavBookingLogAction', booking.id), {
+                        apiFetch(getRoute('bhavBookingLogAction', booking.id), {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': getCsrfToken(),
-                            },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action: 'PRINTED' }),
                         }).catch(() => {});
                     }
@@ -573,6 +807,7 @@ function renderActionKebabMenu(booking) {
                     data-bs-toggle="dropdown"
                     data-bs-popper-config='{"strategy":"fixed"}'
                     aria-expanded="false"
+                    aria-label="Actions"
                     title="Actions">
                 <i class="fa-solid fa-ellipsis-vertical"></i>
             </button>
@@ -663,11 +898,18 @@ function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
         const id = parseInt(shareItem.getAttribute('data-id'), 10);
         const booking = bookingsMap ? bookingsMap[id] : null;
         if (booking) {
+            if (booking.booking_group_id && bookingsMap) {
+                const groupBookings = Object.values(bookingsMap).filter(
+                    (b) => b && b.booking_group_id === booking.booking_group_id
+                );
+                if (groupBookings.length > 1) {
+                    shareBooking(groupBookings);
+                    return;
+                }
+            }
             shareBooking(booking);
         } else if (id) {
-            fetch(getRoute('bhavBookingShow', id))
-                .then((r) => r.json())
-                .then((b) => shareBooking(b));
+            apiFetch(getRoute('bhavBookingShow', id)).then((b) => shareBooking(b));
         }
         return;
     }
@@ -679,11 +921,18 @@ function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
         const id = parseInt(waItem.getAttribute('data-id'), 10);
         const booking = bookingsMap ? bookingsMap[id] : null;
         if (booking) {
+            if (booking.booking_group_id && bookingsMap) {
+                const groupBookings = Object.values(bookingsMap).filter(
+                    (b) => b && b.booking_group_id === booking.booking_group_id
+                );
+                if (groupBookings.length > 1) {
+                    whatsappBooking(groupBookings);
+                    return;
+                }
+            }
             whatsappBooking(booking);
         } else if (id) {
-            fetch(getRoute('bhavBookingShow', id))
-                .then((r) => r.json())
-                .then((b) => whatsappBooking(b));
+            apiFetch(getRoute('bhavBookingShow', id)).then((b) => whatsappBooking(b));
         }
         return;
     }
@@ -759,12 +1008,6 @@ function showGlobalToast(message, type = 'info') {
     }, 4500);
 }
 
-// Global interceptor for 429 Throttle responses
-window.addEventListener('unhandledrejection', function (event) {
-    if (event.reason && event.reason.status === 429) {
-        showGlobalToast('Too many requests. Please slow down and try again shortly.', 'warning');
-    }
-});
 
 // =========================================================================
 // CSV EXPORT HANDLER (Streamed chunked download)
@@ -954,4 +1197,7 @@ function initKeyboardShortcuts() {
 document.addEventListener('DOMContentLoaded', function () {
     initExportHandler();
     initKeyboardShortcuts();
+    document.querySelectorAll('.modal').forEach((modalEl) => {
+        setupModalAccessibility(modalEl);
+    });
 });

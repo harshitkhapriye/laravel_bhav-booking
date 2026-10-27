@@ -19,7 +19,7 @@ class BhavBookingService
      *
      * @return array{items: array, total_weight: float, total_amount: float}
      */
-    public function calculateItems(array $items): array
+    public function calculateItems(array $items, ?string $defaultMetal = null): array
     {
         $rateUnitGrams = config('bhav.rate_unit_grams', 10);
 
@@ -37,8 +37,11 @@ class BhavBookingService
             $totalWeight += $weight;
             $totalAmount += $rowAmount;
 
+            $metal = $itemData['metal'] ?? $defaultMetal;
+
             $calculatedItems[] = [
                 'sort_order' => $index + 1,
+                'metal' => $metal,
                 'weight' => $weight,
                 'rate' => $rate,
                 'amount' => $rowAmount,
@@ -75,33 +78,66 @@ class BhavBookingService
     }
 
     /**
-     * Create a new Bhav Booking.
-     * Includes idempotency check, server calculation, and DB transaction with locking.
+     * Create new Bhav Bookings.
+     * Groups items by metal, creating one booking per metal inside a single DB transaction.
+     * Linked together via booking_group_id.
      *
-     * @return array{booking: BhavBooking, created: bool}
+     * @return array{bookings: array<BhavBooking>, group_id: string, created: bool, booking: ?BhavBooking}
      */
     public function create(array $validated): array
     {
-        // 1. DUPLICATE PROTECTION (Idempotency)
-        // Why: Double-clicks or network retries with the same UUID return the existing booking
-        // instead of creating an unwanted duplicate order.
-        $existing = BhavBooking::where('request_token', $validated['request_token'])
-            ->with(['items', 'customer', 'payments'])
-            ->first();
+        $groupId = $validated['request_token'];
 
-        if ($existing) {
+        // 1. DUPLICATE PROTECTION (Idempotency)
+        // If bookings with booking_group_id = request_token already exist, return them (200)
+        $existing = BhavBooking::where('booking_group_id', $groupId)
+            ->orWhere('request_token', $groupId)
+            ->with(['items', 'customer', 'payments'])
+            ->orderBy('id')
+            ->get();
+
+        if ($existing->isNotEmpty()) {
             return [
-                'booking' => $existing,
+                'bookings' => $existing->all(),
+                'group_id' => $existing->first()->booking_group_id ?? $groupId,
                 'created' => false,
+                'booking' => $existing->first(),
             ];
         }
 
-        // 2. SERVER-SIDE RECALCULATION
-        // Why: Shared formula ensures store and update always compute totals identically.
-        $calculated = $this->calculateItems($validated['items']);
+        // 2. GROUP ITEMS BY METAL
+        $itemsByMetal = [];
+        foreach ($validated['items'] as $item) {
+            $metal = $item['metal'] ?? ($validated['metal'] ?? 'GOLD');
+            $itemsByMetal[$metal][] = $item;
+        }
 
-        // 3. PAYMENT TOTAL VALIDATION
-        // Check that sum of payments does not exceed booking total amount
+        // Canonical order: GOLD first, then SILVER
+        $sortedMetals = [];
+        foreach (['GOLD', 'SILVER'] as $m) {
+            if (! empty($itemsByMetal[$m])) {
+                $sortedMetals[] = $m;
+            }
+        }
+        foreach (array_keys($itemsByMetal) as $m) {
+            if (! in_array($m, $sortedMetals, true)) {
+                $sortedMetals[] = $m;
+            }
+        }
+
+        // 3. SERVER-SIDE RECALCULATION PER METAL
+        $metalCalculated = [];
+        $combinedTotalAmount = 0.0;
+
+        foreach ($sortedMetals as $metal) {
+            $calc = $this->calculateItems($itemsByMetal[$metal], $metal);
+            $metalCalculated[$metal] = $calc;
+            $combinedTotalAmount += $calc['total_amount'];
+        }
+        $combinedTotalAmount = round($combinedTotalAmount, 2);
+
+        // 4. PAYMENT TOTAL VALIDATION
+        // Check that sum of payments does not exceed combined booking total amount
         $paymentsData = $validated['payments'] ?? [];
         $totalPayments = 0.0;
         foreach ($paymentsData as $p) {
@@ -109,113 +145,171 @@ class BhavBookingService
         }
         $totalPayments = round($totalPayments, 2);
 
-        if ($totalPayments > $calculated['total_amount']) {
+        if ($totalPayments > $combinedTotalAmount) {
             throw ValidationException::withMessages([
-                'payments' => ['Payment cannot be more than booking amount ₹'.indian_money($calculated['total_amount'])],
+                'payments' => ['Payment cannot be more than booking amount ₹'.indian_money($combinedTotalAmount)],
             ]);
         }
 
-        // Direction: SELL booking -> customer pays shop -> received_amount
-        //            BUY booking  -> shop pays customer -> given_amount
-        $isSell = $validated['trade_type'] === 'SELL';
-        $receivedAmount = $isSell ? $totalPayments : 0.00;
-        $givenAmount = $isSell ? 0.00 : $totalPayments;
+        // 5. ALLOCATE PAYMENTS ACROSS METALS
+        // Entry order: fill GOLD booking first, then SILVER. Split if boundary crossed.
+        $allocatedPayments = [];
+        foreach ($sortedMetals as $m) {
+            $allocatedPayments[$m] = [];
+        }
 
-        // 4. DATABASE TRANSACTION WITH RETRY (Bugs b and c)
-        // Why: Retries up to 3 times on booking_no race; catches duplicate request_token on idempotency race
+        $remainingCapacity = [];
+        foreach ($sortedMetals as $m) {
+            $remainingCapacity[$m] = $metalCalculated[$m]['total_amount'];
+        }
+
+        foreach ($paymentsData as $payment) {
+            $pAmount = round((float) $payment['amount'], 2);
+            if ($pAmount <= 0) {
+                continue;
+            }
+
+            foreach ($sortedMetals as $m) {
+                if ($remainingCapacity[$m] <= 0) {
+                    continue;
+                }
+
+                $take = min($pAmount, $remainingCapacity[$m]);
+                $take = round($take, 2);
+
+                if ($take > 0) {
+                    $splitPayment = $payment;
+                    $splitPayment['amount'] = $take;
+                    $allocatedPayments[$m][] = $splitPayment;
+
+                    $remainingCapacity[$m] = round($remainingCapacity[$m] - $take, 2);
+                    $pAmount = round($pAmount - $take, 2);
+                }
+
+                if ($pAmount <= 0) {
+                    break;
+                }
+            }
+        }
+
+        // 6. DATABASE TRANSACTION WITH RETRY
         $maxAttempts = 3;
         $attempt = 0;
 
         while ($attempt < $maxAttempts) {
             $attempt++;
             try {
-                $booking = DB::transaction(function () use ($validated, $calculated, $paymentsData, $givenAmount, $receivedAmount) {
-                    $bookingNo = BhavBooking::nextBookingNo(true);
+                $createdBookings = DB::transaction(function () use ($validated, $sortedMetals, $metalCalculated, $allocatedPayments, $groupId) {
+                    $bookings = [];
+                    $now = now();
+                    $isSell = $validated['trade_type'] === 'SELL';
 
-                    $newBooking = BhavBooking::create([
-                        'booking_no' => $bookingNo,
-                        'customer_id' => $validated['customer_id'],
-                        'trade_type' => $validated['trade_type'],
-                        'entry_type' => $validated['entry_type'],
-                        'metal' => $validated['metal'],
-                        'total_weight' => $calculated['total_weight'],
-                        'total_amount' => $calculated['total_amount'],
-                        'delivered_weight' => 0.000,
-                        'given_amount' => $givenAmount,
-                        'received_amount' => $receivedAmount,
-                        'status' => 'PENDING',
-                        'narration' => $validated['narration'] ?? null,
-                        'send_whatsapp' => $validated['send_whatsapp'] ?? false,
-                        'request_token' => $validated['request_token'],
-                        'booked_at' => now(),
-                    ]);
+                    foreach ($sortedMetals as $metal) {
+                        $calc = $metalCalculated[$metal];
+                        $metalPayments = $allocatedPayments[$metal] ?? [];
+                        $paidForBooking = round((float) collect($metalPayments)->sum('amount'), 2);
 
-                    // Save line items
-                    $newBooking->items()->createMany($calculated['items']);
+                        $receivedAmount = $isSell ? $paidForBooking : 0.00;
+                        $givenAmount = $isSell ? 0.00 : $paidForBooking;
 
-                    // Save payments with source = 'BOOKING'
-                    if (! empty($paymentsData)) {
-                        $now = now();
-                        $paymentRows = [];
-                        foreach ($paymentsData as $index => $payment) {
-                            $paymentRows[] = [
-                                'mode' => $payment['mode'],
-                                'online_method' => $payment['mode'] === 'ONLINE' ? ($payment['online_method'] ?? 'UPI') : null,
-                                'reference_no' => $payment['reference_no'] ?? null,
-                                'amount' => round((float) $payment['amount'], 2),
-                                'source' => 'BOOKING',
-                                'sort_order' => $index + 1,
-                                'paid_at' => $now,
-                                'created_at' => $now,
-                                'updated_at' => $now,
-                            ];
+                        $bookingNo = BhavBooking::nextBookingNo(true);
+
+                        $newBooking = BhavBooking::create([
+                            'booking_no' => $bookingNo,
+                            'booking_group_id' => $groupId,
+                            'customer_id' => $validated['customer_id'],
+                            'trade_type' => $validated['trade_type'],
+                            'entry_type' => $validated['entry_type'],
+                            'metal' => $metal,
+                            'total_weight' => $calc['total_weight'],
+                            'total_amount' => $calc['total_amount'],
+                            'delivered_weight' => 0.000,
+                            'given_amount' => $givenAmount,
+                            'received_amount' => $receivedAmount,
+                            'status' => 'PENDING',
+                            'narration' => $validated['narration'] ?? null,
+                            'send_whatsapp' => $validated['send_whatsapp'] ?? false,
+                            'request_token' => count($sortedMetals) === 1 ? $groupId : (string) \Illuminate\Support\Str::uuid(),
+                            'booked_at' => $now,
+                        ]);
+
+                        // Save line items
+                        $newBooking->items()->createMany($calc['items']);
+
+                        // Save allocated payments with source = 'BOOKING'
+                        if (! empty($metalPayments)) {
+                            $paymentRows = [];
+                            foreach ($metalPayments as $index => $payment) {
+                                $paymentRows[] = [
+                                    'mode' => $payment['mode'],
+                                    'online_method' => $payment['mode'] === 'ONLINE' ? ($payment['online_method'] ?? 'UPI') : null,
+                                    'reference_no' => $payment['reference_no'] ?? null,
+                                    'amount' => round((float) $payment['amount'], 2),
+                                    'source' => 'BOOKING',
+                                    'sort_order' => $index + 1,
+                                    'paid_at' => $now,
+                                    'created_at' => $now,
+                                    'updated_at' => $now,
+                                ];
+                            }
+                            $newBooking->payments()->createMany($paymentRows);
                         }
-                        $newBooking->payments()->createMany($paymentRows);
+
+                        // Activity log: booking created
+                        BhavBookingLog::create([
+                            'bhav_booking_id' => $newBooking->id,
+                            'action' => 'CREATED',
+                            'old_values' => null,
+                            'new_values' => [
+                                'booking_no' => $newBooking->booking_no,
+                                'booking_group_id' => $groupId,
+                                'trade_type' => $newBooking->trade_type,
+                                'metal' => $newBooking->metal,
+                                'total_weight' => (float) $newBooking->total_weight,
+                                'total_amount' => (float) $newBooking->total_amount,
+                                'given_amount' => (float) $newBooking->given_amount,
+                                'received_amount' => (float) $newBooking->received_amount,
+                                'payments_count' => count($metalPayments),
+                            ],
+                            'ip_address' => request()->ip(),
+                            'user_agent' => request()->userAgent(),
+                            'created_at' => $now,
+                        ]);
+
+                        $bookings[] = $newBooking;
                     }
 
-                    // Activity log: booking created
-                    BhavBookingLog::create([
-                        'bhav_booking_id' => $newBooking->id,
-                        'action' => 'CREATED',
-                        'old_values' => null,
-                        'new_values' => [
-                            'booking_no' => $newBooking->booking_no,
-                            'trade_type' => $newBooking->trade_type,
-                            'metal' => $newBooking->metal,
-                            'total_weight' => (float) $newBooking->total_weight,
-                            'total_amount' => (float) $newBooking->total_amount,
-                            'given_amount' => (float) $newBooking->given_amount,
-                            'received_amount' => (float) $newBooking->received_amount,
-                            'payments_count' => count($paymentsData),
-                        ],
-                        'ip_address' => request()->ip(),
-                        'user_agent' => request()->userAgent(),
-                        'created_at' => now(),
-                    ]);
-
-                    return $newBooking;
+                    return $bookings;
                 });
 
-                $booking->load(['items', 'customer', 'payments']);
+                foreach ($createdBookings as $booking) {
+                    $booking->load(['items', 'customer', 'payments']);
+                }
 
                 return [
-                    'booking' => $booking,
+                    'bookings' => $createdBookings,
+                    'group_id' => $groupId,
                     'created' => true,
+                    'booking' => $createdBookings[0] ?? null,
                 ];
             } catch (UniqueConstraintViolationException|QueryException $e) {
-                // Bug c: If inserting fails because request_token already exists, return existing booking with 200
-                $existing = BhavBooking::where('request_token', $validated['request_token'])
+                // If inserting fails because booking_group_id / request_token already exists, return existing bookings
+                $existing = BhavBooking::where('booking_group_id', $groupId)
+                    ->orWhere('request_token', $groupId)
                     ->with(['items', 'customer', 'payments'])
-                    ->first();
+                    ->orderBy('id')
+                    ->get();
 
-                if ($existing) {
+                if ($existing->isNotEmpty()) {
                     return [
-                        'booking' => $existing,
+                        'bookings' => $existing->all(),
+                        'group_id' => $existing->first()->booking_group_id ?? $groupId,
                         'created' => false,
+                        'booking' => $existing->first(),
                     ];
                 }
 
-                // Bug b: On unique violation of booking_no, retry generation up to 3 times
+                // On unique violation of booking_no, retry generation up to 3 times
                 if ($attempt >= $maxAttempts) {
                     throw $e;
                 }
@@ -240,7 +334,7 @@ class BhavBookingService
         }
 
         // 1. RECALCULATE ON SERVER
-        $calculated = $this->calculateItems($validated['items']);
+        $calculated = $this->calculateItems($validated['items'], $validated['metal']);
 
         // 2. PAYMENT TOTAL VALIDATION
         // Check existing BUY_SELL payments + new BOOKING payments <= total_amount

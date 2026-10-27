@@ -17,7 +17,7 @@
                     </h5>
                     <span id="viewPartyTypeBadge" class="badge rounded-pill ms-2 px-2 py-1"></span>
                 </div>
-                <button type="button" class="party-modal-close-round" data-bs-dismiss="modal" aria-label="Close">
+                <button type="button" class="party-modal-close-round" data-bs-dismiss="modal" aria-label="Close" title="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>

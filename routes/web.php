@@ -69,6 +69,9 @@ Route::post('/bhav-bookings', [BhavBookingController::class, 'store'])
     ->middleware('throttle:30,1')
     ->name('bhav-bookings.store');
 
+Route::get('/bhav-bookings/group/{groupId}/print', [BhavBookingController::class, 'printGroup'])
+    ->name('bhav-bookings.group.print');
+
 // Bhav Booking View, Edit, Delete, Print, and Action Logging via Route Model Binding ({bhavBooking})
 Route::get('/bhav-bookings/{bhavBooking}', [BhavBookingController::class, 'show'])
     ->name('bhav-bookings.show')

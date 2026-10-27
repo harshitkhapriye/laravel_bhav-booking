@@ -26,6 +26,7 @@ class BhavBookingItem extends Model
     protected $fillable = [
         'bhav_booking_id',
         'sort_order',
+        'metal',
         'weight',
         'rate',
         'amount',

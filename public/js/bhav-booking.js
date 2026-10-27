@@ -1,3 +1,5 @@
+/* global escapeHtml, formatIndianCurrency, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, getRoute, showToast, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility */
+
 /**
  * Bhav Booking UI Logic & Interactivity
  * Application: Just Udhari - Buy-Sell Module
@@ -5,14 +7,13 @@
  * Organized in clearly commented sections:
  * 1. CONFIG & STATE
  * 2. HELPERS
- * 3. TOAST
- * 4. CUSTOMER SEARCH
- * 5. ADD CUSTOMER MODAL
- * 6. TRADE TOGGLE (BUY/SELL)
- * 7. MULTI-WEIGHT ENTRIES & CALCULATIONS
- * 8. SAVE & FORM SUBMISSION
- * 9. KEYBOARD NAVIGATION
- * 10. DATE RANGE FILTER & LIST MENU
+ * 3. CUSTOMER SEARCH
+ * 4. ADD CUSTOMER MODAL
+ * 5. TRADE TOGGLE (BUY/SELL)
+ * 6. MULTI-WEIGHT ENTRIES & CALCULATIONS
+ * 7. SAVE & FORM SUBMISSION
+ * 8. KEYBOARD NAVIGATION
+ * 9. DATE RANGE FILTER & LIST MENU
  */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -42,6 +43,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Track last saved booking ID for the form PRINT button (Task C3)
     let lastSavedBookingId = null;
+    let lastSavedGroupId = null;
 
     // Track current booking being edited (null when in create mode) (Task C4)
     let editingBookingId = null;
@@ -52,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // =========================================================================
     // 2. HELPERS
-    // Small utility functions used throughout the application
+    // Page-specific utility functions (Shared helpers are imported from bhav-common.js)
     // =========================================================================
 
     /**
@@ -72,20 +74,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Escape special HTML characters to prevent Cross-Site Scripting (XSS)
-     * Why: Untrusted server data should never be injected directly into DOM
-     */
-    function escapeHtml(text) {
-        if (!text) return '';
-        return String(text)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
-
-    /**
      * Safely highlight matched text for search suggestions
      */
     function highlightMatch(sourceText, query) {
@@ -96,19 +84,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const escapedQuery = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`(${escapedQuery})`, 'gi');
         return escapedSource.replace(regex, '<span class="customer-highlight">$1</span>');
-    }
-
-    /**
-     * Format a numeric amount in the Indian numbering system (e.g. 1,45,000.00)
-     * Why: Gold and silver transactions in India traditionally use Indian comma separation
-     */
-    function formatIndianCurrency(amount) {
-        const num = parseFloat(amount);
-        if (isNaN(num)) return '0.00';
-        return num.toLocaleString('en-IN', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        });
     }
 
     /**
@@ -123,111 +98,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return Math.round(((w * r) / rateUnit) * 100) / 100;
     }
 
-    /**
-     * Helper to zero-pad single-digit numbers for date strings
-     */
-    function pad2(n) {
-        return n < 10 ? '0' + n : '' + n;
-    }
-
-    /**
-     * Format Date object as DD-MM-YYYY
-     */
-    function formatDateDisplay(d) {
-        return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
-    }
-
-    /**
-     * Format Date object as YYYY-MM-DD
-     */
-    function formatDateISO(d) {
-        return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-    }
-
-    /**
-     * Get the CSRF token from the HTML meta tag
-     * Why: Laravel requires this token on POST requests to protect against forgery
-     */
-    function getCsrfToken() {
-        const metaTag = document.querySelector('meta[name="csrf-token"]');
-        return metaTag ? metaTag.getAttribute('content') : '';
-    }
-
-    /**
-     * Resolve dynamic route URL from window.APP_ROUTES
-     * Replaces '__ID__' with the provided model ID
-     * Why: Eliminates hardcoded URLs in JavaScript and relies on Laravel route naming.
-     */
-    function getRoute(routeName, id = null) {
-        if (!window.APP_ROUTES || !window.APP_ROUTES[routeName]) {
-            return id !== null ? `/bhav-bookings/${id}` : '/bhav-bookings';
-        }
-        const url = window.APP_ROUTES[routeName];
-        return id !== null ? url.replace('__ID__', encodeURIComponent(id)) : url;
-    }
-
     // =========================================================================
-    // 3. TOAST
-    // Reusable Bootstrap toast notification system
-    // =========================================================================
-
-    /**
-     * Display a temporary toast notification at the top-right of the screen
-     */
-    function showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer');
-        if (!container) return;
-
-        let bgClass = 'bg-white text-dark';
-        let borderClass = 'border-primary';
-        let iconHtml = '<i class="fa-solid fa-circle-info text-primary me-2"></i>';
-
-        if (type === 'success') {
-            borderClass = 'border-success';
-            iconHtml = '<i class="fa-solid fa-circle-check text-success me-2"></i>';
-        } else if (type === 'warning') {
-            borderClass = 'border-warning';
-            iconHtml = '<i class="fa-solid fa-triangle-exclamation text-warning me-2"></i>';
-        } else if (type === 'error' || type === 'danger') {
-            borderClass = 'border-danger';
-            iconHtml = '<i class="fa-solid fa-circle-xmark text-danger me-2"></i>';
-        }
-
-        const toastId = 'toast_' + Date.now();
-        const toastEl = document.createElement('div');
-        toastEl.className = `toast app-toast border-start border-4 ${borderClass} ${bgClass} shadow-lg`;
-        toastEl.id = toastId;
-        toastEl.setAttribute('role', 'alert');
-        toastEl.setAttribute('aria-live', 'assertive');
-        toastEl.setAttribute('aria-atomic', 'true');
-
-        toastEl.innerHTML = `
-            <div class="d-flex align-items-center p-3">
-                <div class="toast-body p-0 d-flex align-items-center flex-grow-1">
-                    <span class="fs-5">${iconHtml}</span>
-                    <span class="fw-semibold">${escapeHtml(message)}</span>
-                </div>
-                <button type="button" class="btn-close ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        `;
-
-        container.appendChild(toastEl);
-
-        if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-            const bsToast = new bootstrap.Toast(toastEl, { delay: 3500 });
-            toastEl.addEventListener('hidden.bs.toast', function () {
-                toastEl.remove();
-            });
-            bsToast.show();
-        } else {
-            setTimeout(() => toastEl.remove(), 3500);
-        }
-    }
-
-    window.showToast = showToast;
-
-    // =========================================================================
-    // 4. CUSTOMER SEARCH
+    // 3. CUSTOMER SEARCH
     // Live customer search, debouncing, keyboard navigation, and selection
     // =========================================================================
 
@@ -381,16 +253,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? window.APP_ROUTES.customerRecent
                 : '/customers/recent';
 
-        recentCustomersPromise = fetch(recentUrl, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-            },
-        })
-            .then((response) => {
-                if (!response.ok) throw new Error('Failed to load recent customers');
-                return response.json();
-            })
+        recentCustomersPromise = apiFetch(recentUrl)
             .then((customers) => {
                 cachedRecentCustomers = Array.isArray(customers) ? customers : [];
 
@@ -537,18 +400,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         customerSearchResults.innerHTML = listHtml;
         customerSearchResults.style.display = 'block';
-
-        const itemEls = customerSearchResults.querySelectorAll('.customer-search-item');
-        itemEls.forEach((itemEl) => {
-            itemEl.addEventListener('click', function () {
-                const idx = parseInt(this.getAttribute('data-index'), 10);
-                if (currentSearchResults[idx]) {
-                    selectCustomer(currentSearchResults[idx]);
-                    const typeSelect = document.getElementById('typeSelect');
-                    if (typeSelect) typeSelect.focus();
-                }
-            });
-        });
     }
 
     function updateActiveDropdownItem() {
@@ -586,14 +437,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     </a>
                 </div>
             `;
-            const linkAddNew = document.getElementById('linkAddNewCustomer');
-            if (linkAddNew) {
-                linkAddNew.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    hideCustomerDropdown();
-                    openAddCustomerModal(query);
-                });
-            }
             customerSearchResults.style.display = 'block';
             return;
         }
@@ -634,18 +477,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         customerSearchResults.innerHTML = listHtml;
         customerSearchResults.style.display = 'block';
-
-        const itemEls = customerSearchResults.querySelectorAll('.customer-search-item');
-        itemEls.forEach((itemEl) => {
-            itemEl.addEventListener('click', function () {
-                const idx = parseInt(this.getAttribute('data-index'), 10);
-                if (currentSearchResults[idx]) {
-                    selectCustomer(currentSearchResults[idx]);
-                    const typeSelect = document.getElementById('typeSelect');
-                    if (typeSelect) typeSelect.focus();
-                }
-            });
-        });
     }
 
     function performCustomerSearch(query) {
@@ -671,17 +502,9 @@ document.addEventListener('DOMContentLoaded', function () {
         currentSearchAbortController = new AbortController();
 
         // Still refresh in background once
-        fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-            },
+        apiFetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
             signal: currentSearchAbortController.signal,
         })
-            .then((response) => {
-                if (!response.ok) throw new Error('Search failed');
-                return response.json();
-            })
             .then((customers) => {
                 setCustomerSearchCache(cacheKey, customers);
                 renderCustomerSearchResults(customers, query);
@@ -696,6 +519,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
                 }
             });
+    }
+
+    if (customerSearchResults) {
+        customerSearchResults.addEventListener('click', function (e) {
+            const linkAddNew = e.target.closest('#linkAddNewCustomer');
+            if (linkAddNew) {
+                e.preventDefault();
+                const query = customerSearchInput ? customerSearchInput.value.trim() : '';
+                hideCustomerDropdown();
+                openAddCustomerModal(query);
+                return;
+            }
+
+            const itemEl = e.target.closest('.customer-search-item');
+            if (!itemEl) return;
+            const idx = parseInt(itemEl.getAttribute('data-index'), 10);
+            if (currentSearchResults && currentSearchResults[idx]) {
+                selectCustomer(currentSearchResults[idx]);
+                const typeSelect = document.getElementById('typeSelect');
+                if (typeSelect) typeSelect.focus();
+            }
+        });
     }
 
     if (customerSearchInput) {
@@ -875,6 +720,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let selectedShopLogoFile = null;
     let isAdditionalSectionExpanded = false;
     let selectedParentCustomer = null;
+    let currentParentSearchResults = [];
     let parentSearchDebounceTimer = null;
     let parentSearchAbortController = null;
 
@@ -1083,14 +929,12 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
         parentCustomerSearchResults.style.display = 'block';
 
-        fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
+        apiFetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
             signal: parentSearchAbortController.signal,
         })
-            .then((res) => res.json())
             .then((customers) => {
-                if (!customers || customers.length === 0) {
+                currentParentSearchResults = Array.isArray(customers) ? customers : [];
+                if (!currentParentSearchResults || currentParentSearchResults.length === 0) {
                     parentCustomerSearchResults.innerHTML = `
                     <div class="p-2 text-center text-muted small">No customer found</div>
                 `;
@@ -1098,7 +942,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 let html = '';
-                customers.forEach((c, idx) => {
+                currentParentSearchResults.forEach((c, idx) => {
                     const escapedName = escapeHtml(c.name);
                     const escapedNo = escapeHtml(c.customer_no);
                     const escapedMobile = c.mobile ? escapeHtml(c.mobile) : 'No mobile';
@@ -1112,33 +956,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
 
                 parentCustomerSearchResults.innerHTML = html;
-
-                parentCustomerSearchResults.querySelectorAll('.customer-search-item').forEach((el) => {
-                    el.addEventListener('click', function () {
-                        const idx = parseInt(this.getAttribute('data-parent-index'), 10);
-                        const chosen = customers[idx];
-                        if (chosen) {
-                            selectedParentCustomer = chosen;
-                            if (hiddenParentCustomerId) hiddenParentCustomerId.value = chosen.id;
-                            if (parentCustomerSearchInput)
-                                parentCustomerSearchInput.value = `${chosen.name} (${chosen.customer_no})`;
-                            if (parentCustomerClearBtn) parentCustomerClearBtn.style.display = 'block';
-                            if (parentCustomerSearchResults) parentCustomerSearchResults.style.display = 'none';
-
-                            if (parentCustomerSelectedBadge) {
-                                parentCustomerSelectedBadge.innerHTML = `
-                                <i class="fa-solid fa-check-circle text-success me-1"></i> Linked Main Customer: <strong>${escapeHtml(chosen.name)}</strong> (Mobile: ${escapeHtml(chosen.mobile || 'N/A')})
-                            `;
-                                parentCustomerSelectedBadge.style.display = 'block';
-                            }
-
-                            // Auto-fill mobile if currently empty
-                            if (newCustomerMobile && !newCustomerMobile.value.trim() && chosen.mobile) {
-                                newCustomerMobile.value = chosen.mobile;
-                            }
-                        }
-                    });
-                });
             })
             .catch((err) => {
                 if (err.name === 'AbortError') return;
@@ -1146,6 +963,35 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="p-2 text-center text-danger small">Search failed</div>
             `;
             });
+    }
+
+    if (parentCustomerSearchResults) {
+        parentCustomerSearchResults.addEventListener('click', function (e) {
+            const itemEl = e.target.closest('.customer-search-item');
+            if (!itemEl) return;
+            const idx = parseInt(itemEl.getAttribute('data-parent-index'), 10);
+            const chosen = currentParentSearchResults[idx];
+            if (chosen) {
+                selectedParentCustomer = chosen;
+                if (hiddenParentCustomerId) hiddenParentCustomerId.value = chosen.id;
+                if (parentCustomerSearchInput)
+                    parentCustomerSearchInput.value = `${chosen.name} (${chosen.customer_no})`;
+                if (parentCustomerClearBtn) parentCustomerClearBtn.style.display = 'block';
+                if (parentCustomerSearchResults) parentCustomerSearchResults.style.display = 'none';
+
+                if (parentCustomerSelectedBadge) {
+                    parentCustomerSelectedBadge.innerHTML = `
+                    <i class="fa-solid fa-check-circle text-success me-1"></i> Linked Main Customer: <strong>${escapeHtml(chosen.name)}</strong> (Mobile: ${escapeHtml(chosen.mobile || 'N/A')})
+                `;
+                    parentCustomerSelectedBadge.style.display = 'block';
+                }
+
+                // Auto-fill mobile if currently empty
+                if (newCustomerMobile && !newCustomerMobile.value.trim() && chosen.mobile) {
+                    newCustomerMobile.value = chosen.mobile;
+                }
+            }
+        });
     }
 
     /**
@@ -1421,6 +1267,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (addCustomerModalEl) {
+        setupModalAccessibility(addCustomerModalEl, newCustomerName);
         addCustomerModalEl.addEventListener('shown.bs.modal', function () {
             initStatesDropdown();
             if (selectedCustomer) {
@@ -1648,111 +1495,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const storeUrl = window.APP_ROUTES ? window.APP_ROUTES.customerStore : '/customers';
 
-            fetch(storeUrl, {
+            apiFetch(storeUrl, {
                 method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                },
                 body: formData,
             })
-                .then(async (response) => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        if (response.status === 422 && data.errors) {
-                            let hasAdditionalError = false;
-                            let firstErrorField = null;
-
-                            const errorTargetMap = {
-                                name: { id: 'errorNewCustomerName', input: newCustomerName, inAdditional: false },
-                                mobile: { id: 'errorNewCustomerMobile', input: newCustomerMobile, inAdditional: false },
-                                email: { id: 'errorNewCustomerEmail', input: newCustomerEmail, inAdditional: false },
-                                address: {
-                                    id: 'errorNewCustomerAddress',
-                                    input: newCustomerAddress,
-                                    inAdditional: false,
-                                },
-                                parent_customer_id: {
-                                    id: 'errorParentCustomerId',
-                                    input: parentCustomerSearchInput,
-                                    inAdditional: false,
-                                },
-                                is_family_sub_profile: {
-                                    id: 'errorParentCustomerId',
-                                    input: parentCustomerSearchInput,
-                                    inAdditional: false,
-                                },
-                                profile_image: { id: 'errorPartyProfileImage', input: null, inAdditional: false },
-                                birthday: { id: 'errorNewPartyBirthday', input: newPartyBirthday, inAdditional: true },
-                                anniversary: {
-                                    id: 'errorNewPartyAnniversary',
-                                    input: newPartyAnniversary,
-                                    inAdditional: true,
-                                },
-                                aadhaar_no: { id: 'errorNewPartyAadhaar', input: newPartyAadhaar, inAdditional: true },
-                                pan_no: { id: 'errorNewPartyPan', input: newPartyPan, inAdditional: true },
-                                gst_no: { id: 'errorNewPartyGst', input: newPartyGst, inAdditional: true },
-                                lic_no: { id: 'errorNewPartyLicNo', input: newPartyLicNo, inAdditional: true },
-                                reg_no: { id: 'errorNewPartyRegNo', input: newPartyRegNo, inAdditional: true },
-                                logo_title: {
-                                    id: 'errorNewPartyLogoTitle',
-                                    input: newPartyLogoTitle,
-                                    inAdditional: true,
-                                },
-                                shop_name: { id: 'errorNewPartyShopName', input: newPartyShopName, inAdditional: true },
-                                state: { id: 'errorNewPartyState', input: newPartyState, inAdditional: true },
-                                district: {
-                                    id: 'errorNewPartyDistrict',
-                                    input: document.getElementById('newPartyDistrict'),
-                                    inAdditional: true,
-                                },
-                                area: { id: 'errorNewPartyArea', input: newPartyArea, inAdditional: true },
-                                shop_address: {
-                                    id: 'errorNewPartyShopAddress',
-                                    input: newPartyShopAddress,
-                                    inAdditional: true,
-                                },
-                                shop_logo: { id: 'errorPartyShopLogo', input: null, inAdditional: true },
-                            };
-
-                            Object.keys(data.errors).forEach((fieldKey) => {
-                                const mapping = errorTargetMap[fieldKey];
-                                if (mapping) {
-                                    const errEl = document.getElementById(mapping.id);
-                                    if (errEl) {
-                                        errEl.textContent = data.errors[fieldKey][0];
-                                        errEl.style.display = 'block';
-                                    }
-                                    if (mapping.input) {
-                                        mapping.input.classList.add('is-invalid');
-                                    }
-                                    if (mapping.inAdditional) {
-                                        hasAdditionalError = true;
-                                    }
-                                    if (!firstErrorField && mapping.input) {
-                                        firstErrorField = mapping.input;
-                                    }
-                                }
-                            });
-
-                            // If error is in a collapsed field, auto-expand the section and scroll to it
-                            if (hasAdditionalError && !isAdditionalSectionExpanded) {
-                                expandAdditionalSection();
-                            }
-
-                            if (firstErrorField) {
-                                setTimeout(() => {
-                                    firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    firstErrorField.focus();
-                                }, 100);
-                            }
-                        } else {
-                            showToast(data.message || 'Failed to create party.', 'error');
-                        }
-                        throw new Error('Validation failed');
-                    }
-                    return data;
-                })
                 .then((newCustomer) => {
                     if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                         const modalInstance = bootstrap.Modal.getInstance(addCustomerModalEl);
@@ -1767,6 +1513,95 @@ document.addEventListener('DOMContentLoaded', function () {
                     fetchRecentCustomers(true);
                 })
                 .catch((err) => {
+                    if (err.status === 422 && err.data && err.data.errors) {
+                        const data = err.data;
+                        let hasAdditionalError = false;
+                        let firstErrorField = null;
+
+                        const errorTargetMap = {
+                            name: { id: 'errorNewCustomerName', input: newCustomerName, inAdditional: false },
+                            mobile: { id: 'errorNewCustomerMobile', input: newCustomerMobile, inAdditional: false },
+                            email: { id: 'errorNewCustomerEmail', input: newCustomerEmail, inAdditional: false },
+                            address: {
+                                id: 'errorNewCustomerAddress',
+                                input: newCustomerAddress,
+                                inAdditional: false,
+                            },
+                            parent_customer_id: {
+                                id: 'errorParentCustomerId',
+                                input: parentCustomerSearchInput,
+                                inAdditional: false,
+                            },
+                            is_family_sub_profile: {
+                                id: 'errorParentCustomerId',
+                                input: parentCustomerSearchInput,
+                                inAdditional: false,
+                            },
+                            profile_image: { id: 'errorPartyProfileImage', input: null, inAdditional: false },
+                            birthday: { id: 'errorNewPartyBirthday', input: newPartyBirthday, inAdditional: true },
+                            anniversary: {
+                                id: 'errorNewPartyAnniversary',
+                                input: newPartyAnniversary,
+                                inAdditional: true,
+                            },
+                            aadhaar_no: { id: 'errorNewPartyAadhaar', input: newPartyAadhaar, inAdditional: true },
+                            pan_no: { id: 'errorNewPartyPan', input: newPartyPan, inAdditional: true },
+                            gst_no: { id: 'errorNewPartyGst', input: newPartyGst, inAdditional: true },
+                            lic_no: { id: 'errorNewPartyLicNo', input: newPartyLicNo, inAdditional: true },
+                            reg_no: { id: 'errorNewPartyRegNo', input: newPartyRegNo, inAdditional: true },
+                            logo_title: {
+                                id: 'errorNewPartyLogoTitle',
+                                input: newPartyLogoTitle,
+                                inAdditional: true,
+                            },
+                            shop_name: { id: 'errorNewPartyShopName', input: newPartyShopName, inAdditional: true },
+                            state: { id: 'errorNewPartyState', input: newPartyState, inAdditional: true },
+                            district: {
+                                id: 'errorNewPartyDistrict',
+                                input: document.getElementById('newPartyDistrict'),
+                                inAdditional: true,
+                            },
+                            area: { id: 'errorNewPartyArea', input: newPartyArea, inAdditional: true },
+                            shop_address: {
+                                id: 'errorNewPartyShopAddress',
+                                input: newPartyShopAddress,
+                                inAdditional: true,
+                            },
+                            shop_logo: { id: 'errorPartyShopLogo', input: null, inAdditional: true },
+                        };
+
+                        Object.keys(data.errors).forEach((fieldKey) => {
+                            const mapping = errorTargetMap[fieldKey];
+                            if (mapping) {
+                                const errEl = document.getElementById(mapping.id);
+                                if (errEl) {
+                                    errEl.textContent = data.errors[fieldKey][0];
+                                    errEl.style.display = 'block';
+                                }
+                                if (mapping.input) {
+                                    mapping.input.classList.add('is-invalid');
+                                }
+                                if (mapping.inAdditional) {
+                                    hasAdditionalError = true;
+                                }
+                                if (!firstErrorField && mapping.input) {
+                                    firstErrorField = mapping.input;
+                                }
+                            }
+                        });
+
+                        // If error is in a collapsed field, auto-expand the section and scroll to it
+                        if (hasAdditionalError && !isAdditionalSectionExpanded) {
+                            expandAdditionalSection();
+                        }
+
+                        if (firstErrorField) {
+                            setTimeout(() => {
+                                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                firstErrorField.focus();
+                            }, 100);
+                        }
+                    }
                     console.warn('Party store response:', err);
                 })
                 .finally(() => {
@@ -1794,7 +1629,7 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function getRateUnitLabel() {
         const unit = window.BHAV_CONFIG && window.BHAV_CONFIG.rate_unit_grams ? window.BHAV_CONFIG.rate_unit_grams : 10;
-        return unit == 1 ? '(/GM)' : `(/${unit}GM)`;
+        return Number(unit) === 1 ? '(/GM)' : `(/${unit}GM)`;
     }
 
     /**
@@ -1877,6 +1712,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const entriesCountBadge = document.getElementById('entriesCountBadge');
     const entriesTotalWeight = document.getElementById('entriesTotalWeight');
     const entriesTotalAmount = document.getElementById('entriesTotalAmount');
+    const entriesGoldTotalRow = document.getElementById('entriesGoldTotalRow');
+    const entriesGoldWeight = document.getElementById('entriesGoldWeight');
+    const entriesGoldAmount = document.getElementById('entriesGoldAmount');
+    const entriesSilverTotalRow = document.getElementById('entriesSilverTotalRow');
+    const entriesSilverWeight = document.getElementById('entriesSilverWeight');
+    const entriesSilverAmount = document.getElementById('entriesSilverAmount');
     const entriesGlobalError = document.getElementById('entriesGlobalError');
     const inputNarration = document.getElementById('inputNarration');
     const narrationCounter = document.getElementById('narrationCounter');
@@ -1892,7 +1733,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const labelPayment = document.getElementById('labelPayment');
     const paymentModeToggle = document.getElementById('paymentModeToggle');
-    const paymentModeTogglePill = document.getElementById('paymentModeTogglePill');
     const btnPaymentCash = document.getElementById('btnPaymentCash');
     const btnPaymentOnline = document.getElementById('btnPaymentOnline');
     const paymentOnlineFields = document.getElementById('paymentOnlineFields');
@@ -1905,8 +1745,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const paymentEntriesTableBody = document.getElementById('paymentEntriesTableBody');
     const paymentEntriesCountBadge = document.getElementById('paymentEntriesCountBadge');
 
-    const paymentSummaryRow = document.getElementById('paymentSummaryRow');
-    const paymentSummaryBox = document.getElementById('paymentSummaryBox');
     const paymentSummaryPaid = document.getElementById('paymentSummaryPaid');
     const paymentSummaryBalance = document.getElementById('paymentSummaryBalance');
 
@@ -1959,68 +1797,113 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /**
      * Compute all totals:
-     * - Table totals: sum of all confirmed rows in bookingItems
-     * - Grand total: table totals + current entry line (if weight > 0 and rate > 0)
-     * Why: AMOUNT field must always show the grand total (all rows + current line)
+     * - Per-metal totals: sum of Gold rows and sum of Silver rows separately (never sum weights across metals)
+     * - Grand total amount: combined amount of all rows + current entry line (if weight > 0 and rate > 0)
+     * Why: SOP rule forbids mixing gold and silver weights. AMOUNT field always shows grand total amount.
      */
     function calculateTotals() {
-        let tableWeight = 0;
         let tableAmount = 0;
+        let tableGoldWeight = 0;
+        let tableGoldAmount = 0;
+        let tableSilverWeight = 0;
+        let tableSilverAmount = 0;
 
         for (const item of bookingItems) {
             const w = parseFloat(item.weight) || 0;
             const a = parseFloat(item.amount) || 0;
-            tableWeight += w;
+            const m = (item.metal || 'GOLD').toUpperCase();
+
             tableAmount += a;
+
+            if (m === 'GOLD') {
+                tableGoldWeight += w;
+                tableGoldAmount += a;
+            } else {
+                tableSilverWeight += w;
+                tableSilverAmount += a;
+            }
         }
 
-        // Avoid floating-point errors (e.g. 2.125 + 0.875 = 3.000)
-        tableWeight = Math.round(tableWeight * 1000) / 1000;
         tableAmount = Math.round(tableAmount * 100) / 100;
+        tableGoldWeight = Math.round(tableGoldWeight * 1000) / 1000;
+        tableGoldAmount = Math.round(tableGoldAmount * 100) / 100;
+        tableSilverWeight = Math.round(tableSilverWeight * 1000) / 1000;
+        tableSilverAmount = Math.round(tableSilverAmount * 100) / 100;
 
         // Current entry line
         const curWeight = parseFloat(inputWeight ? inputWeight.value : 0) || 0;
         const curRate = parseFloat(inputRate ? inputRate.value : 0) || 0;
+        const curMetal = (categorySelect ? categorySelect.value : currentMetal || 'GOLD').toUpperCase();
         let curLineAmount = 0;
 
         if (curWeight > 0 && curRate > 0) {
             curLineAmount = calculateRowAmount(curWeight, curRate);
         }
 
-        const grandWeight = Math.round((tableWeight + curWeight) * 1000) / 1000;
+        const grandGoldWeight = Math.round((tableGoldWeight + (curMetal === 'GOLD' ? curWeight : 0)) * 1000) / 1000;
+        const grandGoldAmount = Math.round((tableGoldAmount + (curMetal === 'GOLD' ? curLineAmount : 0)) * 100) / 100;
+        const grandSilverWeight = Math.round((tableSilverWeight + (curMetal === 'SILVER' ? curWeight : 0)) * 1000) / 1000;
+        const grandSilverAmount = Math.round((tableSilverAmount + (curMetal === 'SILVER' ? curLineAmount : 0)) * 100) / 100;
+
         const grandAmount = Math.round((tableAmount + curLineAmount) * 100) / 100;
 
         return {
-            tableWeight,
             tableAmount,
-            grandWeight,
+            tableGoldWeight,
+            tableGoldAmount,
+            tableSilverWeight,
+            tableSilverAmount,
+            grandGoldWeight,
+            grandGoldAmount,
+            grandSilverWeight,
+            grandSilverAmount,
             grandAmount,
             curWeight,
             curRate,
+            curMetal,
             curLineAmount,
         };
     }
 
     /**
-     * Helper to retrieve booking grand total amount (confirmed rows + current entry line).
-     * Used across validations and payment limit checks.
-     */
-    function getBookingGrandTotal() {
-        return calculateTotals().grandAmount;
-    }
-
-    /**
      * Update all total displays on the page:
-     * 1. Mini-table footer (shows table totals)
-     * 2. Main AMOUNT field (shows grand total)
+     * 1. Mini-table footer (separate totals per metal: Gold & Silver; never add gold + silver weights)
+     * 2. Main AMOUNT field (shows combined grand total amount of both metals)
      */
     function updateAllTotals() {
         const totals = calculateTotals();
 
-        // Update mini-table footer
-        if (entriesTotalWeight) {
-            entriesTotalWeight.textContent = `${totals.tableWeight.toFixed(3)} gm`;
+        // Update mini-table footer: separate totals per metal
+        if (entriesGoldTotalRow) {
+            if (totals.tableGoldWeight > 0 || totals.tableGoldAmount > 0) {
+                entriesGoldTotalRow.style.display = '';
+                if (entriesGoldWeight) entriesGoldWeight.textContent = `${totals.tableGoldWeight.toFixed(3)} gm`;
+                if (entriesGoldAmount) entriesGoldAmount.textContent = `₹${formatIndianCurrency(totals.tableGoldAmount)}`;
+            } else {
+                entriesGoldTotalRow.style.display = 'none';
+            }
         }
+
+        if (entriesSilverTotalRow) {
+            if (totals.tableSilverWeight > 0 || totals.tableSilverAmount > 0) {
+                entriesSilverTotalRow.style.display = '';
+                if (entriesSilverWeight) entriesSilverWeight.textContent = `${totals.tableSilverWeight.toFixed(3)} gm`;
+                if (entriesSilverAmount) entriesSilverAmount.textContent = `₹${formatIndianCurrency(totals.tableSilverAmount)}`;
+            } else {
+                entriesSilverTotalRow.style.display = 'none';
+            }
+        }
+
+        if (entriesTotalWeight) {
+            if (totals.tableGoldWeight > 0 && totals.tableSilverWeight === 0) {
+                entriesTotalWeight.textContent = `${totals.tableGoldWeight.toFixed(3)} gm`;
+            } else if (totals.tableSilverWeight > 0 && totals.tableGoldWeight === 0) {
+                entriesTotalWeight.textContent = `${totals.tableSilverWeight.toFixed(3)} gm`;
+            } else {
+                entriesTotalWeight.textContent = '-';
+            }
+        }
+
         if (entriesTotalAmount) {
             entriesTotalAmount.textContent = `₹${formatIndianCurrency(totals.tableAmount)}`;
         }
@@ -2028,7 +1911,7 @@ document.addEventListener('DOMContentLoaded', function () {
             entriesCountBadge.textContent = bookingItems.length;
         }
 
-        // Update main AMOUNT field with grand total (all rows + current line)
+        // Update main AMOUNT field with combined grand total of both metals
         if (inputAmount && hiddenAmount) {
             hiddenAmount.value = totals.grandAmount.toFixed(2);
             inputAmount.value = formatIndianCurrency(totals.grandAmount);
@@ -2038,6 +1921,23 @@ document.addEventListener('DOMContentLoaded', function () {
         if (typeof updatePaymentSummary === 'function') {
             updatePaymentSummary(totals.grandAmount);
         }
+    }
+
+    let updateTotalsRafId = null;
+    function scheduleUpdateAllTotals() {
+        if (updateTotalsRafId !== null) return;
+        updateTotalsRafId = window.requestAnimationFrame(function () {
+            updateTotalsRafId = null;
+            updateAllTotals();
+        });
+    }
+
+    function flushScheduledTotals() {
+        if (updateTotalsRafId !== null) {
+            window.cancelAnimationFrame(updateTotalsRafId);
+            updateTotalsRafId = null;
+        }
+        updateAllTotals();
     }
 
     /**
@@ -2063,9 +1963,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const rVal = parseFloat(item.rate).toFixed(2);
             const aVal = formatIndianCurrency(item.amount);
 
+            const itemMetal = (item.metal || 'GOLD').toUpperCase();
+            const badgeClass = itemMetal === 'GOLD' ? 'bg-warning text-dark' : 'bg-secondary text-white';
+
             rowsHtml += `
                 <tr class="entry-row" data-id="${item.id}" data-index="${index}">
                     <td class="text-center text-muted fw-bold col-entry-sn">${index + 1}</td>
+                    <td class="text-center col-entry-metal">
+                        <span class="badge ${badgeClass}" style="font-size: 10px; font-weight: 700;">${itemMetal}</span>
+                    </td>
                     <td class="col-entry-wt">
                         <input type="text"
                                inputmode="decimal"
@@ -2099,82 +2005,46 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         entriesTableBody.innerHTML = rowsHtml;
-        attachEntryRowListeners();
         updateAllTotals();
     }
 
-    /**
-     * Attach event listeners for inline editing and row deletion
-     * Why: Inline editing updates only that row and the totals without re-rendering the whole table,
-     * ensuring cursor focus is never lost while typing.
-     */
-    function attachEntryRowListeners() {
-        if (!entriesTableBody) return;
-
-        // Weight inputs inside table rows
-        const weightInputs = entriesTableBody.querySelectorAll('.row-input-weight');
-        weightInputs.forEach((input) => {
-            input.addEventListener('input', function () {
-                const itemId = parseInt(this.getAttribute('data-id'), 10);
+    // Delegated event listeners for Entries Table Body
+    if (entriesTableBody) {
+        entriesTableBody.addEventListener('input', function (e) {
+            const target = e.target;
+            if (target.classList.contains('row-input-weight')) {
+                const itemId = parseInt(target.getAttribute('data-id'), 10);
                 const item = bookingItems.find((it) => it.id === itemId);
                 if (!item) return;
 
-                // Sanitize input characters
-                let val = this.value.replace(/[^0-9.]/g, '');
+                let val = target.value.replace(/[^0-9.]/g, '');
                 const parts = val.split('.');
                 if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
                 if (parts.length === 2 && parts[1].length > 3) val = parts[0] + '.' + parts[1].slice(0, 3);
-                this.value = val;
+                target.value = val;
 
-                const parsedWeight = parseFloat(val) || 0;
-                item.weight = parsedWeight;
+                item.weight = parseFloat(val) || 0;
                 item.amount = calculateRowAmount(item.weight, item.rate);
 
-                // Update amount display in DOM for this row
                 const amtCell = entriesTableBody.querySelector(`.row-amount-text[data-id="${itemId}"]`);
                 if (amtCell) {
                     amtCell.textContent = `₹${formatIndianCurrency(item.amount)}`;
                 }
 
-                this.classList.remove('is-invalid');
-                updateAllTotals();
-            });
-
-            input.addEventListener('blur', function () {
-                const itemId = parseInt(this.getAttribute('data-id'), 10);
-                const item = bookingItems.find((it) => it.id === itemId);
-                if (item) {
-                    this.value = parseFloat(item.weight || 0).toFixed(3);
-                }
-                updateAllTotals();
-            });
-
-            input.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const itemId = parseInt(this.getAttribute('data-id'), 10);
-                    const rateInput = entriesTableBody.querySelector(`.row-input-rate[data-id="${itemId}"]`);
-                    if (rateInput) rateInput.focus();
-                }
-            });
-        });
-
-        // Rate inputs inside table rows
-        const rateInputs = entriesTableBody.querySelectorAll('.row-input-rate');
-        rateInputs.forEach((input) => {
-            input.addEventListener('input', function () {
-                const itemId = parseInt(this.getAttribute('data-id'), 10);
+                target.classList.remove('is-invalid');
+                scheduleUpdateAllTotals();
+            } else if (target.classList.contains('row-input-rate')) {
+                const itemId = parseInt(target.getAttribute('data-id'), 10);
                 const item = bookingItems.find((it) => it.id === itemId);
                 if (!item) return;
 
-                let val = this.value.replace(/[^0-9.]/g, '');
+                let val = target.value.replace(/[^0-9.]/g, '');
                 const parts = val.split('.');
                 if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
                 if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2);
-                this.value = val;
+                target.value = val;
 
-                const parsedRate = parseFloat(val) || 0;
-                item.rate = parsedRate;
+                item.rate = parseFloat(val) || 0;
                 item.amount = calculateRowAmount(item.weight, item.rate);
 
                 const amtCell = entriesTableBody.querySelector(`.row-amount-text[data-id="${itemId}"]`);
@@ -2182,38 +2052,54 @@ document.addEventListener('DOMContentLoaded', function () {
                     amtCell.textContent = `₹${formatIndianCurrency(item.amount)}`;
                 }
 
-                this.classList.remove('is-invalid');
-                updateAllTotals();
-            });
+                target.classList.remove('is-invalid');
+                scheduleUpdateAllTotals();
+            }
+        });
 
-            input.addEventListener('blur', function () {
-                const itemId = parseInt(this.getAttribute('data-id'), 10);
+        entriesTableBody.addEventListener('focusout', function (e) {
+            const target = e.target;
+            if (target.classList.contains('row-input-weight')) {
+                const itemId = parseInt(target.getAttribute('data-id'), 10);
                 const item = bookingItems.find((it) => it.id === itemId);
                 if (item) {
-                    this.value = parseFloat(item.rate || 0).toFixed(2);
+                    target.value = parseFloat(item.weight || 0).toFixed(3);
                 }
-                updateAllTotals();
-            });
+                scheduleUpdateAllTotals();
+            } else if (target.classList.contains('row-input-rate')) {
+                const itemId = parseInt(target.getAttribute('data-id'), 10);
+                const item = bookingItems.find((it) => it.id === itemId);
+                if (item) {
+                    target.value = parseFloat(item.rate || 0).toFixed(2);
+                }
+                scheduleUpdateAllTotals();
+            }
+        });
 
-            input.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter') {
+        entriesTableBody.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                const target = e.target;
+                if (target.classList.contains('row-input-weight')) {
+                    e.preventDefault();
+                    const itemId = parseInt(target.getAttribute('data-id'), 10);
+                    const rateInput = entriesTableBody.querySelector(`.row-input-rate[data-id="${itemId}"]`);
+                    if (rateInput) rateInput.focus();
+                } else if (target.classList.contains('row-input-rate')) {
                     e.preventDefault();
                     if (inputWeight) inputWeight.focus();
                 }
-            });
+            }
         });
 
-        // Delete button for each row
-        const deleteButtons = entriesTableBody.querySelectorAll('.btn-delete-entry-row');
-        deleteButtons.forEach((btn) => {
-            btn.addEventListener('click', function () {
-                const itemId = parseInt(this.getAttribute('data-id'), 10);
-                const itemIndex = bookingItems.findIndex((it) => it.id === itemId);
-                if (itemIndex !== -1) {
-                    bookingItems.splice(itemIndex, 1);
-                    renderEntriesTable();
-                }
-            });
+        entriesTableBody.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-delete-entry-row');
+            if (!btn) return;
+            const itemId = parseInt(btn.getAttribute('data-id'), 10);
+            const itemIndex = bookingItems.findIndex((it) => it.id === itemId);
+            if (itemIndex !== -1) {
+                bookingItems.splice(itemIndex, 1);
+                renderEntriesTable();
+            }
         });
     }
 
@@ -2256,8 +2142,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const rowAmount = calculateRowAmount(weightVal, rateVal);
 
+        const selectedMetal = (categorySelect ? categorySelect.value : currentMetal) || 'GOLD';
+
         bookingItems.push({
             id: nextItemId++,
+            metal: selectedMetal,
             weight: weightVal,
             rate: rateVal,
             amount: rowAmount,
@@ -2280,26 +2169,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /**
      * Metal change rule:
-     * Changing metal resets rate to that metal's default.
-     * If rows already exist, prompt confirmation: "Changing metal will clear entries. Continue?"
-     * One booking must never mix Gold and Silver!
+     * Category select now means "metal for the next row".
+     * Remove the "Changing metal will clear entries" confirm and do not clear rows on metal change.
+     * Changing metal still sets the rate to that metal's default (today's rate if set).
      */
     if (categorySelect) {
         categorySelect.addEventListener('change', function () {
             const newMetal = this.value;
-
-            if (bookingItems.length > 0) {
-                const confirmed = window.confirm('Changing metal will clear entries. Continue?');
-                if (!confirmed) {
-                    // Revert selection back to previous metal
-                    this.value = currentMetal;
-                    return;
-                }
-                // Cleared entries
-                bookingItems = [];
-                renderEntriesTable();
-            }
-
             currentMetal = newMetal;
 
             // Reset rate to new metal's default
@@ -2332,7 +2208,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.classList.remove('is-invalid');
             }
 
-            updateAllTotals();
+            scheduleUpdateAllTotals();
         });
 
         inputWeight.addEventListener('blur', function () {
@@ -2361,7 +2237,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             updateTodayRateHint();
-            updateAllTotals();
+            scheduleUpdateAllTotals();
         });
 
         inputRate.addEventListener('blur', function () {
@@ -2606,7 +2482,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.classList.remove('is-invalid');
             }
 
-            updateAllTotals();
+            scheduleUpdateAllTotals();
         });
 
         inputPaymentAmount.addEventListener('blur', function () {
@@ -2683,54 +2559,51 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         paymentEntriesTableBody.innerHTML = rowsHtml;
-        attachPaymentRowListeners();
         updateAllTotals();
     }
 
-    function attachPaymentRowListeners() {
-        if (!paymentEntriesTableBody) return;
-
-        // Inline amount editing
-        const amtInputs = paymentEntriesTableBody.querySelectorAll('.row-input-payment-amount');
-        amtInputs.forEach((input) => {
-            input.addEventListener('input', function () {
-                const payId = parseInt(this.getAttribute('data-id'), 10);
+    // Delegated event listeners for Payment Entries Table Body
+    if (paymentEntriesTableBody) {
+        paymentEntriesTableBody.addEventListener('input', function (e) {
+            const target = e.target;
+            if (target.classList.contains('row-input-payment-amount')) {
+                const payId = parseInt(target.getAttribute('data-id'), 10);
                 const payment = bookingPayments.find((p) => p.id === payId);
                 if (!payment) return;
 
-                let val = this.value.replace(/[^0-9.]/g, '');
+                let val = target.value.replace(/[^0-9.]/g, '');
                 const parts = val.split('.');
                 if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
                 if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2);
-                this.value = val;
+                target.value = val;
 
-                const parsed = parseFloat(val) || 0;
-                payment.amount = parsed;
-                this.classList.remove('is-invalid');
-                updateAllTotals();
-            });
-
-            input.addEventListener('blur', function () {
-                const payId = parseInt(this.getAttribute('data-id'), 10);
-                const payment = bookingPayments.find((p) => p.id === payId);
-                if (payment) {
-                    this.value = parseFloat(payment.amount || 0).toFixed(2);
-                }
-                updateAllTotals();
-            });
+                payment.amount = parseFloat(val) || 0;
+                target.classList.remove('is-invalid');
+                scheduleUpdateAllTotals();
+            }
         });
 
-        // Delete button for payment rows
-        const deleteButtons = paymentEntriesTableBody.querySelectorAll('.btn-delete-payment-row');
-        deleteButtons.forEach((btn) => {
-            btn.addEventListener('click', function () {
-                const payId = parseInt(this.getAttribute('data-id'), 10);
-                const pIndex = bookingPayments.findIndex((p) => p.id === payId);
-                if (pIndex !== -1) {
-                    bookingPayments.splice(pIndex, 1);
-                    renderPaymentEntriesTable();
+        paymentEntriesTableBody.addEventListener('focusout', function (e) {
+            const target = e.target;
+            if (target.classList.contains('row-input-payment-amount')) {
+                const payId = parseInt(target.getAttribute('data-id'), 10);
+                const payment = bookingPayments.find((p) => p.id === payId);
+                if (payment) {
+                    target.value = parseFloat(payment.amount || 0).toFixed(2);
                 }
-            });
+                scheduleUpdateAllTotals();
+            }
+        });
+
+        paymentEntriesTableBody.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-delete-payment-row');
+            if (!btn) return;
+            const payId = parseInt(btn.getAttribute('data-id'), 10);
+            const pIndex = bookingPayments.findIndex((p) => p.id === payId);
+            if (pIndex !== -1) {
+                bookingPayments.splice(pIndex, 1);
+                renderPaymentEntriesTable();
+            }
         });
     }
 
@@ -2749,15 +2622,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const editModeIndicator = document.getElementById('editModeIndicator');
     const editingBookingNoLabel = document.getElementById('editingBookingNoLabel');
 
-    // Form PRINT button: prints the last saved booking in this session
+    // Form PRINT button: prints the last saved group (or booking) in this session
     // If none, displays toast: "Save the booking first"
     if (btnPrint) {
         btnPrint.addEventListener('click', function () {
-            if (!lastSavedBookingId) {
+            if (!lastSavedGroupId && !lastSavedBookingId) {
                 showToast('Save the booking first', 'warning');
                 return;
             }
-            window.open(getRoute('bhavBookingPrint', lastSavedBookingId), '_blank');
+            if (lastSavedGroupId) {
+                const groupUrl =
+                    window.APP_ROUTES && window.APP_ROUTES.bhavBookingGroupPrint
+                        ? window.APP_ROUTES.bhavBookingGroupPrint.replace('__GROUP_ID__', encodeURIComponent(lastSavedGroupId))
+                        : `/bhav-bookings/group/${encodeURIComponent(lastSavedGroupId)}/print`;
+                window.open(groupUrl, '_blank');
+            } else {
+                window.open(getRoute('bhavBookingPrint', lastSavedBookingId), '_blank');
+            }
         });
     }
 
@@ -2781,6 +2662,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * - Shows "Editing BB-000001" banner
      * - Changes SAVE button text to "UPDATE"
      * - Shows "Cancel edit" link
+     * - Metal select locked to that booking's metal
      */
     function enterEditMode(booking) {
         editingBookingId = booking.id;
@@ -2799,6 +2681,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Lock customer field and prevent changing in Edit Mode
         lockCustomerField();
+
+        // Lock metal select to that booking's metal in Edit Mode (single-metal)
+        if (categorySelect && booking.metal) {
+            categorySelect.value = booking.metal;
+            categorySelect.disabled = true;
+            currentMetal = booking.metal;
+        }
     }
 
     /**
@@ -2806,7 +2695,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * - Hides "Editing BB-000001" banner
      * - Restores SAVE button text
      * - Hides "Cancel edit" link
-     * - Unlocks customer field
+     * - Unlocks customer field and metal select
      * - Resets form state
      */
     function exitEditMode(skipFocus = false) {
@@ -2821,6 +2710,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (btnSave) {
             btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
+        }
+
+        if (categorySelect) {
+            categorySelect.disabled = false;
         }
 
         unlockCustomerField();
@@ -2914,123 +2807,144 @@ document.addEventListener('DOMContentLoaded', function () {
     /**
      * Display the Save / Update Success Centered Popup Modal
      */
-    function showSaveSuccessModal(savedBooking, isEditMode) {
+    /**
+     * Display the Save / Update Success Centered Popup Modal
+     * Shows one line per booking (booking_no, metal badge, weight, amount, paid) and a combined total line.
+     * Print button prints group voucher via /bhav-bookings/group/{groupId}/print.
+     */
+    function showSaveSuccessModal(savedData, isEditMode) {
         const modalEl = document.getElementById('saveSuccessModal');
         if (!modalEl) {
-            showToast(`Booking ${savedBooking.booking_no || ''} ${isEditMode ? 'updated' : 'saved'}`, 'success');
+            const firstB = savedData && savedData.bookings && savedData.bookings[0] ? savedData.bookings[0] : savedData;
+            showToast(`Booking ${firstB.booking_no || ''} ${isEditMode ? 'updated' : 'saved'}`, 'success');
             return;
         }
 
+        const bookings =
+            Array.isArray(savedData.bookings) && savedData.bookings.length > 0
+                ? savedData.bookings
+                : savedData.id
+                  ? [savedData]
+                  : [];
+
+        const groupId =
+            savedData.group_id || (bookings[0] ? bookings[0].booking_group_id || bookings[0].request_token : null);
+
         const titleEl = document.getElementById('saveSuccessModalTitle');
-        const bNoEl = document.getElementById('successBookingNo');
         const custEl = document.getElementById('successCustomerName');
-        const tradeBadge = document.getElementById('successTradeBadge');
-        const metalBadge = document.getElementById('successMetalBadge');
-        const wtEl = document.getElementById('successTotalWeight');
-        const amtEl = document.getElementById('successTotalAmount');
-        const btnPrint = document.getElementById('btnSuccessPrint');
-        const btnOk = document.getElementById('btnSuccessOk');
+        const container = document.getElementById('successBookingsContainer');
+        const combinedAmtEl = document.getElementById('successCombinedAmount');
+        const combinedPaidEl = document.getElementById('successCombinedPaidText');
+        const btnSuccessPrint = document.getElementById('btnSuccessPrint');
 
         if (titleEl) {
             titleEl.textContent = isEditMode ? 'Transaction Updated Successfully!' : 'Transaction Saved Successfully!';
         }
 
-        if (bNoEl) {
-            bNoEl.textContent = savedBooking.booking_no || (isEditMode ? editingBookingNo : '-');
-        }
-
         const customerName =
-            savedBooking.customer && savedBooking.customer.name
-                ? savedBooking.customer.name
+            bookings[0] && bookings[0].customer && bookings[0].customer.name
+                ? bookings[0].customer.name
                 : selectedCustomer
                   ? selectedCustomer.name
                   : '-';
         if (custEl) custEl.textContent = customerName;
 
-        const isBuy = (savedBooking.trade_type || '').toUpperCase() === 'BUY';
-        if (tradeBadge) {
-            tradeBadge.textContent = isBuy ? 'BUY' : 'SELL';
-            tradeBadge.className = `badge rounded-pill px-2 py-1 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
-        }
+        let combinedAmount = 0;
+        let combinedPaid = 0;
+        let linesHtml = '';
 
-        const isGold = (savedBooking.metal || '').toUpperCase() === 'GOLD';
-        if (metalBadge) {
-            metalBadge.textContent = isGold ? 'GOLD' : 'SILVER';
-            metalBadge.className = `badge rounded-pill px-2 py-1 fw-bold ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
-        }
+        bookings.forEach((b) => {
+            const bNo = b.booking_no || (isEditMode ? editingBookingNo : '-');
+            const metal = (b.metal || 'GOLD').toUpperCase();
+            const badgeClass = metal === 'GOLD' ? 'bg-warning text-dark' : 'bg-secondary text-white';
+            const wt = (parseFloat(b.total_weight) || 0).toFixed(3);
+            const amt = parseFloat(b.total_amount) || 0;
 
-        if (wtEl) {
-            wtEl.textContent = `${(parseFloat(savedBooking.total_weight) || 0).toFixed(3)} gm`;
-        }
-
-        if (amtEl) {
-            amtEl.textContent = `₹${formatIndianCurrency(savedBooking.total_amount || 0)}`;
-        }
-
-        const payRowEl = document.getElementById('successPaymentRow');
-        const payTextEl = document.getElementById('successPaymentText');
-        const payments = Array.isArray(savedBooking.payments) ? savedBooking.payments : [];
-        let cashAmt = 0;
-        let onlineAmt = 0;
-        payments.forEach((p) => {
-            const amt = parseFloat(p.amount) || 0;
-            if ((p.mode || '').toUpperCase() === 'CASH') {
-                cashAmt += amt;
+            const payments = Array.isArray(b.payments) ? b.payments : [];
+            let paid = 0;
+            if (b.trade_type === 'SELL') {
+                paid =
+                    parseFloat(b.received_amount) || payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
             } else {
-                onlineAmt += amt;
+                paid = parseFloat(b.given_amount) || payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
             }
+            paid = Math.round(paid * 100) / 100;
+
+            combinedAmount += amt;
+            combinedPaid += paid;
+
+            linesHtml += `
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <div>
+                        <strong class="text-dark me-1">${bNo}</strong>
+                        <span class="badge rounded-pill px-2 py-1 fw-bold ${badgeClass}" style="font-size: 10px;">${metal}</span>
+                        <span class="text-muted ms-1 small">${wt} gm</span>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-dark">₹${formatIndianCurrency(amt)}</strong>
+                        ${paid > 0 ? `<div class="text-success small" style="font-size: 11px;">Paid: ₹${formatIndianCurrency(paid)}</div>` : ''}
+                    </div>
+                </div>
+            `;
         });
-        const totalPaid = Math.round((cashAmt + onlineAmt) * 100) / 100;
 
-        if (payRowEl && payTextEl) {
-            if (totalPaid > 0) {
-                payRowEl.style.removeProperty('display');
-                payRowEl.classList.remove('d-none');
-                payRowEl.style.display = 'flex';
-                payTextEl.textContent = `Paid: ₹${formatIndianCurrency(totalPaid)} (Cash ₹${formatIndianCurrency(cashAmt)} + Online ₹${formatIndianCurrency(onlineAmt)})`;
+        if (container) {
+            container.innerHTML = linesHtml;
+        }
+
+        if (combinedAmtEl) {
+            combinedAmtEl.textContent = `₹${formatIndianCurrency(combinedAmount)}`;
+        }
+
+        if (combinedPaidEl) {
+            if (combinedPaid > 0) {
+                combinedPaidEl.textContent = `Total Paid: ₹${formatIndianCurrency(combinedPaid)}`;
             } else {
-                payRowEl.style.display = 'none';
+                combinedPaidEl.textContent = '';
             }
         }
 
-        if (btnPrint) {
-            btnPrint.onclick = function () {
-                window.open(getRoute('bhavBookingPrint', savedBooking.id), '_blank');
+        if (btnSuccessPrint) {
+            btnSuccessPrint.onclick = function () {
+                if (groupId) {
+                    const groupUrl =
+                        window.APP_ROUTES && window.APP_ROUTES.bhavBookingGroupPrint
+                            ? window.APP_ROUTES.bhavBookingGroupPrint.replace('__GROUP_ID__', encodeURIComponent(groupId))
+                            : `/bhav-bookings/group/${encodeURIComponent(groupId)}/print`;
+                    window.open(groupUrl, '_blank');
+                } else if (bookings[0] && bookings[0].id) {
+                    window.open(getRoute('bhavBookingPrint', bookings[0].id), '_blank');
+                }
             };
         }
 
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
             const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
-
-            const onModalShown = function () {
-                if (btnOk) btnOk.focus();
-                modalEl.removeEventListener('shown.bs.modal', onModalShown);
-            };
-            modalEl.addEventListener('shown.bs.modal', onModalShown);
-
-            const onModalKeydown = function (e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    modalInstance.hide();
-                }
-            };
-            modalEl.addEventListener('keydown', onModalKeydown);
-
-            const onModalHidden = function () {
-                modalEl.removeEventListener('keydown', onModalKeydown);
-                modalEl.removeEventListener('hidden.bs.modal', onModalHidden);
-                if (payRowEl) payRowEl.style.display = 'none';
-
-                // Focus customer search and open recent customers dropdown after modal closes
-                if (customerSearchInput) {
-                    customerSearchInput.focus();
-                    showRecentCustomersDropdown();
-                }
-            };
-            modalEl.addEventListener('hidden.bs.modal', onModalHidden);
-
             modalInstance.show();
         }
+    }
+
+    // Static event listeners for saveSuccessModal
+    const saveSuccessModalEl = document.getElementById('saveSuccessModal');
+    if (saveSuccessModalEl) {
+        saveSuccessModalEl.addEventListener('shown.bs.modal', function () {
+            const btnOk = document.getElementById('btnSuccessOk');
+            if (btnOk) btnOk.focus();
+        });
+        saveSuccessModalEl.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getInstance(saveSuccessModalEl)?.hide();
+                }
+            }
+        });
+        saveSuccessModalEl.addEventListener('hidden.bs.modal', function () {
+            if (customerSearchInput) {
+                customerSearchInput.focus();
+                showRecentCustomersDropdown();
+            }
+        });
     }
 
     if (btnSave) {
@@ -3045,8 +2959,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (currentWeight > 0 && currentRate > 0) {
                     const rowAmount = calculateRowAmount(currentWeight, currentRate);
+                    const selectedMetal = (categorySelect ? categorySelect.value : currentMetal) || 'GOLD';
                     bookingItems.push({
                         id: nextItemId++,
+                        metal: selectedMetal,
                         weight: currentWeight,
                         rate: currentRate,
                         amount: rowAmount,
@@ -3116,14 +3032,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     isValid = false;
                 }
 
+                // Run pending scheduled update synchronously and compute fresh totals before validation
+                flushScheduledTotals();
+                const freshTotals = calculateTotals();
+                const grandTotalAmount = freshTotals.grandAmount;
+
                 // 4. Validate total payments do not exceed booking total amount
                 let totalConfirmedPaid = 0;
                 for (const p of bookingPayments) {
                     totalConfirmedPaid += parseFloat(p.amount) || 0;
                 }
                 totalConfirmedPaid = Math.round(totalConfirmedPaid * 100) / 100;
-
-                const grandTotalAmount = getBookingGrandTotal();
 
                 if (totalConfirmedPaid > grandTotalAmount && grandTotalAmount >= 0) {
                     const formattedBookingAmt = formatIndianCurrency(grandTotalAmount);
@@ -3154,6 +3073,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     entry_type: typeSelect ? typeSelect.value : 'ONLY_ENTRY',
                     metal: categorySelect ? categorySelect.value : 'GOLD',
                     items: bookingItems.map((item) => ({
+                        metal: item.metal || (categorySelect ? categorySelect.value : 'GOLD'),
                         weight: parseFloat(item.weight),
                         rate: parseFloat(item.rate),
                     })),
@@ -3180,47 +3100,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const targetMethod = isEditMode ? 'PUT' : 'POST';
 
-                fetch(targetUrl, {
+                apiFetch(targetUrl, {
                     method: targetMethod,
                     headers: {
                         'Content-Type': 'application/json',
-                        Accept: 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken(),
                     },
                     body: JSON.stringify(payload),
                 })
-                    .then(async (response) => {
-                        let data = {};
-                        try {
-                            data = await response.json();
-                        } catch (parseErr) {
-                            data = {};
-                        }
+                    .then((savedData) => {
+                        const bookings =
+                            Array.isArray(savedData.bookings) && savedData.bookings.length > 0
+                                ? savedData.bookings
+                                : savedData.id
+                                  ? [savedData]
+                                  : [];
+                        const groupId =
+                            savedData.group_id ||
+                            (bookings[0] ? bookings[0].booking_group_id || bookings[0].request_token : null);
 
-                        if (!response.ok) {
-                            // Handle Laravel 422 validation errors or business rule rejection
-                            if (response.status === 422 && data.errors) {
-                                handleValidationErrors(data.errors);
-                            } else if (response.status === 422 && data.message) {
-                                showToast(data.message, 'error');
-                            } else if (response.status === 429) {
-                                showToast(
-                                    data.message || 'Too many requests. Please slow down and try again shortly.',
-                                    'warning'
-                                );
-                            } else {
-                                showToast('Server error while saving. Please try again.', 'error');
-                            }
-                            const err = new Error(isEditMode ? 'Update failed' : 'Save failed');
-                            err.isHandledHttpError = true;
-                            throw err;
-                        }
-
-                        return data;
-                    })
-                    .then((savedBooking) => {
-                        // Remember last saved booking ID for the form PRINT button
-                        lastSavedBookingId = savedBooking.id;
+                        // Remember last saved booking ID & group ID for the form PRINT button
+                        lastSavedBookingId = bookings[0] ? bookings[0].id : savedData.id;
+                        lastSavedGroupId = groupId;
 
                         // Refresh recent customers cache after booking save
                         fetchRecentCustomers(true);
@@ -3229,18 +3129,22 @@ document.addEventListener('DOMContentLoaded', function () {
                             exitEditMode(true);
                             // Stay on current page when editing
                             fetchBookingList(currentListPage);
-                            showSaveSuccessModal(savedBooking, true);
+                            showSaveSuccessModal(savedData, true);
                         } else {
                             resetFormAfterSave(true);
                             // Reload list from page 1 after new creation
                             fetchBookingList(1);
-                            showSaveSuccessModal(savedBooking, false);
+                            showSaveSuccessModal(savedData, false);
                         }
                     })
                     .catch((err) => {
                         console.error(isEditMode ? 'Booking update error:' : 'Booking save error:', err);
-                        if (!err.isHandledHttpError) {
-                            showToast('Server error while saving. Please try again.', 'error');
+                        if (err.status === 422 && err.data) {
+                            if (err.data.errors) {
+                                handleValidationErrors(err.data.errors);
+                            } else if (err.data.message) {
+                                showToast(err.data.message, 'error');
+                            }
                         }
                     })
                     .finally(() => {
@@ -3442,14 +3346,6 @@ document.addEventListener('DOMContentLoaded', function () {
     let listAbortController = null;
     let partySearchDebounceTimer = null;
 
-    // DOM Elements: Header List Menu
-    const menuCurrentList = document.getElementById('menuCurrentList');
-    const menuOldBooking = document.getElementById('menuOldBooking');
-    const iconCurrentCheck = document.getElementById('iconCurrentCheck');
-    const iconOldCheck = document.getElementById('iconOldCheck');
-    const listHeadingText = document.getElementById('listHeadingText');
-    const listHeadingIcon = document.getElementById('listHeadingIcon');
-
     // DOM Elements: Filters
     const filterPartyInput = document.getElementById('filterPartyInput');
     const filterTradeSelect = document.getElementById('filterTradeSelect');
@@ -3484,28 +3380,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalReceived = document.getElementById('totalReceived');
 
     /**
-     * Format server ISO/SQL datetime string as DD-MM-YYYY hh:mm AM/PM
-     * Why: Consistent 12-hour Indian date-time format for readability
-     */
-    function formatDateTimeDisplay(dateString) {
-        if (!dateString) return '-';
-        const d = new Date(dateString);
-        if (isNaN(d.getTime())) return escapeHtml(dateString);
-
-        const day = pad2(d.getDate());
-        const month = pad2(d.getMonth() + 1);
-        const year = d.getFullYear();
-
-        let hours = d.getHours();
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12; // 0 hour converts to 12
-        const minutes = pad2(d.getMinutes());
-
-        return `${day}-${month}-${year} ${pad2(hours)}:${minutes} ${ampm}`;
-    }
-
-    /**
      * Get visible column count based on active trade filter (8 when Buy or Sell, 11 when All)
      */
     function getVisibleColumnCount() {
@@ -3524,32 +3398,6 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (tradeType === 'SELL') {
             bhavBookingTable.classList.add('show-sell-only');
         }
-    }
-
-    /**
-     * Format server ISO/SQL datetime string into two compact lines:
-     * Line 1: DD-MM-YYYY (12px)
-     * Line 2: hh:mm AM/PM (10px grey)
-     */
-    function formatDateTimeTwoLines(dateString) {
-        if (!dateString) return '<span class="text-muted opacity-50">–</span>';
-        const d = new Date(dateString);
-        if (isNaN(d.getTime())) return `<div>${escapeHtml(dateString)}</div>`;
-
-        const day = pad2(d.getDate());
-        const month = pad2(d.getMonth() + 1);
-        const year = d.getFullYear();
-
-        let hours = d.getHours();
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        const minutes = pad2(d.getMinutes());
-
-        return (
-            `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
-            `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${pad2(hours)}:${minutes} ${ampm}</div>`
-        );
     }
 
     /**
@@ -3897,18 +3745,17 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
 
         listPaginationLinks.innerHTML = linksHtml;
+    }
 
-        // Attach click handlers to pagination buttons
-        const pageButtons = listPaginationLinks.querySelectorAll('button[data-page]');
-        pageButtons.forEach((btn) => {
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                if (this.disabled) return;
-                const targetPage = parseInt(this.getAttribute('data-page'), 10);
-                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= lastPage) {
-                    fetchBookingList(targetPage);
-                }
-            });
+    if (listPaginationLinks) {
+        listPaginationLinks.addEventListener('click', function (e) {
+            const btn = e.target.closest('button[data-page]');
+            if (!btn || btn.disabled) return;
+            e.preventDefault();
+            const targetPage = parseInt(btn.getAttribute('data-page'), 10);
+            if (targetPage && targetPage >= 1 && targetPage !== currentListPage) {
+                fetchBookingList(targetPage);
+            }
         });
     }
 
@@ -3981,20 +3828,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const fullUrl = `${baseUrl}?${params.toString()}`;
 
-        fetch(fullUrl, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-            },
+        apiFetch(fullUrl, {
             signal: signal,
         })
-            .then(async (response) => {
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.message || 'Failed to load booking list.');
-                }
-                return data;
-            })
             .then((data) => {
                 if (tableLoadingBar) tableLoadingBar.classList.remove('active');
                 if (bhavTableBody) {
@@ -4194,200 +4030,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // 11. ACTION COLUMN HANDLERS: VIEW, PRINT, EDIT, DELETE (Task C)
     // =========================================================================
 
-    /**
-     * View Booking Details in Bootstrap Modal:
-     * Fetches fresh booking with items and customer from GET /bhav-bookings/{bhavBooking}
-     */
-    function viewBookingDetails(bookingId) {
-        const showUrl = getRoute('bhavBookingShow', bookingId);
 
-        fetch(showUrl, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-            },
-        })
-            .then(async (response) => {
-                const data = await response.json();
-                if (!response.ok) {
-                    showToast(data.message || 'Booking not found', 'error');
-                    throw new Error(data.message || 'View failed');
-                }
-                return data;
-            })
-            .then((booking) => {
-                // Populate Modal Fields
-                const viewBookingNo = document.getElementById('viewBookingNo');
-                const viewBookingDateTime = document.getElementById('viewBookingDateTime');
-                const viewTradeTypeBadge = document.getElementById('viewTradeTypeBadge');
-                const viewMetalBadge = document.getElementById('viewMetalBadge');
-                const viewTypeBadge = document.getElementById('viewTypeBadge');
-                const viewStatusBadge = document.getElementById('viewStatusBadge');
-
-                const viewCustomerName = document.getElementById('viewCustomerName');
-                const viewCustomerNo = document.getElementById('viewCustomerNo');
-                const viewCustomerMobile = document.getElementById('viewCustomerMobile');
-                const viewCustomerCity = document.getElementById('viewCustomerCity');
-
-                const viewItemsTableBody = document.getElementById('viewItemsTableBody');
-                const viewTotalWeight = document.getElementById('viewTotalWeight');
-                const viewTotalAmount = document.getElementById('viewTotalAmount');
-                const viewDeliveredWeight = document.getElementById('viewDeliveredWeight');
-                const viewPendingWeight = document.getElementById('viewPendingWeight');
-                const viewNarration = document.getElementById('viewNarration');
-                const btnViewModalPrint = document.getElementById('btnViewModalPrint');
-
-                if (viewBookingNo) viewBookingNo.textContent = booking.booking_no || '-';
-                if (viewBookingDateTime) viewBookingDateTime.textContent = formatDateTimeDisplay(booking.booked_at);
-
-                // Trade Type Badge
-                if (viewTradeTypeBadge) {
-                    const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
-                    viewTradeTypeBadge.textContent = booking.trade_type;
-                    viewTradeTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
-                }
-
-                // Metal Badge
-                if (viewMetalBadge) {
-                    const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
-                    viewMetalBadge.textContent = booking.metal;
-                    viewMetalBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
-                }
-
-                // Type Badge
-                if (viewTypeBadge) {
-                    const isEntry = (booking.entry_type || '').toUpperCase() === 'ONLY_ENTRY';
-                    viewTypeBadge.textContent = isEntry ? 'Only Entry' : 'Bhav Cut + Ledger';
-                    viewTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isEntry ? 'badge-type-entry' : 'badge-type-ledger'}`;
-                }
-
-                // Status Badge
-                if (viewStatusBadge) {
-                    const st = (booking.status || 'PENDING').toUpperCase();
-                    viewStatusBadge.textContent = st;
-                    let stClass = 'badge-status-pending';
-                    if (st === 'PARTIAL') stClass = 'badge-status-partial';
-                    else if (st === 'DELIVERED') stClass = 'badge-status-delivered';
-                    else if (st === 'CANCELLED') stClass = 'badge-status-cancelled';
-                    viewStatusBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${stClass}`;
-                }
-
-                // Customer Details
-                const customer = booking.customer || {};
-                if (viewCustomerName) viewCustomerName.textContent = customer.name || '-';
-                if (viewCustomerNo) viewCustomerNo.textContent = customer.customer_no || '-';
-                if (viewCustomerMobile) viewCustomerMobile.textContent = customer.mobile || 'N/A';
-                if (viewCustomerCity) viewCustomerCity.textContent = customer.city || 'N/A';
-
-                // Items Table
-                if (viewItemsTableBody) {
-                    const items = Array.isArray(booking.items) ? booking.items : [];
-                    if (items.length === 0) {
-                        viewItemsTableBody.innerHTML =
-                            '<tr><td colspan="4" class="py-3 text-muted text-center">No items recorded</td></tr>';
-                    } else {
-                        let itemsHtml = '';
-                        items.forEach((it, idx) => {
-                            const sn = it.sort_order || idx + 1;
-                            const w = (parseFloat(it.weight) || 0).toFixed(3);
-                            const r = formatIndianCurrency(it.rate || 0);
-                            const a = formatIndianCurrency(it.amount || 0);
-                            itemsHtml += `
-                            <tr>
-                                <td class="text-center fw-bold text-muted">${sn}</td>
-                                <td class="text-end fw-semibold">${w} gm</td>
-                                <td class="text-end">₹${r}</td>
-                                <td class="text-end fw-bold text-dark">₹${a}</td>
-                            </tr>
-                        `;
-                        });
-                        viewItemsTableBody.innerHTML = itemsHtml;
-                    }
-                }
-
-                // Totals
-                if (viewTotalWeight)
-                    viewTotalWeight.textContent = `${(parseFloat(booking.total_weight) || 0).toFixed(3)} gm`;
-                if (viewTotalAmount)
-                    viewTotalAmount.textContent = `₹${formatIndianCurrency(booking.total_amount || 0)}`;
-                if (viewDeliveredWeight)
-                    viewDeliveredWeight.textContent = `${(parseFloat(booking.delivered_weight) || 0).toFixed(3)} gm`;
-                if (viewPendingWeight)
-                    viewPendingWeight.textContent = `${(parseFloat(booking.pending_weight) || 0).toFixed(3)} gm`;
-
-                // Narration
-                if (viewNarration) viewNarration.textContent = booking.narration || 'None';
-
-                // Payments Section
-                const viewPaymentsCard = document.getElementById('viewPaymentsCard');
-                const viewPaymentsTableBody = document.getElementById('viewPaymentsTableBody');
-                const viewTotalPaidAmount = document.getElementById('viewTotalPaidAmount');
-                const viewPaymentBalanceAmount = document.getElementById('viewPaymentBalanceAmount');
-
-                const payments = Array.isArray(booking.payments) ? booking.payments : [];
-                let totalPaid = 0;
-                if (viewPaymentsCard) {
-                    if (payments.length > 0) {
-                        viewPaymentsCard.style.display = 'block';
-                        let payHtml = '';
-                        payments.forEach((p, idx) => {
-                            const sn = p.sort_order || idx + 1;
-                            const isCash = (p.mode || '').toUpperCase() === 'CASH';
-                            const badgeClass = isCash ? 'badge-payment-cash' : 'badge-payment-online';
-                            let modeText = isCash ? 'CASH' : 'ONLINE';
-                            if (!isCash && p.online_method) {
-                                modeText += ` (${p.online_method})`;
-                            }
-                            const ref = p.reference_no
-                                ? `<span class="text-muted ms-1 small">Ref: ${escapeHtml(p.reference_no)}</span>`
-                                : '<span class="text-muted small">-</span>';
-                            const amt = parseFloat(p.amount) || 0;
-                            totalPaid += amt;
-                            payHtml += `
-                            <tr>
-                                <td class="text-center fw-bold text-muted">${sn}</td>
-                                <td>
-                                    <span class="badge ${badgeClass}">${modeText}</span>
-                                </td>
-                                <td>${ref}</td>
-                                <td class="text-end fw-bold text-dark">₹${formatIndianCurrency(amt)}</td>
-                            </tr>
-                        `;
-                        });
-                        if (viewPaymentsTableBody) viewPaymentsTableBody.innerHTML = payHtml;
-                    } else {
-                        viewPaymentsCard.style.display = 'none';
-                        if (viewPaymentsTableBody) viewPaymentsTableBody.innerHTML = '';
-                    }
-                }
-
-                const bookingTotalAmt = parseFloat(booking.total_amount) || 0;
-                const balanceAmt = Math.max(0, bookingTotalAmt - totalPaid);
-                if (viewTotalPaidAmount) viewTotalPaidAmount.textContent = `₹${formatIndianCurrency(totalPaid)}`;
-                if (viewPaymentBalanceAmount) {
-                    viewPaymentBalanceAmount.textContent = `₹${formatIndianCurrency(balanceAmt)}`;
-                    viewPaymentBalanceAmount.className =
-                        balanceAmt > 0 ? 'fw-bold text-danger' : 'fw-bold text-success';
-                }
-
-                // Wire print button inside view modal
-                if (btnViewModalPrint) {
-                    btnViewModalPrint.onclick = function () {
-                        window.open(getRoute('bhavBookingPrint', booking.id), '_blank');
-                    };
-                }
-
-                // Open Bootstrap Modal
-                const modalEl = document.getElementById('viewBookingModal');
-                if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
-                    modalInstance.show();
-                }
-            })
-            .catch((err) => {
-                console.warn('View details error:', err);
-            });
-    }
 
     /**
      * Check if user has unsaved work in the left form:
@@ -4427,20 +4070,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const showUrl = getRoute('bhavBookingShow', bookingId);
 
-        fetch(showUrl, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-            },
-        })
-            .then(async (response) => {
-                const data = await response.json();
-                if (!response.ok) {
-                    showToast(data.message || 'Booking not found', 'error');
-                    throw new Error(data.message || 'Edit load failed');
-                }
-                return data;
-            })
+        apiFetch(showUrl)
             .then((booking) => {
                 // If target booking number was not known upfront (e.g. from ?edit=) and user has unsaved entries, confirm now
                 if (!knownBookingNo && hasUnsavedEntries()) {
@@ -4478,13 +4108,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     typeSelect.value = booking.entry_type || 'ONLY_ENTRY';
                 }
 
-                // 4. Metal (Update currentMetal before select to avoid triggering confirmation prompt)
+                // 4. Metal (Locked in edit mode to that booking's metal)
                 currentMetal = booking.metal || 'GOLD';
                 if (categorySelect) {
                     categorySelect.value = currentMetal;
+                    categorySelect.disabled = true;
                 }
 
-                // 5. Multi-weight Items
+                // 5. Multi-weight Items (only of this metal)
                 bookingItems = [];
                 if (Array.isArray(booking.items) && booking.items.length > 0) {
                     booking.items.forEach((it) => {
@@ -4493,6 +4124,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const a = parseFloat(it.amount) || calculateRowAmount(w, r);
                         bookingItems.push({
                             id: nextItemId++,
+                            metal: it.metal || currentMetal,
                             weight: w,
                             rate: r,
                             amount: a,
@@ -4564,56 +4196,13 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
-    /**
-     * Delete an existing booking (Task C5)
-     * Soft deletes via DELETE /bhav-bookings/{bhavBooking}
-     */
-    function deleteBooking(bookingId, bookingNo, amount) {
-        const formattedAmt = formatIndianCurrency(amount || 0);
-        const confirmed = window.confirm(`Are you sure you want to delete booking ${bookingNo} for ₹${formattedAmt}?`);
-        if (!confirmed) return;
-
-        const deleteUrl = getRoute('bhavBookingDelete', bookingId);
-
-        fetch(deleteUrl, {
-            method: 'DELETE',
-            headers: {
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': getCsrfToken(),
-            },
-        })
-            .then(async (response) => {
-                const data = await response.json();
-                if (!response.ok) {
-                    showToast(data.message || 'Failed to delete booking.', 'error');
-                    throw new Error(data.message || 'Delete failed');
-                }
-                return data;
-            })
-            .then(() => {
-                showToast(`Booking ${bookingNo} deleted`, 'success');
-
-                // If the deleted booking was currently being edited, exit edit mode immediately
-                if (editingBookingId === bookingId) {
-                    exitEditMode();
-                }
-
-                // Reload the list staying on the current page
-                fetchBookingList(currentListPage);
-            })
-            .catch((err) => {
-                console.warn('Booking delete error:', err);
-            });
-    }
-
     // =========================================================================
     // TODAY'S RATE MASTER
     // =========================================================================
     function fetchTodayRates() {
         if (!window.APP_ROUTES || !window.APP_ROUTES.dailyRatesToday) return;
 
-        fetch(window.APP_ROUTES.dailyRatesToday)
-            .then((res) => res.json())
+        apiFetch(window.APP_ROUTES.dailyRatesToday)
             .then((rates) => {
                 window.TODAY_RATES = rates;
 
@@ -4651,6 +4240,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const globalError = document.getElementById('dailyRateGlobalError');
 
         if (!btnOpen || !modalEl) return;
+
+        setupModalAccessibility(modalEl, goldInput);
 
         btnOpen.addEventListener('click', function () {
             if (goldError) goldError.style.display = 'none';
@@ -4704,29 +4295,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (hasErr) return;
 
-                const btnSave = document.getElementById('btnSaveDailyRates');
-                if (btnSave) btnSave.disabled = true;
+                const btnSaveRates = document.getElementById('btnSaveDailyRates');
+                if (btnSaveRates) btnSaveRates.disabled = true;
 
-                fetch(window.APP_ROUTES.dailyRatesStore, {
+                apiFetch(window.APP_ROUTES.dailyRatesStore, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken(),
                     },
                     body: JSON.stringify({
                         gold_rate: gVal,
                         silver_rate: sVal,
                     }),
                 })
-                    .then((res) => {
-                        if (res.status === 429) {
-                            showGlobalToast('Too many requests. Please slow down and try again shortly.', 'warning');
-                            throw new Error('Throttle');
-                        }
-                        return res.json();
-                    })
                     .then((data) => {
-                        if (btnSave) btnSave.disabled = false;
                         if (data.rates) {
                             window.TODAY_RATES = data.rates;
                             fetchTodayRates();
@@ -4737,11 +4319,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         showGlobalToast("Today's rates updated successfully.", 'success');
                     })
                     .catch((err) => {
-                        if (btnSave) btnSave.disabled = false;
-                        if (err.message !== 'Throttle' && globalError) {
-                            globalError.textContent = 'Failed to save rates. Please check inputs.';
+                        if (globalError) {
+                            globalError.textContent = (err.data && err.data.message) || 'Failed to save rates. Please check inputs.';
                             globalError.classList.remove('d-none');
                         }
+                    })
+                    .finally(() => {
+                        if (btnSaveRates) btnSaveRates.disabled = false;
                     });
             });
         }
@@ -4754,7 +4338,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 onEdit: function (booking) {
                     loadBookingForEdit(booking.id, booking.booking_no);
                 },
-                onDeleted: function (bookingId, bookingNo) {
+                onDeleted: function (bookingId) {
                     if (editingBookingId === bookingId) {
                         exitEditMode();
                     }

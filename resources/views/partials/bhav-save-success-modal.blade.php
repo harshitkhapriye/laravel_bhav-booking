@@ -2,7 +2,7 @@
      MODAL: SAVE / UPDATE SUCCESS POPUP
      ========================================================================= -->
 <div class="modal fade" id="saveSuccessModal" tabindex="-1" aria-labelledby="saveSuccessModalTitle" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
         <div class="modal-content border-0 shadow-lg text-center p-3" style="border-radius: 20px;">
             <div class="modal-body p-3">
                 <!-- Animated Green Check Icon -->
@@ -18,31 +18,22 @@
                 <!-- Transaction Details Card -->
                 <div class="p-3 bg-light rounded-3 text-start small mb-3 border">
                     <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                        <span class="text-muted">Booking No:</span>
-                        <strong class="text-dark fs-6" id="successBookingNo">-</strong>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                         <span class="text-muted">Customer:</span>
                         <strong class="text-dark" id="successCustomerName">-</strong>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                        <span class="text-muted">Trade &amp; Metal:</span>
-                        <div>
-                            <span id="successTradeBadge" class="badge rounded-pill px-2 py-1 fw-bold">SELL</span>
-                            <span id="successMetalBadge" class="badge rounded-pill px-2 py-1 fw-bold">GOLD</span>
+
+                    <!-- Dynamic Booking Lines: one line per booking -->
+                    <div id="successBookingsContainer" class="d-flex flex-column gap-1 mb-2">
+                        <!-- Populated by JavaScript -->
+                    </div>
+
+                    <!-- Combined Total Line -->
+                    <div id="successCombinedTotalRow" class="pt-2 border-top d-flex justify-content-between align-items-center fw-bold">
+                        <span class="text-dark">COMBINED TOTAL:</span>
+                        <div class="text-end">
+                            <span class="text-success fs-6" id="successCombinedAmount">₹0.00</span>
+                            <div class="small text-muted font-normal" id="successCombinedPaidText"></div>
                         </div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                        <span class="text-muted">Total Weight:</span>
-                        <strong class="text-dark" id="successTotalWeight">0.000 gm</strong>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                        <span class="text-muted">Total Amount:</span>
-                        <strong class="text-success fs-6" id="successTotalAmount">₹0.00</strong>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center" id="successPaymentRow" style="display: none;">
-                        <span class="text-muted">Payment:</span>
-                        <strong class="text-dark" id="successPaymentText">-</strong>
                     </div>
                 </div>
 

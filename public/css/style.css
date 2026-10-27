@@ -1254,11 +1254,6 @@ textarea::placeholder,
     border: 1px solid #cbd5e1;
 }
 
-.active-list-item {
-    font-weight: 700;
-    color: var(--navy-dark) !important;
-    background-color: #fff7ed;
-}
 
 /* --------------------------------------------------------------------------
    Multi-Weight Entries Mini-Table
