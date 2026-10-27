@@ -264,4 +264,56 @@ class BhavBookingPaymentTest extends TestCase
         $deleteResponse = $this->deleteJson("/bhav-bookings/{$booking->id}");
         $deleteResponse->assertStatus(422);
     }
+
+    /**
+     * Test exact browser payload for SELL Silver 1.000 gm x 1800 (Rs 180) with 3 CASH payments of Rs 1 each.
+     * Must return 201 and save 3 payments with received_amount = 3.00.
+     */
+    public function test_sell_silver_with_three_cash_payments_exact_browser_payload(): void
+    {
+        $customer = $this->createCustomer();
+
+        $payload = [
+            'trade_type'    => 'SELL',
+            'entry_type'    => 'ONLY_ENTRY',
+            'metal'         => 'SILVER',
+            'items'         => [
+                ['weight' => 1.000, 'rate' => 1800.00],
+            ],
+            'payments'      => [
+                ['mode' => 'CASH', 'online_method' => null, 'amount' => 1.00],
+                ['mode' => 'CASH', 'online_method' => null, 'amount' => 1.00],
+                ['mode' => 'CASH', 'online_method' => null, 'amount' => 1.00],
+            ],
+            'narration'     => null,
+            'send_whatsapp' => false,
+            'customer_id'   => $customer->id,
+            'request_token' => Str::uuid()->toString(),
+        ];
+
+        $response = $this->postJson('/bhav-bookings', $payload);
+        $response->assertStatus(201);
+
+        $bookingId = $response->json('id');
+        $this->assertDatabaseHas('bhav_bookings', [
+            'id'              => $bookingId,
+            'customer_id'     => $customer->id,
+            'trade_type'      => 'SELL',
+            'metal'           => 'SILVER',
+            'total_weight'    => 1.000,
+            'total_amount'    => 180.00,
+            'received_amount' => 3.00,
+            'given_amount'    => 0.00,
+        ]);
+
+        $this->assertDatabaseCount('bhav_booking_payments', 3);
+        $this->assertEquals(
+            3,
+            BhavBookingPayment::where('bhav_booking_id', $bookingId)
+                ->where('mode', 'CASH')
+                ->where('amount', 1.00)
+                ->whereNull('reference_no')
+                ->count()
+        );
+    }
 }

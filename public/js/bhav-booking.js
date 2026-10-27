@@ -1857,7 +1857,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnPaymentOnline = document.getElementById('btnPaymentOnline');
     const paymentOnlineFields = document.getElementById('paymentOnlineFields');
     const paymentOnlineMethod = document.getElementById('paymentOnlineMethod');
-    const paymentRefNo = document.getElementById('paymentRefNo');
     const inputPaymentAmount = document.getElementById('inputPaymentAmount');
     const btnAddPayment = document.getElementById('btnAddPayment');
     const paymentError = document.getElementById('paymentError');
@@ -1957,6 +1956,14 @@ document.addEventListener('DOMContentLoaded', function () {
             curRate,
             curLineAmount
         };
+    }
+
+    /**
+     * Helper to retrieve booking grand total amount (confirmed rows + current entry line).
+     * Used across validations and payment limit checks.
+     */
+    function getBookingGrandTotal() {
+        return calculateTotals().grandAmount;
     }
 
     /**
@@ -2510,13 +2517,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const mode = currentPaymentMode;
         const onlineMethod = mode === 'ONLINE' ? (paymentOnlineMethod ? paymentOnlineMethod.value : 'UPI') : null;
-        const refNo = mode === 'ONLINE' ? (paymentRefNo ? paymentRefNo.value.trim() : null) : null;
 
         bookingPayments.push({
             id: nextPaymentId++,
             mode: mode,
             online_method: onlineMethod,
-            reference_no: refNo,
             amount: roundedAmt
         });
 
@@ -2603,7 +2608,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const isCash = (p.mode || '').toUpperCase() === 'CASH';
             const modeBadge = isCash
                 ? '<span class="badge-payment-cash"><i class="fa-solid fa-money-bill-wave"></i> Cash</span>'
-                : `<span class="badge-payment-online"><i class="fa-solid fa-globe"></i> ${escapeHtml(p.online_method || 'Online')}${p.reference_no ? ' • ' + escapeHtml(p.reference_no) : ''}</span>`;
+                : `<span class="badge-payment-online"><i class="fa-solid fa-globe"></i> ${escapeHtml(p.online_method || 'Online')}</span>`;
 
             rowsHtml += `
                 <tr class="payment-entry-row" data-id="${p.id}">
@@ -2803,6 +2808,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (inputPaymentAmount) inputPaymentAmount.classList.remove('is-invalid');
 
+        if (paymentEntriesTableBody) {
+            paymentEntriesTableBody.querySelectorAll('.payment-entry-row').forEach(r => r.classList.remove('table-danger'));
+            paymentEntriesTableBody.querySelectorAll('.row-input-payment-amount').forEach(i => i.classList.remove('is-invalid'));
+        }
+
         const tableInputs = entriesTableBody ? entriesTableBody.querySelectorAll('.entry-cell-input') : [];
         tableInputs.forEach(input => input.classList.remove('is-invalid'));
     }
@@ -2828,7 +2838,6 @@ document.addEventListener('DOMContentLoaded', function () {
         renderPaymentEntriesTable();
         setPaymentMode('CASH');
         if (inputPaymentAmount) inputPaymentAmount.value = '';
-        if (paymentRefNo) paymentRefNo.value = '';
         if (paymentOnlineMethod) paymentOnlineMethod.value = 'UPI';
 
         if (inputWeight) inputWeight.value = '';
@@ -2973,202 +2982,221 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btnSave) {
         btnSave.addEventListener('click', function (e) {
             e.preventDefault();
-            resetValidationErrors();
+            try {
+                resetValidationErrors();
 
-            // 1. Check if current entry line is filled: auto-treat as a row if "+" was not clicked
-            const currentWeight = parseFloat(inputWeight ? inputWeight.value : 0) || 0;
-            const currentRate = parseFloat(inputRate ? inputRate.value : 0) || 0;
+                // 1. Check if current entry line is filled: auto-treat as a row if "+" was not clicked
+                const currentWeight = parseFloat(inputWeight ? inputWeight.value : 0) || 0;
+                const currentRate = parseFloat(inputRate ? inputRate.value : 0) || 0;
 
-            if (currentWeight > 0 && currentRate > 0) {
-                const rowAmount = calculateRowAmount(currentWeight, currentRate);
-                bookingItems.push({
-                    id: nextItemId++,
-                    weight: currentWeight,
-                    rate: currentRate,
-                    amount: rowAmount
-                });
-                inputWeight.value = '';
-                renderEntriesTable();
-            }
+                if (currentWeight > 0 && currentRate > 0) {
+                    const rowAmount = calculateRowAmount(currentWeight, currentRate);
+                    bookingItems.push({
+                        id: nextItemId++,
+                        weight: currentWeight,
+                        rate: currentRate,
+                        amount: rowAmount
+                    });
+                    inputWeight.value = '';
+                    renderEntriesTable();
+                }
 
-            // Auto-treat typed payment amount as one entry with current mode if "+" was not clicked
-            const typedPayAmt = parseFloat(inputPaymentAmount ? inputPaymentAmount.value : 0) || 0;
-            if (typedPayAmt > 0) {
-                const valStr = inputPaymentAmount.value.trim();
-                const decMatch = valStr.match(/\.(\d+)$/);
-                if (decMatch && decMatch[1].length > 2) {
+                // Auto-treat typed payment amount as one entry with current mode if "+" was not clicked
+                const typedPayAmt = parseFloat(inputPaymentAmount ? inputPaymentAmount.value : 0) || 0;
+                if (typedPayAmt > 0) {
+                    const valStr = inputPaymentAmount.value.trim();
+                    const decMatch = valStr.match(/\.(\d+)$/);
+                    if (decMatch && decMatch[1].length > 2) {
+                        if (paymentError) {
+                            paymentError.textContent = 'Payment amount can have at most 2 decimals.';
+                            paymentError.style.display = 'block';
+                        }
+                        if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
+                        inputPaymentAmount.focus();
+                        return;
+                    }
+                    bookingPayments.push({
+                        id: nextPaymentId++,
+                        mode: currentPaymentMode,
+                        online_method: currentPaymentMode === 'ONLINE' ? (paymentOnlineMethod ? paymentOnlineMethod.value : 'UPI') : null,
+                        amount: typedPayAmt
+                    });
+                    inputPaymentAmount.value = '';
+                    renderPaymentEntriesTable();
+                }
+
+                let isValid = true;
+                let firstInvalidField = null;
+
+                // 2. Validate Customer
+                if (!hiddenCustomerId.value || !selectedCustomer) {
+                    showCustomerError('Customer must be selected.');
+                    isValid = false;
+                    if (!firstInvalidField) firstInvalidField = customerSearchInput;
+                }
+
+                // 3. Validate at least 1 row exists
+                if (bookingItems.length === 0) {
+                    // Highlight weight & rate inputs
+                    if (!currentWeight || currentWeight <= 0) {
+                        if (weightError) {
+                            weightError.textContent = 'Weight must be greater than 0.';
+                            weightError.style.display = 'block';
+                        }
+                        if (inputWeight) inputWeight.classList.add('is-invalid');
+                        if (!firstInvalidField) firstInvalidField = inputWeight;
+                    }
+                    if (!currentRate || currentRate <= 0) {
+                        if (rateError) {
+                            rateError.textContent = 'Rate must be greater than 0.';
+                            rateError.style.display = 'block';
+                        }
+                        if (inputRate) inputRate.classList.add('is-invalid');
+                        if (!firstInvalidField) firstInvalidField = inputRate;
+                    }
+                    isValid = false;
+                }
+
+                // 4. Validate total payments do not exceed booking total amount
+                let totalConfirmedPaid = 0;
+                for (const p of bookingPayments) {
+                    totalConfirmedPaid += parseFloat(p.amount) || 0;
+                }
+                totalConfirmedPaid = Math.round(totalConfirmedPaid * 100) / 100;
+
+                const grandTotalAmount = getBookingGrandTotal();
+
+                if (totalConfirmedPaid > grandTotalAmount && grandTotalAmount >= 0) {
+                    const formattedBookingAmt = formatIndianCurrency(grandTotalAmount);
                     if (paymentError) {
-                        paymentError.textContent = 'Payment amount can have at most 2 decimals.';
+                        paymentError.textContent = `Payment cannot be more than booking amount ₹${formattedBookingAmt}`;
                         paymentError.style.display = 'block';
                     }
                     if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
-                    inputPaymentAmount.focus();
+                    isValid = false;
+                    if (!firstInvalidField) firstInvalidField = inputPaymentAmount;
+                }
+
+                if (!isValid) {
+                    if (firstInvalidField) firstInvalidField.focus();
                     return;
                 }
-                bookingPayments.push({
-                    id: nextPaymentId++,
-                    mode: currentPaymentMode,
-                    online_method: currentPaymentMode === 'ONLINE' ? (paymentOnlineMethod ? paymentOnlineMethod.value : 'UPI') : null,
-                    reference_no: currentPaymentMode === 'ONLINE' && paymentRefNo && paymentRefNo.value.trim() ? paymentRefNo.value.trim() : null,
-                    amount: typedPayAmt
-                });
-                inputPaymentAmount.value = '';
-                if (paymentRefNo) paymentRefNo.value = '';
-                renderPaymentEntriesTable();
-            }
 
-            let isValid = true;
-            let firstInvalidField = null;
+                const isEditMode = Boolean(editingBookingId);
 
-            // 2. Validate Customer
-            if (!hiddenCustomerId.value || !selectedCustomer) {
-                showCustomerError('Customer must be selected.');
-                isValid = false;
-                if (!firstInvalidField) firstInvalidField = customerSearchInput;
-            }
+                // Disable save button + show spinner to prevent double submission
+                btnSave.disabled = true;
+                btnSave.innerHTML = isEditMode
+                    ? '<i class="fa-solid fa-spinner fa-spin me-2"></i> Updating...'
+                    : '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
 
-            // 3. Validate at least 1 row exists
-            if (bookingItems.length === 0) {
-                // Highlight weight & rate inputs
-                if (!currentWeight || currentWeight <= 0) {
-                    if (weightError) {
-                        weightError.textContent = 'Weight must be greater than 0.';
-                        weightError.style.display = 'block';
+                const payload = {
+                    trade_type: hiddenTradeType ? hiddenTradeType.value : 'SELL',
+                    entry_type: typeSelect ? typeSelect.value : 'ONLY_ENTRY',
+                    metal: categorySelect ? categorySelect.value : 'GOLD',
+                    items: bookingItems.map(item => ({
+                        weight: parseFloat(item.weight),
+                        rate: parseFloat(item.rate)
+                    })),
+                    payments: bookingPayments.map(p => ({
+                        mode: p.mode,
+                        online_method: p.mode === 'ONLINE' ? (p.online_method || 'UPI') : null,
+                        amount: parseFloat(p.amount)
+                    })),
+                    narration: inputNarration ? inputNarration.value.trim() : null,
+                    send_whatsapp: whatsappSwitch ? whatsappSwitch.checked : false
+                };
+
+                // Only send customer_id and request_token on CREATE (store). Updates do not change customer or request_token.
+                if (!isEditMode) {
+                    payload.customer_id = parseInt(hiddenCustomerId.value, 10);
+                    payload.request_token = currentRequestToken;
+                }
+
+                const targetUrl = isEditMode
+                    ? getRoute('bhavBookingUpdate', editingBookingId)
+                    : (window.APP_ROUTES && window.APP_ROUTES.bhavBookingStore ? window.APP_ROUTES.bhavBookingStore : '/bhav-bookings');
+
+                const targetMethod = isEditMode ? 'PUT' : 'POST';
+
+                fetch(targetUrl, {
+                    method: targetMethod,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(async response => {
+                    let data = {};
+                    try {
+                        data = await response.json();
+                    } catch (parseErr) {
+                        data = {};
                     }
-                    if (inputWeight) inputWeight.classList.add('is-invalid');
-                    if (!firstInvalidField) firstInvalidField = inputWeight;
-                }
-                if (!currentRate || currentRate <= 0) {
-                    if (rateError) {
-                        rateError.textContent = 'Rate must be greater than 0.';
-                        rateError.style.display = 'block';
+
+                    if (!response.ok) {
+                        // Handle Laravel 422 validation errors or business rule rejection
+                        if (response.status === 422 && data.errors) {
+                            handleValidationErrors(data.errors);
+                        } else if (response.status === 422 && data.message) {
+                            showToast(data.message, 'error');
+                        } else if (response.status === 429) {
+                            showToast(data.message || 'Too many requests. Please slow down and try again shortly.', 'warning');
+                        } else {
+                            showToast('Server error while saving. Please try again.', 'error');
+                        }
+                        const err = new Error(isEditMode ? 'Update failed' : 'Save failed');
+                        err.isHandledHttpError = true;
+                        throw err;
                     }
-                    if (inputRate) inputRate.classList.add('is-invalid');
-                    if (!firstInvalidField) firstInvalidField = inputRate;
-                }
-                isValid = false;
-            }
 
-            // 4. Validate total payments do not exceed booking total amount
-            let totalConfirmedPaid = 0;
-            for (const p of bookingPayments) {
-                totalConfirmedPaid += parseFloat(p.amount) || 0;
-            }
-            totalConfirmedPaid = Math.round(totalConfirmedPaid * 100) / 100;
+                    return data;
+                })
+                .then(savedBooking => {
+                    // Remember last saved booking ID for the form PRINT button
+                    lastSavedBookingId = savedBooking.id;
 
-            const itemTotals = calculateCurrentTotals();
-            const grandTotalAmount = itemTotals.grandAmount;
+                    // Refresh recent customers cache after booking save
+                    fetchRecentCustomers(true);
 
-            if (totalConfirmedPaid > grandTotalAmount && grandTotalAmount >= 0) {
-                const formattedBookingAmt = formatIndianCurrency(grandTotalAmount);
-                if (paymentError) {
-                    paymentError.textContent = `Payment cannot be more than booking amount ₹${formattedBookingAmt}`;
-                    paymentError.style.display = 'block';
-                }
-                if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
-                isValid = false;
-                if (!firstInvalidField) firstInvalidField = inputPaymentAmount;
-            }
-
-            if (!isValid) {
-                if (firstInvalidField) firstInvalidField.focus();
-                return;
-            }
-
-            const isEditMode = Boolean(editingBookingId);
-
-            // Disable save button + show spinner to prevent double submission
-            btnSave.disabled = true;
-            btnSave.innerHTML = isEditMode
-                ? '<i class="fa-solid fa-spinner fa-spin me-2"></i> Updating...'
-                : '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
-
-            const payload = {
-                trade_type: hiddenTradeType ? hiddenTradeType.value : 'SELL',
-                entry_type: typeSelect ? typeSelect.value : 'ONLY_ENTRY',
-                metal: categorySelect ? categorySelect.value : 'GOLD',
-                items: bookingItems.map(item => ({
-                    weight: parseFloat(item.weight),
-                    rate: parseFloat(item.rate)
-                })),
-                payments: bookingPayments.map(p => ({
-                    mode: p.mode,
-                    online_method: p.mode === 'ONLINE' ? (p.online_method || 'UPI') : null,
-                    reference_no: p.mode === 'ONLINE' && p.reference_no ? p.reference_no : null,
-                    amount: parseFloat(p.amount)
-                })),
-                narration: inputNarration ? inputNarration.value.trim() : null,
-                send_whatsapp: whatsappSwitch ? whatsappSwitch.checked : false
-            };
-
-            // Only send customer_id and request_token on CREATE (store). Updates do not change customer or request_token.
-            if (!isEditMode) {
-                payload.customer_id = parseInt(hiddenCustomerId.value, 10);
-                payload.request_token = currentRequestToken;
-            }
-
-            const targetUrl = isEditMode
-                ? getRoute('bhavBookingUpdate', editingBookingId)
-                : (window.APP_ROUTES && window.APP_ROUTES.bhavBookingStore ? window.APP_ROUTES.bhavBookingStore : '/bhav-bookings');
-
-            const targetMethod = isEditMode ? 'PUT' : 'POST';
-
-            fetch(targetUrl, {
-                method: targetMethod,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken()
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(async response => {
-                const data = await response.json();
-
-                if (!response.ok) {
-                    // Handle Laravel 422 validation errors or business rule rejection
-                    if (response.status === 422 && data.errors) {
-                        handleValidationErrors(data.errors);
+                    if (isEditMode) {
+                        exitEditMode(true);
+                        // Stay on current page when editing
+                        fetchBookingList(currentListPage);
+                        showSaveSuccessModal(savedBooking, true);
                     } else {
-                        showToast(data.message || (isEditMode ? 'Failed to update booking.' : 'Failed to save booking.'), 'error');
+                        resetFormAfterSave(true);
+                        // Reload list from page 1 after new creation
+                        fetchBookingList(1);
+                        showSaveSuccessModal(savedBooking, false);
                     }
-                    throw new Error(isEditMode ? 'Update failed' : 'Save failed');
-                }
-
-                return data;
-            })
-            .then(savedBooking => {
-                const bookingNo = savedBooking.booking_no || (isEditMode ? editingBookingNo : 'Booking');
-
-                // Remember last saved booking ID for the form PRINT button
-                lastSavedBookingId = savedBooking.id;
-
-                // Refresh recent customers cache after booking save
-                fetchRecentCustomers(true);
-
-                if (isEditMode) {
-                    exitEditMode(true);
-                    // Stay on current page when editing
-                    fetchBookingList(currentListPage);
-                    showSaveSuccessModal(savedBooking, true);
-                } else {
-                    resetFormAfterSave(true);
-                    // Reload list from page 1 after new creation
-                    fetchBookingList(1);
-                    showSaveSuccessModal(savedBooking, false);
-                }
-            })
-            .catch(err => {
-                console.warn(isEditMode ? 'Booking update error:' : 'Booking save error:', err);
-            })
-            .finally(() => {
+                })
+                .catch(err => {
+                    console.error(isEditMode ? 'Booking update error:' : 'Booking save error:', err);
+                    if (!err.isHandledHttpError) {
+                        showToast('Server error while saving. Please try again.', 'error');
+                    }
+                })
+                .finally(() => {
+                    btnSave.disabled = false;
+                    if (editingBookingId) {
+                        btnSave.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i> UPDATE';
+                    } else {
+                        btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
+                    }
+                });
+            } catch (syncErr) {
+                console.error('Something went wrong while saving:', syncErr);
+                showToast('Something went wrong while saving. Please try again.', 'error');
                 btnSave.disabled = false;
                 if (editingBookingId) {
                     btnSave.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i> UPDATE';
                 } else {
                     btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
                 }
-            });
+            }
         });
     }
 
@@ -3176,52 +3204,103 @@ document.addEventListener('DOMContentLoaded', function () {
      * Map server 422 validation errors to corresponding fields and row inputs
      */
     function handleValidationErrors(errors) {
+        if (!errors || typeof errors !== 'object') return;
+
+        const handledKeys = [];
+
+        // 1. customer_id
         if (errors.customer_id) {
-            showCustomerError(errors.customer_id[0]);
-        }
-        if (errors.items && entriesGlobalError) {
-            entriesGlobalError.textContent = errors.items[0];
-            entriesGlobalError.style.display = 'block';
+            const msg = Array.isArray(errors.customer_id) ? errors.customer_id[0] : errors.customer_id;
+            showCustomerError(msg);
+            handledKeys.push('customer_id');
         }
 
-        // Check for row item errors like items.0.weight or items.1.rate
+        // 2. items array-level error
+        if (errors.items) {
+            const msg = Array.isArray(errors.items) ? errors.items[0] : errors.items;
+            if (entriesGlobalError) {
+                entriesGlobalError.textContent = msg;
+                entriesGlobalError.style.display = 'block';
+            }
+            handledKeys.push('items');
+        }
+
+        // 3. Check for row item errors like items.0.weight or items.1.rate
         Object.keys(errors).forEach(key => {
             const match = key.match(/^items\.(\d+)\.(weight|rate)$/);
-            if (match && entriesTableBody) {
-                const rowIndex = parseInt(match[1], 10);
-                const fieldName = match[2];
-                const item = bookingItems[rowIndex];
-                if (item) {
-                    const rowInput = entriesTableBody.querySelector(
-                        fieldName === 'weight'
-                            ? `.row-input-weight[data-id="${item.id}"]`
-                            : `.row-input-rate[data-id="${item.id}"]`
-                    );
-                    if (rowInput) {
-                        rowInput.classList.add('is-invalid');
-                        rowInput.title = errors[key][0];
+            if (match) {
+                handledKeys.push(key);
+                if (entriesTableBody) {
+                    const rowIndex = parseInt(match[1], 10);
+                    const fieldName = match[2];
+                    const item = bookingItems[rowIndex];
+                    if (item) {
+                        const rowInput = entriesTableBody.querySelector(
+                            fieldName === 'weight'
+                                ? `.row-input-weight[data-id="${item.id}"]`
+                                : `.row-input-rate[data-id="${item.id}"]`
+                        );
+                        if (rowInput) {
+                            rowInput.classList.add('is-invalid');
+                            rowInput.title = Array.isArray(errors[key]) ? errors[key][0] : errors[key];
+                        }
                     }
                 }
             }
         });
 
-        if (errors.narration && inputNarration) {
-            inputNarration.classList.add('is-invalid');
+        // 4. Narration error
+        if (errors.narration) {
+            handledKeys.push('narration');
+            if (inputNarration) inputNarration.classList.add('is-invalid');
         }
 
-        if (errors.payments && paymentError) {
-            paymentError.textContent = errors.payments[0];
-            paymentError.style.display = 'block';
+        // 5. payments array-level error (under Payments block)
+        if (errors.payments) {
+            handledKeys.push('payments');
+            const msg = Array.isArray(errors.payments) ? errors.payments[0] : errors.payments;
+            if (paymentError) {
+                paymentError.textContent = msg;
+                paymentError.style.display = 'block';
+            }
             if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
         }
 
+        // 6. payments.N.amount / payments.N.mode / payments.N.online_method
         Object.keys(errors).forEach(key => {
-            if (key.startsWith('payments.') && paymentError) {
-                if (!paymentError.textContent) {
-                    paymentError.textContent = errors[key][0];
+            const match = key.match(/^payments\.(\d+)\.(amount|mode|online_method)$/);
+            if (match) {
+                handledKeys.push(key);
+                const payIndex = parseInt(match[1], 10);
+                const msg = Array.isArray(errors[key]) ? errors[key][0] : errors[key];
+
+                if (paymentError && !paymentError.textContent) {
+                    paymentError.textContent = msg;
                     paymentError.style.display = 'block';
                 }
-                if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
+
+                const payment = bookingPayments[payIndex];
+                if (payment && paymentEntriesTableBody) {
+                    const payRow = paymentEntriesTableBody.querySelector(`.payment-entry-row[data-id="${payment.id}"]`);
+                    if (payRow) {
+                        payRow.classList.add('table-danger');
+                        const amtInput = payRow.querySelector('.row-input-payment-amount');
+                        if (amtInput) {
+                            amtInput.classList.add('is-invalid');
+                            amtInput.title = msg;
+                        }
+                    }
+                } else if (inputPaymentAmount) {
+                    inputPaymentAmount.classList.add('is-invalid');
+                }
+            }
+        });
+
+        // 7. Any other 422 key -> toast with its message
+        Object.keys(errors).forEach(key => {
+            if (!handledKeys.includes(key)) {
+                const msg = Array.isArray(errors[key]) ? errors[key][0] : errors[key];
+                showToast(msg, 'error');
             }
         });
     }
@@ -4346,7 +4425,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             id: nextPaymentId++,
                             mode: (p.mode || 'CASH').toUpperCase(),
                             online_method: p.online_method || 'UPI',
-                            reference_no: p.reference_no || '',
                             amount: parseFloat(p.amount) || 0
                         });
                     }
@@ -4355,7 +4433,6 @@ document.addEventListener('DOMContentLoaded', function () {
             renderPaymentEntriesTable();
             setPaymentMode('CASH');
             if (inputPaymentAmount) inputPaymentAmount.value = '';
-            if (paymentRefNo) paymentRefNo.value = '';
             if (paymentOnlineMethod) paymentOnlineMethod.value = 'UPI';
 
             // 6. Current entry line inputs
@@ -4464,7 +4541,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     badgeSilver.textContent = `Silver: ₹${formatIndianCurrency(rates.SILVER.rate)}`;
                 }
 
-                if (!isEditingMode) {
+                const isEditing = Boolean(editingBookingId);
+                if (!isEditing) {
                     const def = getDefaultRateForMetal(currentMetal);
                     if (inputRate && def.isToday) {
                         inputRate.value = def.rate;

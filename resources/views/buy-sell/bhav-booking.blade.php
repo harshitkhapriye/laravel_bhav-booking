@@ -268,7 +268,7 @@
                                 RECEIVED :
                             </label>
                             <div class="col-12 col-sm-8">
-                                <div class="d-flex align-items-center gap-2 flex-wrap flex-sm-nowrap">
+                                <div class="d-flex align-items-center gap-2 flex-wrap flex-sm-nowrap" style="min-width: 0; width: 100%;">
                                     <!-- Payment Mode Toggle (Cash / Online) -->
                                     <div class="payment-mode-toggle-container mode-cash flex-shrink-0" id="paymentModeToggle" data-mode="CASH">
                                         <div class="payment-mode-toggle-pill" id="paymentModeTogglePill"></div>
@@ -276,20 +276,19 @@
                                         <button type="button" class="payment-mode-toggle-btn" id="btnPaymentOnline" data-mode="ONLINE">Online</button>
                                     </div>
 
-                                    <!-- Online Method & Ref (Shown only when Online is selected) -->
-                                    <div id="paymentOnlineFields" class="d-none align-items-center gap-1 flex-shrink-0">
+                                    <!-- Online Method (Shown only when Online is selected) -->
+                                    <div id="paymentOnlineFields" class="d-none align-items-center flex-shrink-0">
                                         <select class="form-select form-input-pill py-1 px-2 small" id="paymentOnlineMethod" style="width: auto; min-width: 82px; font-size: 11.5px; height: 38px;">
                                             <option value="UPI" selected>UPI</option>
                                             <option value="BANK">Bank</option>
                                             <option value="CARD">Card</option>
                                             <option value="CHEQUE">Cheque</option>
                                         </select>
-                                        <input type="text" class="form-control form-input-pill py-1 px-2 small" id="paymentRefNo" placeholder="Ref. No." maxlength="50" style="width: 95px; font-size: 11.5px; height: 38px;">
                                     </div>
 
-                                    <!-- Payment Amount Input -->
-                                    <div class="input-with-suffix flex-grow-1" style="min-width: 110px;">
-                                        <input type="text" inputmode="decimal" class="form-control form-input-pill pe-5" id="inputPaymentAmount" placeholder="0.00">
+                                    <!-- Payment Amount Input (Takes remaining width) -->
+                                    <div class="input-with-suffix flex-grow-1" style="min-width: 0;">
+                                        <input type="text" inputmode="decimal" class="form-control form-input-pill pe-5" id="inputPaymentAmount" placeholder="0.00" style="min-width: 0;">
                                         <span class="field-suffix">₹</span>
                                     </div>
 
