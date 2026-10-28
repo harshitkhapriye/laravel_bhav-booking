@@ -1,4 +1,4 @@
-/* global escapeHtml, formatIndianCurrency, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, getRoute, showToast, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility */
+/* global escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateISO, formatDateDisplay, formatBookingDateTime, metalIconSvg, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, showToast, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility */
 
 /**
  * Bhav Booking UI Logic & Interactivity
@@ -116,6 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let activeCustomerIndex = -1;
     let currentSearchResults = [];
     let currentSearchAbortController = null;
+    let suppressNextFocusDropdown = false;
 
     /**
      * Select a customer and update all related UI fields
@@ -137,6 +138,7 @@ document.addEventListener('DOMContentLoaded', function () {
         customerClearBtn.style.display = 'block';
         hideCustomerError();
         hideCustomerDropdown();
+        updateStickySummaryBar();
     }
 
     /**
@@ -151,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function () {
         customerSelectedInfo.innerHTML = '';
         hideCustomerDropdown();
         hideCustomerError();
+        updateStickySummaryBar();
 
         const whatsappSwitch = document.getElementById('whatsappSwitch');
         if (whatsappSwitch && whatsappSwitch.checked) {
@@ -546,6 +549,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (customerSearchInput) {
         // Show recent customers on focus or click when input is empty OR a customer is already selected
         customerSearchInput.addEventListener('focus', function () {
+            if (suppressNextFocusDropdown) {
+                suppressNextFocusDropdown = false;
+                return;
+            }
             if (editingBookingId !== null) return;
             if (!this.value.trim() || selectedCustomer) {
                 showRecentCustomersDropdown();
@@ -1640,6 +1647,17 @@ document.addEventListener('DOMContentLoaded', function () {
     function setTradeMode(mode) {
         if (hiddenTradeType) hiddenTradeType.value = mode;
 
+        const formCard = document.getElementById('bhavFormCard') || document.querySelector('.bhav-form-card');
+        if (formCard) {
+            if (mode === 'BUY') {
+                formCard.classList.add('mode-buy');
+                formCard.classList.remove('mode-sell');
+            } else {
+                formCard.classList.add('mode-sell');
+                formCard.classList.remove('mode-buy');
+            }
+        }
+
         if (tradeToggleContainer) {
             tradeToggleContainer.setAttribute('data-mode', mode);
             if (mode === 'BUY') {
@@ -1669,19 +1687,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /**
      * User clicks trade toggle: switches mode, focuses customer input, selects text,
-     * and opens recent customers dropdown while keeping existing customer selection.
+     * but does not open recent customers dropdown (closes any open dropdown).
      */
     function handleTradeToggleSwitch(mode) {
         setTradeMode(mode);
+
+        if (filterTradeSelect) {
+            filterTradeSelect.value = mode;
+        }
+        applyTradeColumnVisibility(mode);
+        updateTradeViewBadge(mode);
+        fetchBookingList(1);
 
         if (editingBookingId !== null) {
             return;
         }
 
+        // Close dropdown if already open
+        hideCustomerDropdown();
+
         if (customerSearchInput) {
+            suppressNextFocusDropdown = true;
             customerSearchInput.focus();
             customerSearchInput.select();
-            showRecentCustomersDropdown();
         }
     }
 
@@ -1917,6 +1945,12 @@ document.addEventListener('DOMContentLoaded', function () {
             inputAmount.value = formatIndianCurrency(totals.grandAmount);
         }
 
+        // Update Amount in Words under AMOUNT field
+        const amountInWordsEl = document.getElementById('amountInWords');
+        if (amountInWordsEl) {
+            amountInWordsEl.textContent = amountToIndianWords(totals.grandAmount);
+        }
+
         // Update Payment Summary & Validation
         if (typeof updatePaymentSummary === 'function') {
             updatePaymentSummary(totals.grandAmount);
@@ -1970,7 +2004,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <tr class="entry-row" data-id="${item.id}" data-index="${index}">
                     <td class="text-center text-muted fw-bold col-entry-sn">${index + 1}</td>
                     <td class="text-center col-entry-metal">
-                        <span class="badge ${badgeClass}" style="font-size: 10px; font-weight: 700;">${itemMetal}</span>
+                        <span class="badge ${badgeClass} d-inline-flex align-items-center gap-1" style="font-size: 10px; font-weight: 700;">${metalIconSvg(itemMetal)}<span>${itemMetal}</span></span>
                     </td>
                     <td class="col-entry-wt">
                         <input type="text"
@@ -2334,6 +2368,82 @@ document.addEventListener('DOMContentLoaded', function () {
                 paymentError.textContent = '';
                 paymentError.style.display = 'none';
                 if (inputPaymentAmount) inputPaymentAmount.classList.remove('is-invalid');
+            }
+        }
+
+        updateStickySummaryBar(null, payTotals);
+    }
+
+    /**
+     * Live update the sticky summary bar at bottom of the form card
+     */
+    function updateStickySummaryBar(totals, payTotals) {
+        const stickyGrandAmount = document.getElementById('stickyGrandAmount');
+        if (!stickyGrandAmount) return;
+
+        if (!totals) totals = calculateTotals();
+        if (!payTotals) payTotals = calculatePaymentTotals(totals.grandAmount);
+
+        const stickyCustomerName = document.getElementById('stickyCustomerName');
+        if (stickyCustomerName) {
+            if (selectedCustomer && selectedCustomer.name) {
+                stickyCustomerName.textContent = selectedCustomer.name;
+                stickyCustomerName.title = `${selectedCustomer.name} (${selectedCustomer.customer_no || ''})`;
+            } else {
+                stickyCustomerName.textContent = 'No customer';
+                stickyCustomerName.title = 'No customer';
+            }
+        }
+
+        const stickyEntriesCount = document.getElementById('stickyEntriesCount');
+        if (stickyEntriesCount) {
+            stickyEntriesCount.textContent = `${bookingItems.length} entries`;
+        }
+
+        const stickyGoldWeight = document.getElementById('stickyGoldWeight');
+        const stickySilverWeight = document.getElementById('stickySilverWeight');
+        const stickyMetalDot = document.getElementById('stickyMetalDot');
+
+        const hasGold = totals.tableGoldWeight > 0;
+        const hasSilver = totals.tableSilverWeight > 0;
+
+        if (stickyGoldWeight) {
+            if (hasGold) {
+                stickyGoldWeight.innerHTML = `${metalIconSvg('GOLD', 11)} ${totals.tableGoldWeight.toFixed(3)}g`;
+                stickyGoldWeight.style.display = '';
+            } else {
+                stickyGoldWeight.style.display = 'none';
+            }
+        }
+
+        if (stickySilverWeight) {
+            if (hasSilver) {
+                stickySilverWeight.innerHTML = `${metalIconSvg('SILVER', 11)} ${totals.tableSilverWeight.toFixed(3)}g`;
+                stickySilverWeight.style.display = '';
+            } else {
+                stickySilverWeight.style.display = 'none';
+            }
+        }
+
+        if (stickyMetalDot) {
+            stickyMetalDot.style.display = hasGold || hasSilver ? '' : 'none';
+        }
+
+        stickyGrandAmount.textContent = `₹${formatIndianCurrency(totals.grandAmount)}`;
+
+        const stickyPaidAmount = document.getElementById('stickyPaidAmount');
+        if (stickyPaidAmount) {
+            stickyPaidAmount.textContent = `₹${formatIndianCurrency(payTotals.totalPaid)}`;
+        }
+
+        const stickyBalanceAmount = document.getElementById('stickyBalanceAmount');
+        if (stickyBalanceAmount) {
+            const bal = Math.max(0, payTotals.balance);
+            stickyBalanceAmount.textContent = `₹${formatIndianCurrency(bal)}`;
+            if (bal > 0) {
+                stickyBalanceAmount.className = 'fw-bold text-danger';
+            } else {
+                stickyBalanceAmount.className = 'fw-bold text-success';
             }
         }
     }
@@ -2796,10 +2906,10 @@ document.addEventListener('DOMContentLoaded', function () {
         updateAllTotals();
 
         if (!skipFocus) {
-            // Focus customer search and auto-open recent customers dropdown
+            // Focus customer search without opening dropdown
             if (customerSearchInput) {
+                suppressNextFocusDropdown = true;
                 customerSearchInput.focus();
-                showRecentCustomersDropdown();
             }
         }
     }
@@ -2941,8 +3051,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         saveSuccessModalEl.addEventListener('hidden.bs.modal', function () {
             if (customerSearchInput) {
+                suppressNextFocusDropdown = true;
                 customerSearchInput.focus();
-                showRecentCustomersDropdown();
             }
         });
     }
@@ -3401,6 +3511,27 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
+     * Update the active trade view badge next to "Current Bookings" heading
+     * Values: 'SELL' -> 'Sell' (coral/red), 'BUY' -> 'Buy' (green), 'ALL' -> 'All' (slate)
+     */
+    function updateTradeViewBadge(tradeVal) {
+        const badge = document.getElementById('tradeViewBadge');
+        if (!badge) return;
+        const val = (tradeVal || 'ALL').toUpperCase();
+        badge.className = 'badge rounded-pill trade-view-badge';
+        if (val === 'SELL') {
+            badge.classList.add('badge-trade-sell');
+            badge.textContent = 'Sell';
+        } else if (val === 'BUY') {
+            badge.classList.add('badge-trade-buy');
+            badge.textContent = 'Buy';
+        } else {
+            badge.classList.add('badge-trade-all');
+            badge.textContent = 'All';
+        }
+    }
+
+    /**
      * Format metal weights for totals footer:
      * Never add Gold and Silver weights together!
      * Format as two lines: "G: x gm" and "S: y gm" (nowrap)
@@ -3468,21 +3599,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Render spinner row while request is in flight
+     * Render skeleton shimmer rows while request is in flight
      */
     function renderLoadingState() {
         if (!bhavTableBody) return;
         const colCount = getVisibleColumnCount();
-        bhavTableBody.innerHTML = `
-            <tr class="table-loading-row">
-                <td colspan="${colCount}" class="py-5 text-center text-muted">
-                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <span class="fw-semibold">Loading bookings...</span>
-                </td>
-            </tr>
-        `;
+        bhavTableBody.innerHTML = renderSkeletonTableRows(colCount, 5);
     }
 
     /**
@@ -3524,8 +3646,11 @@ document.addEventListener('DOMContentLoaded', function () {
         bhavTableBody.innerHTML = `
             <tr class="table-empty-row">
                 <td colspan="${colCount}" class="py-5 text-center text-muted">
-                    <i class="fa-regular fa-folder-open fa-3x text-secondary opacity-50 mb-2 d-block"></i>
-                    <span class="fw-semibold">No Records Found</span>
+                    ${getLedgerEmptyStateSvg()}
+                    <div class="fw-semibold text-secondary mb-2" style="font-size: 13px;">No bookings for this filter</div>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-bold" id="btnEmptyNewBooking">
+                        <i class="fa-solid fa-plus me-1"></i> New Booking <span class="badge bg-light text-secondary ms-1" style="font-size: 9px;">Alt+C</span>
+                    </button>
                 </td>
             </tr>
         `;
@@ -3549,7 +3674,7 @@ document.addEventListener('DOMContentLoaded', function () {
         rows.forEach((booking, index) => {
             lastLoadedBookingsMap[booking.id] = booking;
             const sn = startFrom + index;
-            const dateTimeHtml = formatDateTimeTwoLines(booking.booked_at);
+            const dateTimeHtml = formatBookingDateTime(booking.booked_at);
 
             // Customer details & badges
             const customer = booking.customer || {};
@@ -3559,8 +3684,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
             const metalBadge = isGold
-                ? `<span class="badge-metal-gold">Gold</span>`
-                : `<span class="badge-metal-silver">Silver</span>`;
+                ? `<span class="badge-metal-gold">${metalIconSvg('GOLD')}<span>Gold</span></span>`
+                : `<span class="badge-metal-silver">${metalIconSvg('SILVER')}<span>Silver</span></span>`;
 
             const isOnlyEntry = (booking.entry_type || '').toUpperCase() === 'ONLY_ENTRY';
             const typeBadge = isOnlyEntry
@@ -3568,20 +3693,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 : `<span class="badge-type-ledger">Bhav+Ledger</span>`;
 
             const statusUpper = (booking.status || 'PENDING').toUpperCase();
-            let statusBadgeClass = 'badge-status-pending';
-            let statusText = 'Pending';
-            if (statusUpper === 'PARTIAL') {
-                statusBadgeClass = 'badge-status-partial';
-                statusText = 'Partial';
-            } else if (statusUpper === 'DELIVERED') {
-                statusBadgeClass = 'badge-status-delivered';
-                statusText = 'Delivered';
-            } else if (statusUpper === 'CANCELLED') {
-                statusBadgeClass = 'badge-status-cancelled';
-                statusText = 'Cancelled';
-            }
-
-            const statusBadge = `<span class="${statusBadgeClass}">${statusText}</span>`;
+            const statusBadge = statusUpper === 'PARTIAL'
+                ? '<span class="badge-status-partial">Partial</span>'
+                : '';
 
             // Rate cell: single rate or "Multiple" with breakdown tooltip
             const items = Array.isArray(booking.items) ? booking.items : [];
@@ -3592,14 +3706,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const singleRate = parseFloat(items[0].rate) || 0;
                 rateDisplay = `₹${formatIndianCurrency(singleRate)}`;
             } else if (items.length > 1) {
-                const lines = items.map((it, i) => {
-                    const w = (parseFloat(it.weight) || 0).toFixed(3);
-                    const r = formatIndianCurrency(it.rate || 0);
-                    const a = formatIndianCurrency(it.amount || 0);
-                    return `#${i + 1}: ${w} gm × ₹${r} = ₹${a}`;
-                });
-                const tooltipContent = lines.join('\n');
-                rateDisplay = `<span class="badge bg-light text-dark border cursor-help text-nowrap" title="${escapeHtml(tooltipContent)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(tooltipContent)}"><i class="fa-solid fa-layer-group text-primary me-1"></i>Multiple</span>`;
+                rateDisplay = renderMultipleRatesBadge(booking.id);
             }
 
             // BUY booking fills BUY DETAILS, SELL booking fills SELL DETAILS
@@ -3624,9 +3731,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 sellAmt = `<span class="text-danger fw-bold text-nowrap">${amtFormatted}</span>`;
             }
 
-            // Given / Received
+            // Given / Received & Paid Progress Bar
+            const totalAmt = parseFloat(booking.total_amount) || 0;
             const givenAmt = parseFloat(booking.given_amount) || 0;
             const receivedAmt = parseFloat(booking.received_amount) || 0;
+            const paidAmt = isBuy ? givenAmt : receivedAmt;
+            const pct = totalAmt > 0 ? Math.min(100, Math.max(0, Math.round((paidAmt / totalAmt) * 100))) : 0;
+            const progressTooltip = `Paid ₹${formatIndianCurrency(paidAmt)} of ₹${formatIndianCurrency(totalAmt)} (${pct}%)`;
+            const progressBarHtml = `
+                <div class="progress mt-1 mx-auto" style="height: 4px; max-width: 90px; background-color: #e2e8f0; border-radius: 2px;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(progressTooltip)}" title="${escapeHtml(progressTooltip)}">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: ${pct}%; border-radius: 2px;" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            `;
             const givenHtml = `<div class="text-danger fw-bold text-nowrap" style="font-size: 11px; line-height: 1.25;">G: ₹${formatIndianCurrency(givenAmt)}</div>`;
             const receivedHtml = `<div class="text-success fw-bold text-nowrap" style="font-size: 11px; line-height: 1.25;">R: ₹${formatIndianCurrency(receivedAmt)}</div>`;
 
@@ -3634,15 +3750,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const actionHtml = renderActionKebabMenu(booking);
 
             html += `
-                <tr class="bhav-row" data-id="${booking.id}">
+                <tr class="bhav-row ${isBuy ? 'row-trade-buy' : 'row-trade-sell'}" data-id="${booking.id}">
                     <td class="bhav-col-sn fw-semibold text-muted text-center">${sn}</td>
                     <td class="bhav-col-datetime text-center">${dateTimeHtml}</td>
-                    <td class="bhav-col-customer text-start">
-                        <div class="fw-bold text-dark text-truncate" style="font-size: 12px; line-height: 1.25; max-width: 190px;" title="${escapeHtml(customerName)}">${escapeHtml(customerName)}</div>
-                        <div class="text-muted text-nowrap" style="font-size: 10.5px; line-height: 1.25;">
-                            <span class="text-secondary">${escapeHtml(customerNo)}</span> • <span class="fw-semibold text-dark">${escapeHtml(bookingNo)}</span>
+                    <td class="bhav-col-customer text-start" title="Booking: ${escapeHtml(bookingNo)}">
+                        <div class="text-truncate" style="font-size: 12px; line-height: 1.35; max-width: 190px;" title="${escapeHtml(customerName)} (${escapeHtml(customerNo)})">
+                            <span class="fw-bold text-dark">${escapeHtml(customerName)}</span> <span class="text-muted fw-normal" style="font-size: 10.5px;">(${escapeHtml(customerNo)})</span>
                         </div>
-                        <div class="d-flex align-items-center gap-1 mt-1 text-nowrap" style="line-height: 1;">
+                        <div class="d-flex align-items-center gap-1 text-nowrap" style="line-height: 1; margin-top: 2px;">
                             ${metalBadge}
                             ${typeBadge}
                             ${statusBadge}
@@ -3654,11 +3769,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td class="bhav-col-sell-wt col-sell text-end">${sellWt}</td>
                     <td class="bhav-col-sell-rate col-sell text-end">${sellRate}</td>
                     <td class="bhav-col-sell-amt col-sell group-end text-end">${sellAmt}</td>
-                    <td class="bhav-col-given-received text-center">${givenHtml}${receivedHtml}</td>
+                    <td class="bhav-col-given-received text-center">${givenHtml}${receivedHtml}${progressBarHtml}</td>
                     <td class="bhav-col-action text-center">${actionHtml}</td>
                 </tr>
             `;
         });
+
+        // Close active popovers and dispose previous popovers before replacing table HTML
+        closeActiveItemsPopover();
+        disposeAllItemsPopovers(bhavTableBody);
 
         // Dispose existing tooltips before re-rendering to prevent memory build-up
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
@@ -3680,6 +3799,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 new bootstrap.Tooltip(el);
             });
         }
+
+        // Initialize multiple rates breakdown popovers
+        initItemsPopovers(bhavTableBody, lastLoadedBookingsMap);
     }
 
     /**
@@ -3765,6 +3887,7 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function fetchBookingList(page = 1) {
         currentListPage = page;
+        closeActiveItemsPopover();
 
         // Cancel previous request if still running
         if (listAbortController) {
@@ -3816,6 +3939,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 params.set('trade_type', tradeVal);
             }
             applyTradeColumnVisibility(tradeVal);
+            updateTradeViewBadge(tradeVal);
         }
 
         if (filterMetalSelect && filterMetalSelect.value) {
@@ -3878,6 +4002,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (filterTradeSelect) {
         filterTradeSelect.addEventListener('change', function () {
             applyTradeColumnVisibility(this.value);
+            updateTradeViewBadge(this.value);
             fetchBookingList(1);
         });
     }
@@ -4101,7 +4226,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 // 2. Trade mode (BUY / SELL)
-                setTradeMode(booking.trade_type || 'SELL');
+                const bookingTrade = booking.trade_type || 'SELL';
+                setTradeMode(bookingTrade);
+                if (filterTradeSelect) {
+                    filterTradeSelect.value = bookingTrade;
+                }
+                applyTradeColumnVisibility(bookingTrade);
+                updateTradeViewBadge(bookingTrade);
+                fetchBookingList(currentListPage);
 
                 // 3. Type
                 if (typeSelect) {
@@ -4331,9 +4463,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Attach Event Delegation to Table Body for Action 3-Dot Kebab Menu
+    // Attach Event Delegation to Table Body for Action 3-Dot Kebab Menu & Empty State button
     if (bhavTableBody) {
         bhavTableBody.addEventListener('click', function (e) {
+            const emptyBtn = e.target.closest('#btnEmptyNewBooking');
+            if (emptyBtn) {
+                e.preventDefault();
+                if (customerSearchInput) {
+                    suppressNextFocusDropdown = true;
+                    customerSearchInput.focus();
+                    customerSearchInput.select();
+                }
+                return;
+            }
+
             handleActionKebabMenuClick(e, lastLoadedBookingsMap, {
                 onEdit: function (booking) {
                     loadBookingForEdit(booking.id, booking.booking_no);
@@ -4354,6 +4497,14 @@ document.addEventListener('DOMContentLoaded', function () {
     initPartyDateInputs();
     initDailyRateModal();
     fetchTodayRates();
+    fetchRecentCustomers();
+
+    const initialTradeMode = hiddenTradeType ? hiddenTradeType.value || 'SELL' : 'SELL';
+    if (filterTradeSelect) {
+        filterTradeSelect.value = initialTradeMode;
+    }
+    applyTradeColumnVisibility(initialTradeMode);
+    updateTradeViewBadge(initialTradeMode);
     fetchBookingList(1);
 
     // Auto-load booking for edit if ?edit={id} query parameter is present in URL
@@ -4366,12 +4517,10 @@ document.addEventListener('DOMContentLoaded', function () {
             loadBookingForEdit(editId);
         }
     } else {
-        // Auto-focus customer input and open recent customers dropdown on page load
+        // Focus customer input ready to type, without opening dropdown
         if (customerSearchInput) {
+            suppressNextFocusDropdown = true;
             customerSearchInput.focus();
-            if (!customerSearchResults || customerSearchResults.style.display !== 'block') {
-                showRecentCustomersDropdown();
-            }
         }
     }
 });

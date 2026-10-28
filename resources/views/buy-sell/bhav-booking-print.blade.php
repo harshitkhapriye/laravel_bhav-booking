@@ -560,6 +560,9 @@
                     <td class="text-end">Total Amount:</td>
                     <td class="text-end" style="color: {{ $booking->trade_type === 'BUY' ? '#166534' : '#991b1b' }};">
                         ₹{{ indian_money($booking->total_amount) }}
+                        <div style="font-size: 11px; font-weight: normal; font-style: italic; color: #64748b; margin-top: 2px;">
+                            {{ amount_to_indian_words($booking->total_amount) }}
+                        </div>
                     </td>
                 </tr>
                 <tr>

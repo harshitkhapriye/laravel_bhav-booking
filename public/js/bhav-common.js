@@ -1,4 +1,4 @@
-/* exported escapeHtml, formatIndianCurrency, formatDateTimeDisplay, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, pad2, getCsrfToken, getRoute, showToast, isBookingModifiable, generateBookingSummary, shareBooking, copySummaryToClipboard, fallbackClipboardCopy, whatsappBooking, deleteBookingWithConfirm, viewBookingDetails, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, initExportHandler, initKeyboardShortcuts */
+/* exported escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateTimeDisplay, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, formatBookingDateTime, refreshRelativeTimeLabels, pad2, metalIconSvg, renderMultipleRatesBadge, buildItemsPopoverContent, openItemsPopover, closeActiveItemsPopover, disposeAllItemsPopovers, initItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getCsrfToken, getRoute, showToast, isBookingModifiable, generateBookingSummary, shareBooking, copySummaryToClipboard, fallbackClipboardCopy, whatsappBooking, deleteBookingWithConfirm, viewBookingDetails, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, initExportHandler, initKeyboardShortcuts */
 /**
  * Bhav Booking - Shared JavaScript Utilities & Handlers
  * Application: Just Udhari - Buy-Sell Module
@@ -49,10 +49,117 @@ function formatIndianCurrency(amount) {
     return (isNegative ? '-' : '') + formattedInteger + '.' + decimalPart;
 }
 
+// Global helper: Convert an amount to Indian words (e.g. "Rupees One Lakh Sixty Five Thousand Only")
+function amountToIndianWords(amount) {
+    if (amount === null || amount === undefined || amount === '') {
+        return 'Rupees Zero Only';
+    }
+
+    let num = parseFloat(amount);
+    if (isNaN(num)) return 'Rupees Zero Only';
+    if (num < 0) num = Math.abs(num);
+
+    const parts = num.toFixed(2).split('.');
+    const rupees = parseInt(parts[0], 10);
+    const paise = parseInt(parts[1], 10);
+
+    const units = [
+        '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+        'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+    ];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    function twoDigits(n) {
+        if (n === 0) return '';
+        if (n < 20) return units[n];
+        const t = Math.floor(n / 10);
+        const u = n % 10;
+        return tens[t] + (u > 0 ? ' ' + units[u] : '');
+    }
+
+    function threeDigits(n) {
+        const h = Math.floor(n / 100);
+        const rem = n % 100;
+        const res = [];
+        if (h > 0) res.push(units[h] + ' Hundred');
+        if (rem > 0) res.push(twoDigits(rem));
+        return res.join(' ');
+    }
+
+    function convertNumber(n) {
+        if (n === 0) return '';
+        const crores = Math.floor(n / 10000000);
+        n = n % 10000000;
+        const lakhs = Math.floor(n / 100000);
+        n = n % 100000;
+        const thousands = Math.floor(n / 1000);
+        const rem = n % 1000;
+
+        const words = [];
+        if (crores > 0) words.push(convertNumber(crores) + ' Crore');
+        if (lakhs > 0) words.push(twoDigits(lakhs) + ' Lakh');
+        if (thousands > 0) words.push(twoDigits(thousands) + ' Thousand');
+        if (rem > 0) words.push(threeDigits(rem));
+        return words.join(' ');
+    }
+
+    let rupeeWords = convertNumber(rupees);
+    if (!rupeeWords) rupeeWords = 'Zero';
+
+    let paiseWords = '';
+    if (paise > 0) {
+        paiseWords = twoDigits(paise) + ' Paise';
+    }
+
+    if (paiseWords) {
+        return `Rupees ${rupeeWords} and ${paiseWords} Only`;
+    }
+    return `Rupees ${rupeeWords} Only`;
+}
+window.amountToIndianWords = amountToIndianWords;
+
 // Global helper: Zero-pad single-digit numbers
 function pad2(n) {
     return String(n).padStart(2, '0');
 }
+
+// Global helper: Generate inline SVG icon for Gold/Silver bullion bar
+function metalIconSvg(metal) {
+    const m = (metal || '').toUpperCase();
+    if (m === 'GOLD') {
+        return '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" class="metal-icon-svg" aria-hidden="true">' +
+            '<defs>' +
+            '<linearGradient id="bhavGoldBarGrad" x1="0" y1="0" x2="1" y2="1">' +
+            '<stop offset="0%" stop-color="#f5c542"/>' +
+            '<stop offset="100%" stop-color="#d4a017"/>' +
+            '</linearGradient>' +
+            '<linearGradient id="bhavGoldBarTop" x1="0" y1="0" x2="0" y2="1">' +
+            '<stop offset="0%" stop-color="#fff5ba"/>' +
+            '<stop offset="100%" stop-color="#f5c542"/>' +
+            '</linearGradient>' +
+            '</defs>' +
+            '<path d="M2 10.5 L3.8 4.5 L10.2 4.5 L12 10.5 Z" fill="url(#bhavGoldBarGrad)" stroke="#b8860b" stroke-width="0.8" stroke-linejoin="round"/>' +
+            '<path d="M3.8 4.5 L10.2 4.5 L9.2 6.8 L4.8 6.8 Z" fill="url(#bhavGoldBarTop)" opacity="0.95"/>' +
+            '<line x1="4.8" y1="5.2" x2="9.2" y2="5.2" stroke="#ffffff" stroke-width="0.75" stroke-linecap="round" opacity="0.85"/>' +
+            '</svg>';
+    }
+    return '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" class="metal-icon-svg" aria-hidden="true">' +
+        '<defs>' +
+        '<linearGradient id="bhavSilverBarGrad" x1="0" y1="0" x2="1" y2="1">' +
+        '<stop offset="0%" stop-color="#e5e7eb"/>' +
+        '<stop offset="100%" stop-color="#9ca3af"/>' +
+        '</linearGradient>' +
+        '<linearGradient id="bhavSilverBarTop" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" stop-color="#f9fafb"/>' +
+        '<stop offset="100%" stop-color="#e5e7eb"/>' +
+        '</linearGradient>' +
+        '</defs>' +
+        '<path d="M2 10.5 L3.8 4.5 L10.2 4.5 L12 10.5 Z" fill="url(#bhavSilverBarGrad)" stroke="#6b7280" stroke-width="0.8" stroke-linejoin="round"/>' +
+        '<path d="M3.8 4.5 L10.2 4.5 L9.2 6.8 L4.8 6.8 Z" fill="url(#bhavSilverBarTop)" opacity="0.95"/>' +
+        '<line x1="4.8" y1="5.2" x2="9.2" y2="5.2" stroke="#ffffff" stroke-width="0.75" stroke-linecap="round" opacity="0.9"/>' +
+        '</svg>';
+}
+window.metalIconSvg = metalIconSvg;
 
 // Global helper: Format date-time string into DD-MM-YYYY HH:MM AM/PM
 function formatDateTimeDisplay(dateStr) {
@@ -109,8 +216,8 @@ function formatDateDisplay(d) {
     return String(d);
 }
 
-// Global helper: Format server ISO/SQL datetime string into two compact lines
-function formatDateTimeTwoLines(dateString) {
+// Global helper: Format server ISO/SQL datetime string into two compact lines with relative time for today
+function formatBookingDateTime(dateString) {
     if (!dateString) return '<span class="text-muted opacity-50">–</span>';
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return `<div>${escapeHtml(dateString)}</div>`;
@@ -124,12 +231,112 @@ function formatDateTimeTwoLines(dateString) {
     hours = hours % 12;
     hours = hours ? hours : 12;
     const minutes = pad2(d.getMinutes());
+    const fullDateTime = `${day}-${month}-${year} ${pad2(hours)}:${minutes} ${ampm}`;
+
+    const now = new Date();
+    const isToday = d.getDate() === now.getDate() &&
+                    d.getMonth() === now.getMonth() &&
+                    d.getFullYear() === now.getFullYear();
+
+    let topText = `${day}-${month}-${year}`;
+    let isRelative = false;
+
+    if (isToday) {
+        isRelative = true;
+        const diffSec = Math.max(0, Math.floor((now.getTime() - d.getTime()) / 1000));
+        if (diffSec < 60) {
+            topText = 'Just now';
+        } else if (diffSec < 3600) {
+            const m = Math.floor(diffSec / 60);
+            topText = `${m} min ago`;
+        } else {
+            const h = Math.floor(diffSec / 3600);
+            topText = `${h} ${h === 1 ? 'hr' : 'hrs'} ago`;
+        }
+    }
+
+    const topClass = isRelative ? 'fw-bold text-primary text-nowrap relative-time-label' : 'fw-semibold text-dark text-nowrap';
 
     return (
-        `<div class="fw-semibold text-dark text-nowrap" style="font-size: 12px; line-height: 1.2;">${day}-${month}-${year}</div>` +
-        `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${pad2(hours)}:${minutes} ${ampm}</div>`
+        `<div class="booking-datetime-cell cursor-help" data-booked-at="${escapeHtml(dateString)}" title="${escapeHtml(fullDateTime)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(fullDateTime)}">` +
+        `<div class="${topClass}" style="font-size: 11px; line-height: 1.2;">${escapeHtml(topText)}</div>` +
+        `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${pad2(hours)}:${minutes} ${ampm}</div>` +
+        `</div>`
     );
 }
+
+// Global helper: Format server ISO/SQL datetime string into two compact lines
+function formatDateTimeTwoLines(dateString) {
+    return formatBookingDateTime(dateString);
+}
+
+// Refresh relative time labels every minute without re-rendering tables
+function refreshRelativeTimeLabels() {
+    const cells = document.querySelectorAll('.booking-datetime-cell[data-booked-at]');
+    const now = new Date();
+    cells.forEach((cell) => {
+        const dateStr = cell.getAttribute('data-booked-at');
+        if (!dateStr) return;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return;
+
+        const isToday = d.getDate() === now.getDate() &&
+                        d.getMonth() === now.getMonth() &&
+                        d.getFullYear() === now.getFullYear();
+        if (!isToday) return;
+
+        const label = cell.querySelector('.relative-time-label');
+        if (!label) return;
+
+        const diffSec = Math.max(0, Math.floor((now.getTime() - d.getTime()) / 1000));
+        let topText = 'Just now';
+        if (diffSec < 60) {
+            topText = 'Just now';
+        } else if (diffSec < 3600) {
+            const m = Math.floor(diffSec / 60);
+            topText = `${m} min ago`;
+        } else {
+            const h = Math.floor(diffSec / 3600);
+            topText = `${h} ${h === 1 ? 'hr' : 'hrs'} ago`;
+        }
+        label.textContent = topText;
+    });
+}
+window.formatBookingDateTime = formatBookingDateTime;
+window.refreshRelativeTimeLabels = refreshRelativeTimeLabels;
+
+// Global helper: Ledger / Box SVG illustration for list empty state
+function getLedgerEmptyStateSvg() {
+    return '<svg width="56" height="56" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="empty-state-svg mb-2" aria-hidden="true">' +
+        '<rect x="12" y="10" width="40" height="46" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>' +
+        '<rect x="12" y="10" width="10" height="46" rx="4" fill="#0f172a"/>' +
+        '<circle cx="17" cy="18" r="2" fill="#f57c00"/>' +
+        '<circle cx="17" cy="33" r="2" fill="#ffffff" opacity="0.8"/>' +
+        '<circle cx="17" cy="48" r="2" fill="#ffffff" opacity="0.8"/>' +
+        '<line x1="28" y1="20" x2="46" y2="20" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<line x1="28" y1="28" x2="42" y2="28" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/>' +
+        '<line x1="28" y1="36" x2="44" y2="36" stroke="#fed7aa" stroke-width="2" stroke-linecap="round"/>' +
+        '<circle cx="43" cy="45" r="9" fill="#fff7ed" stroke="#f57c00" stroke-width="2"/>' +
+        '<path d="M43 41 V49 M39 45 H47" stroke="#f57c00" stroke-width="1.8" stroke-linecap="round"/>' +
+        '</svg>';
+}
+window.getLedgerEmptyStateSvg = getLedgerEmptyStateSvg;
+
+// Global helper: Generate 5 skeleton shimmer rows matching table columns
+function renderSkeletonTableRows(colCount, rowCount = 5) {
+    let rowsHtml = '';
+    const widths = [35, 65, 80, 50, 55, 60, 45, 70, 40, 50, 30];
+    for (let i = 0; i < rowCount; i++) {
+        let colsHtml = '';
+        for (let j = 0; j < colCount; j++) {
+            const w = widths[j % widths.length];
+            colsHtml += `<td class="py-3 px-2 text-center align-middle"><span class="skeleton-bar" style="width: ${w}%;"></span></td>`;
+        }
+        rowsHtml += `<tr class="skeleton-row">${colsHtml}</tr>`;
+    }
+    return rowsHtml;
+}
+window.renderSkeletonTableRows = renderSkeletonTableRows;
 
 // Global helper: Retrieve CSRF token from page meta tag
 function getCsrfToken() {
@@ -573,8 +780,8 @@ function viewBookingDetails(bookingId) {
 
             if (viewMetalBadge) {
                 const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
-                viewMetalBadge.textContent = booking.metal;
-                viewMetalBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
+                viewMetalBadge.innerHTML = `${metalIconSvg(booking.metal)}<span>${escapeHtml(booking.metal || '')}</span>`;
+                viewMetalBadge.className = `badge rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-1 ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'}`;
             }
 
             if (viewTypeBadge) {
@@ -1010,6 +1217,465 @@ function showGlobalToast(message, type = 'info') {
 
 
 // =========================================================================
+// ITEMS BREAKDOWN POPOVER ("Multiple" rates interactive popover)
+// =========================================================================
+let activeItemsPopover = null;
+let itemsPopoversGlobalListenersInitialized = false;
+
+/**
+ * Render clickable "Multiple" badge button for table cells
+ */
+function renderMultipleRatesBadge(bookingId) {
+    return `<button type="button" class="btn badge bg-light text-dark border text-nowrap btn-multiple-rates" data-booking-id="${bookingId}" aria-label="View rate breakdown" tabindex="0"><i class="fa-solid fa-layer-group text-primary me-1"></i>Multiple<i class="fa-solid fa-chevron-down ms-1 text-muted" style="font-size: 8.5px;"></i></button>`;
+}
+
+/**
+ * Build rich DOM element for the items popover (pure createElement, no user HTML)
+ */
+function buildItemsPopoverContent(booking, isPinned, onClose) {
+    const container = document.createElement('div');
+    container.className = 'bhav-items-popover-box';
+
+    // 1. Header
+    const header = document.createElement('div');
+    header.className = 'bhav-popover-header d-flex align-items-center justify-content-between';
+
+    const headerLeft = document.createElement('div');
+    headerLeft.className = 'd-flex align-items-center gap-1 flex-wrap';
+
+    const bookingMetal = (booking.metal || 'GOLD').toUpperCase();
+    const isGold = bookingMetal === 'GOLD';
+
+    const metalBadge = document.createElement('span');
+    metalBadge.className = `badge ${isGold ? 'badge-metal-gold' : 'badge-metal-silver'} d-inline-flex align-items-center gap-1`;
+    const iconSpan = document.createElement('span');
+    iconSpan.innerHTML = metalIconSvg(bookingMetal);
+    metalBadge.appendChild(iconSpan);
+    const metalText = document.createElement('span');
+    metalText.textContent = isGold ? 'Gold' : 'Silver';
+    metalBadge.appendChild(metalText);
+    headerLeft.appendChild(metalBadge);
+
+    const items = Array.isArray(booking.items) ? booking.items : [];
+    const countSpan = document.createElement('span');
+    countSpan.className = 'text-muted fw-semibold';
+    countSpan.style.fontSize = '11px';
+    countSpan.textContent = `${items.length} ${items.length === 1 ? 'entry' : 'entries'}`;
+    headerLeft.appendChild(countSpan);
+
+    const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
+    const tradeBadge = document.createElement('span');
+    tradeBadge.className = `badge rounded-pill px-2 py-0.5 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
+    tradeBadge.style.fontSize = '10px';
+    tradeBadge.textContent = isBuy ? 'BUY' : 'SELL';
+    headerLeft.appendChild(tradeBadge);
+
+    header.appendChild(headerLeft);
+
+    // Header Right (Pin indicator & close button when pinned)
+    if (isPinned) {
+        const headerRight = document.createElement('div');
+        headerRight.className = 'd-flex align-items-center gap-1 ms-auto';
+
+        const pinIndicator = document.createElement('span');
+        pinIndicator.className = 'badge bg-light text-secondary border p-1 d-inline-flex align-items-center';
+        pinIndicator.title = 'Pinned';
+        const pinIcon = document.createElement('i');
+        pinIcon.className = 'fa-solid fa-thumbtack text-primary';
+        pinIcon.style.fontSize = '9px';
+        pinIndicator.appendChild(pinIcon);
+        headerRight.appendChild(pinIndicator);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-close btn-close-sm p-1';
+        closeBtn.setAttribute('aria-label', 'Close popover');
+        closeBtn.style.fontSize = '9px';
+        closeBtn.style.cursor = 'pointer';
+        if (typeof onClose === 'function') {
+            closeBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+            });
+        }
+        headerRight.appendChild(closeBtn);
+        header.appendChild(headerRight);
+    }
+
+    container.appendChild(header);
+
+    // 2. Body Grid
+    const gridWrapper = document.createElement('div');
+    gridWrapper.className = 'bhav-popover-grid-wrapper';
+
+    const table = document.createElement('table');
+    table.className = 'bhav-popover-grid table table-sm mb-0 align-middle';
+
+    const thead = document.createElement('thead');
+    const trHead = document.createElement('tr');
+
+    const thSn = document.createElement('th');
+    thSn.className = 'text-center';
+    thSn.style.width = '24px';
+    thSn.textContent = '#';
+    trHead.appendChild(thSn);
+
+    const thMetal = document.createElement('th');
+    thMetal.className = 'text-start';
+    thMetal.textContent = 'Metal';
+    trHead.appendChild(thMetal);
+
+    const thWeight = document.createElement('th');
+    thWeight.className = 'text-end';
+    thWeight.textContent = 'Weight';
+    trHead.appendChild(thWeight);
+
+    const rateUnit = (window.BHAV_CONFIG && window.BHAV_CONFIG.rate_unit_grams)
+        ? (Number(window.BHAV_CONFIG.rate_unit_grams) === 1 ? '/gm' : `/${window.BHAV_CONFIG.rate_unit_grams}gm`)
+        : '/10gm';
+
+    const thRate = document.createElement('th');
+    thRate.className = 'text-end';
+    thRate.textContent = `Rate (${rateUnit})`;
+    trHead.appendChild(thRate);
+
+    const thAmount = document.createElement('th');
+    thAmount.className = 'text-end';
+    thAmount.textContent = 'Amount (₹)';
+    trHead.appendChild(thAmount);
+
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    let totalWtCalc = 0;
+    let totalAmtCalc = 0;
+
+    if (items.length === 0) {
+        const emptyTr = document.createElement('tr');
+        const emptyTd = document.createElement('td');
+        emptyTd.colSpan = 5;
+        emptyTd.className = 'text-center text-muted py-2 small';
+        emptyTd.textContent = 'No item entries';
+        emptyTr.appendChild(emptyTd);
+        tbody.appendChild(emptyTr);
+    } else {
+        items.forEach((it, idx) => {
+            const tr = document.createElement('tr');
+            const itemMetal = (it.metal || booking.metal || 'GOLD').toUpperCase();
+            const isItemGold = itemMetal === 'GOLD';
+            tr.className = isItemGold ? 'popover-row-gold' : 'popover-row-silver';
+
+            const wNum = parseFloat(it.weight) || 0;
+            const rNum = parseFloat(it.rate) || 0;
+            const aNum = parseFloat(it.amount) || 0;
+            totalWtCalc += wNum;
+            totalAmtCalc += aNum;
+
+            // #
+            const tdSn = document.createElement('td');
+            tdSn.className = 'text-center text-muted fw-bold small';
+            tdSn.textContent = String(it.sort_order || idx + 1);
+            tr.appendChild(tdSn);
+
+            // Metal
+            const tdMetal = document.createElement('td');
+            tdMetal.className = 'text-start text-nowrap';
+            const itemMetalBadge = document.createElement('span');
+            itemMetalBadge.className = `badge ${isItemGold ? 'badge-metal-gold' : 'badge-metal-silver'} d-inline-flex align-items-center gap-1`;
+            const itemIconSpan = document.createElement('span');
+            itemIconSpan.innerHTML = metalIconSvg(itemMetal);
+            itemMetalBadge.appendChild(itemIconSpan);
+            const itemTextSpan = document.createElement('span');
+            itemTextSpan.textContent = isItemGold ? 'Gold' : 'Silver';
+            itemMetalBadge.appendChild(itemTextSpan);
+            tdMetal.appendChild(itemMetalBadge);
+            tr.appendChild(tdMetal);
+
+            // Weight
+            const tdWeight = document.createElement('td');
+            tdWeight.className = 'text-end text-nowrap';
+            tdWeight.textContent = `${wNum.toFixed(3)} gm`;
+            tr.appendChild(tdWeight);
+
+            // Rate
+            const tdRate = document.createElement('td');
+            tdRate.className = 'text-end text-nowrap';
+            const formattedRate = (rNum % 1 === 0)
+                ? formatIndianCurrency(rNum).replace(/\.00$/, '')
+                : formatIndianCurrency(rNum);
+            tdRate.textContent = `₹${formattedRate} ${rateUnit}`;
+            tr.appendChild(tdRate);
+
+            // Amount
+            const tdAmount = document.createElement('td');
+            tdAmount.className = 'text-end fw-bold text-dark text-nowrap';
+            tdAmount.textContent = `₹${formatIndianCurrency(aNum)}`;
+            tr.appendChild(tdAmount);
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    table.appendChild(tbody);
+    gridWrapper.appendChild(table);
+    container.appendChild(gridWrapper);
+
+    // 3. Footer
+    const footer = document.createElement('div');
+    footer.className = 'bhav-popover-footer d-flex align-items-center justify-content-between';
+
+    const footerWt = document.createElement('div');
+    footerWt.className = 'small fw-bold';
+    const wtLabel = document.createElement('span');
+    wtLabel.className = 'text-muted me-1';
+    wtLabel.textContent = 'Total Wt:';
+    footerWt.appendChild(wtLabel);
+    const wtVal = document.createElement('span');
+    const finalTotalWt = (parseFloat(booking.total_weight) || totalWtCalc).toFixed(3);
+    wtVal.className = 'text-dark';
+    wtVal.textContent = `${finalTotalWt} gm`;
+    footerWt.appendChild(wtVal);
+    footer.appendChild(footerWt);
+
+    const footerAmt = document.createElement('div');
+    footerAmt.className = 'small fw-bold';
+    const amtLabel = document.createElement('span');
+    amtLabel.className = 'text-muted me-1';
+    amtLabel.textContent = 'Total:';
+    footerAmt.appendChild(amtLabel);
+    const amtVal = document.createElement('span');
+    const finalTotalAmt = parseFloat(booking.total_amount) || totalAmtCalc;
+    amtVal.className = isBuy ? 'text-success' : 'text-danger';
+    amtVal.textContent = `₹${formatIndianCurrency(finalTotalAmt)}`;
+    footerAmt.appendChild(amtVal);
+    footer.appendChild(footerAmt);
+
+    container.appendChild(footer);
+
+    return container;
+}
+
+/**
+ * Close active items breakdown popover if open
+ */
+function closeActiveItemsPopover() {
+    if (activeItemsPopover) {
+        if (activeItemsPopover.hoverTimeout) {
+            clearTimeout(activeItemsPopover.hoverTimeout);
+            activeItemsPopover.hoverTimeout = null;
+        }
+        if (activeItemsPopover.popover) {
+            try {
+                activeItemsPopover.popover.hide();
+            } catch (err) {
+                // Ignore if already disposed or hidden
+            }
+        }
+        activeItemsPopover = null;
+    }
+}
+
+/**
+ * Open items breakdown popover for a button
+ */
+function openItemsPopover(btn, booking, pinned) {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
+    if (!btn || !booking) return;
+
+    if (activeItemsPopover && activeItemsPopover.badgeEl !== btn) {
+        closeActiveItemsPopover();
+    }
+
+    let popover = bootstrap.Popover.getInstance(btn);
+    if (!popover) {
+        popover = new bootstrap.Popover(btn, {
+            trigger: 'manual',
+            html: true,
+            container: 'body',
+            placement: 'auto',
+            sanitize: false,
+            content: function () {
+                const isPin = activeItemsPopover && activeItemsPopover.badgeEl === btn ? activeItemsPopover.isPinned : !!pinned;
+                return buildItemsPopoverContent(booking, isPin, closeActiveItemsPopover);
+            },
+            popperConfig: {
+                strategy: 'fixed'
+            },
+            customClass: 'bhav-items-popover-wrapper'
+        });
+    }
+
+    activeItemsPopover = {
+        badgeEl: btn,
+        popover: popover,
+        booking: booking,
+        isPinned: !!pinned,
+        hoverTimeout: null
+    };
+
+    popover.show();
+
+    const tip = popover.tip;
+    if (tip) {
+        const bodyEl = tip.querySelector('.popover-body');
+        if (bodyEl) {
+            bodyEl.innerHTML = '';
+            bodyEl.appendChild(buildItemsPopoverContent(booking, activeItemsPopover.isPinned, closeActiveItemsPopover));
+        }
+
+        tip.addEventListener('mouseenter', function () {
+            if (activeItemsPopover && activeItemsPopover.hoverTimeout) {
+                clearTimeout(activeItemsPopover.hoverTimeout);
+                activeItemsPopover.hoverTimeout = null;
+            }
+        });
+
+        tip.addEventListener('mouseleave', function () {
+            if (activeItemsPopover && !activeItemsPopover.isPinned) {
+                activeItemsPopover.hoverTimeout = setTimeout(function () {
+                    closeActiveItemsPopover();
+                }, 150);
+            }
+        });
+    }
+}
+
+/**
+ * Dispose all items breakdown popovers in container
+ */
+function disposeAllItemsPopovers(container) {
+    closeActiveItemsPopover();
+    if (!container) return;
+    if (typeof bootstrap !== 'undefined' && bootstrap.Popover) {
+        const buttons = container.querySelectorAll('.btn-multiple-rates');
+        buttons.forEach((btn) => {
+            const inst = bootstrap.Popover.getInstance(btn);
+            if (inst) {
+                try {
+                    inst.dispose();
+                } catch (err) {
+                    // Ignore
+                }
+            }
+        });
+    }
+}
+
+/**
+ * Initialize items breakdown popovers on table body
+ */
+function initItemsPopovers(tableBody, getBookingSource) {
+    if (!tableBody) return;
+
+    if (!itemsPopoversGlobalListenersInitialized) {
+        itemsPopoversGlobalListenersInitialized = true;
+        document.addEventListener('click', function (e) {
+            if (!activeItemsPopover) return;
+            const btn = activeItemsPopover.badgeEl;
+            const tip = activeItemsPopover.popover && activeItemsPopover.popover.tip;
+            if (btn && btn.contains(e.target)) return;
+            if (tip && tip.contains(e.target)) return;
+            closeActiveItemsPopover();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && activeItemsPopover) {
+                closeActiveItemsPopover();
+            }
+        });
+    }
+
+    function getBooking(id) {
+        if (typeof getBookingSource === 'function') {
+            return getBookingSource(id);
+        }
+        if (getBookingSource && typeof getBookingSource === 'object') {
+            return getBookingSource[id];
+        }
+        return null;
+    }
+
+    const buttons = tableBody.querySelectorAll('.btn-multiple-rates');
+    buttons.forEach((btn) => {
+        const bookingId = btn.getAttribute('data-booking-id');
+        const booking = getBooking(bookingId);
+        if (!booking) return;
+
+        btn.addEventListener('mouseenter', function () {
+            if (activeItemsPopover && activeItemsPopover.badgeEl === btn) {
+                if (activeItemsPopover.hoverTimeout) {
+                    clearTimeout(activeItemsPopover.hoverTimeout);
+                    activeItemsPopover.hoverTimeout = null;
+                }
+                return;
+            }
+            openItemsPopover(btn, booking, false);
+        });
+
+        btn.addEventListener('mouseleave', function () {
+            if (activeItemsPopover && activeItemsPopover.badgeEl === btn && !activeItemsPopover.isPinned) {
+                activeItemsPopover.hoverTimeout = setTimeout(function () {
+                    closeActiveItemsPopover();
+                }, 150);
+            }
+        });
+
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (activeItemsPopover && activeItemsPopover.badgeEl === btn) {
+                if (activeItemsPopover.isPinned) {
+                    closeActiveItemsPopover();
+                } else {
+                    activeItemsPopover.isPinned = true;
+                    const tip = activeItemsPopover.popover && activeItemsPopover.popover.tip;
+                    if (tip) {
+                        const bodyEl = tip.querySelector('.popover-body');
+                        if (bodyEl) {
+                            bodyEl.innerHTML = '';
+                            bodyEl.appendChild(buildItemsPopoverContent(booking, true, closeActiveItemsPopover));
+                        }
+                    }
+                }
+            } else {
+                openItemsPopover(btn, booking, true);
+            }
+        });
+
+        btn.addEventListener('focus', function () {
+            if (!activeItemsPopover || activeItemsPopover.badgeEl !== btn) {
+                openItemsPopover(btn, booking, false);
+            }
+        });
+
+        btn.addEventListener('blur', function () {
+            if (activeItemsPopover && activeItemsPopover.badgeEl === btn && !activeItemsPopover.isPinned) {
+                activeItemsPopover.hoverTimeout = setTimeout(function () {
+                    closeActiveItemsPopover();
+                }, 150);
+            }
+        });
+
+        btn.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeActiveItemsPopover();
+            }
+        });
+    });
+}
+
+window.renderMultipleRatesBadge = renderMultipleRatesBadge;
+window.buildItemsPopoverContent = buildItemsPopoverContent;
+window.openItemsPopover = openItemsPopover;
+window.closeActiveItemsPopover = closeActiveItemsPopover;
+window.disposeAllItemsPopovers = disposeAllItemsPopovers;
+window.initItemsPopovers = initItemsPopovers;
+
+// =========================================================================
 // CSV EXPORT HANDLER (Streamed chunked download)
 // =========================================================================
 function initExportHandler() {
@@ -1122,18 +1788,26 @@ function initKeyboardShortcuts() {
             return;
         }
 
-        // Do NOT trigger shortcuts while actively typing inside a modal dialog
-        if (isTypingInModal) {
-            return;
-        }
-
-        // 2. Ctrl + S or F2: Save / Update Booking
+        // 2. Ctrl + S or F2: Save / Update Booking (Always prevent browser Save Page dialog)
         if ((e.ctrlKey && (e.key === 's' || e.key === 'S')) || e.key === 'F2') {
             e.preventDefault();
-            const saveBtn = document.getElementById('btnSaveBooking');
+            if (isTypingInModal) {
+                const saveCustomerBtn = document.getElementById('btnSaveNewCustomer');
+                const addCustomerModal = document.getElementById('addCustomerModal');
+                if (addCustomerModal && addCustomerModal.classList.contains('show') && saveCustomerBtn) {
+                    saveCustomerBtn.click();
+                }
+                return;
+            }
+            const saveBtn = document.getElementById('btnSaveBooking') || document.getElementById('btnSave');
             if (saveBtn) {
                 saveBtn.click();
             }
+            return;
+        }
+
+        // Do NOT trigger remaining shortcuts (Alt+B, Alt+S, Alt+C, etc.) while actively typing inside a modal dialog
+        if (isTypingInModal) {
             return;
         }
 
@@ -1200,4 +1874,5 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.modal').forEach((modalEl) => {
         setupModalAccessibility(modalEl);
     });
+    setInterval(refreshRelativeTimeLabels, 60000);
 });

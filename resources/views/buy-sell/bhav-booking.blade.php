@@ -67,11 +67,11 @@
     </div>
 
     <!-- Main Content Grid (Two Cards: Left Form & Right List) -->
-    <div class="row g-2 g-xl-3">
+    <div class="row g-2 g-xl-2 bhav-main-row">
 
         <!-- B) Left Card: Form -->
-        <div class="col-12 col-xl-6">
-            <div class="card custom-content-card h-100 shadow-sm border-0">
+        <div class="col-12 bhav-col-form">
+            <div class="card custom-content-card bhav-form-card mode-sell h-100 shadow-sm border-0" id="bhavFormCard">
                 <div class="card-body p-2 p-md-3">
 
                     <!-- Editing Mode Indicator Banner -->
@@ -89,7 +89,7 @@
                     </div>
 
                     <!-- BUY / SELL Toggle Switch -->
-                    <div class="d-flex justify-content-center mb-2">
+                    <div class="d-flex justify-content-center mb-2 trade-toggle-row" id="tradeToggleRow">
                         <div class="trade-toggle-container mode-sell" id="tradeToggle" data-mode="SELL">
                             <div class="trade-toggle-pill" id="tradeTogglePill"></div>
                             <button type="button" class="trade-toggle-option" id="btnBuy" data-type="BUY">
@@ -111,10 +111,10 @@
 
                         <!-- CUSTOMER NO / NAME -->
                         <div class="row mb-2 align-items-center form-row-group">
-                            <label class="col-12 col-sm-4 text-sm-end form-label-label" for="customerSearchInput">
-                                CUSTOMER NO / NAME :
+                            <label class="col-12 form-label-col form-label-label label-wrap-allowed" for="customerSearchInput">
+                                CUSTOMER NO /<br class="d-none d-sm-inline"> NAME :
                             </label>
-                            <div class="col-12 col-sm-8">
+                            <div class="col-12 form-input-col">
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="input-with-icon flex-grow-1 position-relative" id="customerSearchWrapper">
                                         <i class="fa-solid fa-user field-icon" id="customerFieldIcon"></i>
@@ -145,10 +145,10 @@
 
                         <!-- TYPE -->
                         <div class="row mb-2 align-items-center form-row-group">
-                            <label class="col-12 col-sm-4 text-sm-end form-label-label" for="typeSelect">
+                            <label class="col-12 form-label-col form-label-label" for="typeSelect">
                                 TYPE :
                             </label>
-                            <div class="col-12 col-sm-8">
+                            <div class="col-12 form-input-col">
                                 <div class="input-with-icon">
                                     <i class="fa-solid fa-cube field-icon"></i>
                                     <select class="form-select form-input-pill ps-5" id="typeSelect">
@@ -161,10 +161,10 @@
 
                         <!-- CATEGORY -->
                         <div class="row mb-2 align-items-center form-row-group">
-                            <label class="col-12 col-sm-4 text-sm-end form-label-label" for="categorySelect">
+                            <label class="col-12 form-label-col form-label-label" for="categorySelect">
                                 CATEGORY :
                             </label>
-                            <div class="col-12 col-sm-8">
+                            <div class="col-12 form-input-col">
                                 <div class="input-with-icon">
                                     <i class="fa-solid fa-cube field-icon"></i>
                                     <select class="form-select form-input-pill ps-5" id="categorySelect">
@@ -177,10 +177,10 @@
 
                         <!-- WEIGHT (Dynamic Label) -->
                         <div class="row mb-2 align-items-center form-row-group">
-                            <label class="col-12 col-sm-4 text-sm-end form-label-label" id="labelWeight" for="inputWeight">
+                            <label class="col-12 form-label-col form-label-label" id="labelWeight" for="inputWeight">
                                 SELL WEIGHT :
                             </label>
-                            <div class="col-12 col-sm-8">
+                            <div class="col-12 form-input-col">
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="input-with-suffix flex-grow-1">
                                         <input type="text" inputmode="decimal" class="form-control form-input-pill pe-5" id="inputWeight" placeholder="0.000">
@@ -196,10 +196,10 @@
 
                         <!-- RATE (Dynamic Label: Quoted per 10 Grams) -->
                         <div class="row mb-2 align-items-center form-row-group">
-                            <label class="col-12 col-sm-4 text-sm-end form-label-label" id="labelRate" for="inputRate">
+                            <label class="col-12 form-label-col form-label-label" id="labelRate" for="inputRate">
                                 SELL RATE {{ rate_unit_label() }} :
                             </label>
-                            <div class="col-12 col-sm-8">
+                            <div class="col-12 form-input-col">
                                 <div class="input-with-suffix">
                                     <input type="text" inputmode="decimal" class="form-control form-input-pill pe-5" id="inputRate" value="165000">
                                     <span class="field-suffix">₹</span>
@@ -213,24 +213,25 @@
 
                         <!-- AMOUNT -->
                         <div class="row mb-2 align-items-center form-row-group">
-                            <label class="col-12 col-sm-4 text-sm-end form-label-label" for="inputAmount">
+                            <label class="col-12 form-label-col form-label-label" for="inputAmount">
                                 AMOUNT :
                             </label>
-                            <div class="col-12 col-sm-8">
+                            <div class="col-12 form-input-col">
                                 <div class="input-with-icon input-with-suffix">
                                     <i class="fa-solid fa-calculator field-icon"></i>
                                     <input type="text" class="form-control form-input-pill ps-5 pe-5 bg-light-readonly" id="inputAmount" value="0.00" readonly>
                                     <span class="field-suffix">₹</span>
                                 </div>
+                                <div class="amount-in-words text-muted fst-italic mt-1 ps-2 small" id="amountInWords" style="font-size: 11px; line-height: 1.25;">Rupees Zero Only</div>
                             </div>
                         </div>
 
                         <!-- ENTRIES MINI-TABLE (Multi-weight rows) -->
                         <div class="row mb-2 form-row-group" id="entriesRowWrapper" style="display: none;">
-                            <label class="col-12 col-sm-4 text-sm-end form-label-label pt-1" id="labelEntries">
+                            <label class="col-12 form-label-col form-label-label pt-1" id="labelEntries">
                                 ENTRIES (<span id="entriesCountBadge">0</span>) :
                             </label>
-                            <div class="col-12 col-sm-8">
+                            <div class="col-12 form-input-col">
                                 <div class="entries-table-card rounded-3 border bg-white shadow-sm p-2">
                                     <div class="table-responsive">
                                         <table class="table table-sm entries-table mb-0 align-middle">
@@ -279,10 +280,10 @@
 
                         <!-- PAYMENT (Dynamic Label: SELL -> RECEIVED :, BUY -> GIVEN :) -->
                         <div class="row mb-2 align-items-center form-row-group" id="paymentRowGroup">
-                            <label class="col-12 col-sm-4 text-sm-end form-label-label" id="labelPayment" for="inputPaymentAmount">
+                            <label class="col-12 form-label-col form-label-label" id="labelPayment" for="inputPaymentAmount">
                                 RECEIVED :
                             </label>
-                            <div class="col-12 col-sm-8">
+                            <div class="col-12 form-input-col">
                                 <div class="d-flex align-items-center gap-2 flex-wrap flex-sm-nowrap" style="min-width: 0; width: 100%;">
                                     <!-- Payment Mode Toggle (Cash / Online) -->
                                     <div class="payment-mode-toggle-container mode-cash flex-shrink-0" id="paymentModeToggle" data-mode="CASH">
@@ -318,10 +319,10 @@
 
                         <!-- PAYMENT ENTRIES MINI-TABLE -->
                         <div class="row mb-2 form-row-group" id="paymentEntriesRowWrapper" style="display: none;">
-                            <label class="col-12 col-sm-4 text-sm-end form-label-label pt-1" id="labelPaymentEntries">
+                            <label class="col-12 form-label-col form-label-label pt-1" id="labelPaymentEntries">
                                 PAYMENTS (<span id="paymentEntriesCountBadge">0</span>) :
                             </label>
-                            <div class="col-12 col-sm-8">
+                            <div class="col-12 form-input-col">
                                 <div class="entries-table-card rounded-3 border bg-white shadow-sm p-2">
                                     <div class="table-responsive">
                                         <table class="table table-sm entries-table mb-0 align-middle">
@@ -344,7 +345,7 @@
 
                         <!-- SUMMARY LINE: Paid: ₹x | Balance: ₹y -->
                         <div class="row mb-2 form-row-group" id="paymentSummaryRow">
-                            <div class="col-12 col-sm-8 offset-sm-4">
+                            <div class="col-12 form-offset-col">
                                 <div class="d-flex align-items-center justify-content-between px-3 py-1 rounded bg-light border small fw-bold" id="paymentSummaryBox">
                                     <span class="text-secondary">
                                         Paid: <span id="paymentSummaryPaid" class="text-dark">₹0.00</span>
@@ -379,18 +380,34 @@
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap">
-                            <button type="button" class="btn btn-outline-print rounded-pill px-4 py-2" id="btnPrint">
-                                <i class="fa-solid fa-print me-2"></i> PRINT
-                            </button>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-gradient-save rounded-pill px-5 py-2" id="btnSave">
-                                    <i class="fa-solid fa-floppy-disk me-2"></i> SAVE
+                        <!-- Sticky Summary Bar -->
+                        <div class="bhav-sticky-summary-bar d-flex align-items-center justify-content-between gap-2" id="bhavStickySummaryBar">
+                            <div class="sticky-summary-info d-flex align-items-center gap-1 gap-md-2 flex-wrap" style="min-width: 0; font-size: 11px;">
+                                <span class="fw-bold text-dark text-truncate" id="stickyCustomerName" style="max-width: 110px;" title="No customer">No customer</span>
+                                <span class="text-muted opacity-50">•</span>
+                                <span class="badge bg-light text-secondary border px-1.5 py-0.5" id="stickyEntriesCount" style="font-size: 10px;">0 entries</span>
+                                <span class="text-muted opacity-50">•</span>
+                                <span id="stickyGoldWeight" class="fw-semibold text-nowrap" style="color: #92400e; font-size: 10.5px; display: none;"></span>
+                                <span id="stickySilverWeight" class="fw-semibold text-nowrap" style="color: #475569; font-size: 10.5px; display: none;"></span>
+                                <span class="text-muted opacity-50" id="stickyMetalDot" style="display: none;">•</span>
+                                <span class="fw-bold text-dark text-nowrap" id="stickyGrandAmount" style="font-size: 11.5px;">₹0.00</span>
+                                <span class="text-muted opacity-50 d-none d-sm-inline">•</span>
+                                <span class="text-nowrap d-none d-sm-inline" style="font-size: 10.5px;">Paid: <span id="stickyPaidAmount" class="fw-bold text-success">₹0.00</span></span>
+                                <span class="text-muted opacity-50">•</span>
+                                <span class="text-nowrap" style="font-size: 10.5px;">Bal: <span id="stickyBalanceAmount" class="fw-bold text-success">₹0.00</span></span>
+                            </div>
+
+                            <div class="sticky-summary-actions d-flex align-items-center gap-1 gap-sm-2 flex-shrink-0">
+                                <button type="button" class="btn btn-outline-print btn-sm rounded-pill px-2 px-sm-3 py-1 fw-bold" id="btnPrint" style="height: 32px; font-size: 11.5px;">
+                                    <i class="fa-solid fa-print me-1"></i> PRINT
                                 </button>
-                                <a href="#" class="btn-cancel-edit text-muted text-decoration-underline small fw-semibold" id="linkCancelEdit" style="display: none;">
-                                    Cancel edit
-                                </a>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-gradient-save btn-sm rounded-pill px-2 px-sm-3 py-1 fw-bold d-inline-flex align-items-center gap-1" id="btnSave" style="height: 32px; font-size: 11.5px;">
+                                        <i class="fa-solid fa-floppy-disk me-1"></i> SAVE
+                                        <span class="badge bg-white text-dark ms-1 py-0.5 px-1.5 d-none d-md-inline" style="font-size: 9px; opacity: 0.9; font-weight: 700;">Ctrl+S</span>
+                                    </button>
+                                    <a href="#" class="btn-cancel-edit text-muted text-decoration-underline small fw-semibold ms-1" id="linkCancelEdit" style="display: none;">Cancel</a>
+                                </div>
                             </div>
                         </div>
 
@@ -401,40 +418,41 @@
         </div>
 
         <!-- C) Right Card: List -->
-        <div class="col-12 col-xl-6">
-            <div class="card custom-content-card h-100 shadow-sm border-0">
+        <div class="col-12 bhav-col-list">
+            <div class="card custom-content-card bhav-list-card h-100 shadow-sm border-0">
                 <div class="card-body p-2 p-md-3 d-flex flex-column">
 
                     <!-- List Header & View Badge -->
-                    <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center justify-content-between mb-2 list-header-row" id="listHeaderRow">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="badge rounded-pill px-3 py-1 text-white d-inline-flex align-items-center gap-2" id="listHeadingBadge" style="background-color: var(--navy-dark); font-size: 13px; font-weight: 700; letter-spacing: 0.3px;">
+                            <span class="badge rounded-pill text-white d-inline-flex align-items-center gap-2 list-heading-badge" id="listHeadingBadge">
                                 <i class="fa-solid fa-list-ul text-warning" id="listHeadingIcon"></i>
                                 <span id="listHeadingText">Current Bookings</span>
                             </span>
+                            <span class="badge rounded-pill trade-view-badge badge-trade-sell" id="tradeViewBadge">Sell</span>
                         </div>
-                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-1 shadow-sm" id="btnExportBookings" title="Export filtered bookings to CSV">
+                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill fw-bold d-flex align-items-center gap-1 shadow-sm btn-export-bookings" id="btnExportBookings" title="Export filtered bookings to CSV">
                             <i class="fa-solid fa-file-csv"></i> Export
                         </button>
                     </div>
 
-                    <!-- Filter Bar Row 1: Search Party & Date Range -->
-                    <div class="row g-2 align-items-center mb-2">
+                    <!-- Filter Bar: 1 row on >=1600px, 2 rows below -->
+                    <div class="row g-1 align-items-center mb-1 list-filters-wrapper">
                         <!-- Search Party -->
-                        <div class="col-12 col-md-6">
-                            <div class="input-with-icon">
-                                <i class="fa-solid fa-magnifying-glass field-icon text-muted"></i>
-                                <input type="text" class="form-control form-input-pill ps-5" id="filterPartyInput" placeholder="Search Party, Mobile, Booking No..." aria-label="Filter bookings by party or booking number">
+                        <div class="col-12 col-md-6 filter-col-search">
+                            <div class="input-with-icon filter-input-with-icon">
+                                <i class="fa-solid fa-magnifying-glass field-icon filter-field-icon text-muted"></i>
+                                <input type="text" class="form-control form-input-pill filter-input-sm" id="filterPartyInput" placeholder="Search Party, Mobile, Booking No..." aria-label="Filter bookings by party or booking number">
                             </div>
                         </div>
 
                         <!-- Date Range -->
-                        <div class="col-12 col-md-6 position-relative" id="dateRangePickerWrapper">
+                        <div class="col-12 col-md-6 position-relative filter-col-date" id="dateRangePickerWrapper">
                             <input type="hidden" name="date_from" id="dateFilterFrom" value="{{ date('Y-m-d') }}">
                             <input type="hidden" name="date_to" id="dateFilterTo" value="{{ date('Y-m-d') }}">
-                            <div class="input-with-suffix cursor-pointer">
+                            <div class="input-with-suffix filter-input-with-suffix cursor-pointer">
                                 <input type="text"
-                                       class="form-control form-input-pill text-center pe-5 cursor-pointer"
+                                       class="form-control form-input-pill filter-input-sm text-center cursor-pointer"
                                        id="dateRangeInput"
                                        value="{{ date('d-m-Y') }} - {{ date('d-m-Y') }}"
                                        readonly
@@ -467,22 +485,19 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Filter Bar Row 2: Trade, Metal, Type, Page Size -->
-                    <div class="row g-2 align-items-center mb-3">
                         <!-- Trade Filter -->
-                        <div class="col-3 col-sm-3">
-                            <select class="form-select form-input-pill text-center" id="filterTradeSelect" aria-label="Filter by trade type">
-                                <option value="ALL" selected>Trade: All</option>
+                        <div class="col-3 filter-col-select filter-col-trade">
+                            <select class="form-select form-input-pill filter-select-sm text-center" id="filterTradeSelect" aria-label="Filter by trade type">
+                                <option value="ALL">Trade: All</option>
                                 <option value="BUY">Buy</option>
-                                <option value="SELL">Sell</option>
+                                <option value="SELL" selected>Sell</option>
                             </select>
                         </div>
 
                         <!-- Metal Filter -->
-                        <div class="col-3 col-sm-3">
-                            <select class="form-select form-input-pill text-center" id="filterMetalSelect" aria-label="Filter by metal">
+                        <div class="col-3 filter-col-select filter-col-metal">
+                            <select class="form-select form-input-pill filter-select-sm text-center" id="filterMetalSelect" aria-label="Filter by metal">
                                 <option value="ALL" selected>Metal: All</option>
                                 <option value="GOLD">Gold</option>
                                 <option value="SILVER">Silver</option>
@@ -490,8 +505,8 @@
                         </div>
 
                         <!-- Type Filter -->
-                        <div class="col-3 col-sm-3">
-                            <select class="form-select form-input-pill text-center" id="filterTypeSelect" aria-label="Filter by entry type">
+                        <div class="col-3 filter-col-select filter-col-type">
+                            <select class="form-select form-input-pill filter-select-sm text-center" id="filterTypeSelect" aria-label="Filter by entry type">
                                 <option value="ALL" selected>Type: All</option>
                                 <option value="ONLY_ENTRY">Only Entry</option>
                                 <option value="BHAV_CUT_LEDGER">Bhav Cut + Ledger</option>
@@ -499,8 +514,8 @@
                         </div>
 
                         <!-- Page Size Selector -->
-                        <div class="col-3 col-sm-3">
-                            <select class="form-select form-input-pill text-center" id="pageSizeSelect" aria-label="Bookings per page">
+                        <div class="col-3 filter-col-select filter-col-pagesize">
+                            <select class="form-select form-input-pill filter-select-sm text-center" id="pageSizeSelect" aria-label="Bookings per page">
                                 <option value="10" selected>10 / page</option>
                                 <option value="50">50 / page</option>
                                 <option value="100">100 / page</option>
@@ -513,7 +528,7 @@
 
                     <!-- Horizontally Scrollable Table Container -->
                     <div class="table-responsive-container flex-grow-1">
-                        <table class="table bhav-table text-center align-middle mb-0" id="bhavBookingTable">
+                        <table class="table bhav-table show-sell-only text-center align-middle mb-0" id="bhavBookingTable">
                             <thead>
                                 <!-- Header Row 1 -->
                                 <tr class="header-row-primary">

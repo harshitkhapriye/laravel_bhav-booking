@@ -574,7 +574,12 @@
                 @endif
 
                 <div class="booking-summary-row">
-                    <div>Booking Total: <strong>₹{{ indian_money($booking->total_amount) }}</strong></div>
+                    <div>
+                        Booking Total: <strong>₹{{ indian_money($booking->total_amount) }}</strong>
+                        <div style="font-size: 11px; font-style: italic; color: #64748b; font-weight: normal; margin-top: 1px;">
+                            {{ amount_to_indian_words($booking->total_amount) }}
+                        </div>
+                    </div>
                     <div>Paid: <strong style="color: #166534;">₹{{ indian_money($booking->trade_type === 'SELL' ? $booking->received_amount : $booking->given_amount) }}</strong></div>
                     <div>Balance: <strong>₹{{ indian_money(max(0, $booking->total_amount - ($booking->trade_type === 'SELL' ? $booking->received_amount : $booking->given_amount))) }}</strong></div>
                 </div>
@@ -600,6 +605,9 @@
                 <div class="combined-val-item">
                     <span class="combined-val-label">Combined Amount</span>
                     <span class="combined-val-amount">₹{{ indian_money($grandAmount) }}</span>
+                    <span style="font-size: 11px; font-style: italic; color: #64748b; font-weight: normal; margin-top: 2px;">
+                        {{ amount_to_indian_words($grandAmount) }}
+                    </span>
                 </div>
                 <div class="combined-val-item">
                     <span class="combined-val-label">Total Paid</span>

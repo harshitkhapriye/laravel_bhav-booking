@@ -1,4 +1,4 @@
-/* global escapeHtml, formatIndianCurrency, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, getRoute, renderActionKebabMenu, handleActionKebabMenuClick, apiFetch */
+/* global escapeHtml, formatIndianCurrency, formatDateISO, formatDateDisplay, formatBookingDateTime, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, renderActionKebabMenu, handleActionKebabMenuClick, apiFetch */
 /**
  * Old Bhav Booking List - Page JavaScript Logic
  * Application: Just Udhari - Buy-Sell Module
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
 
     /**
-     * Render table loading spinner state
+     * Render table skeleton loading shimmer state
      */
     function renderLoadingState() {
         if (!oldTableBody) return;
@@ -76,20 +76,11 @@ document.addEventListener('DOMContentLoaded', function () {
             selectAllCheckbox.checked = false;
             selectAllCheckbox.disabled = true;
         }
-        oldTableBody.innerHTML = `
-            <tr class="table-loading-row">
-                <td colspan="9" class="py-5 text-center text-muted">
-                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <span class="fw-semibold">Loading old bookings...</span>
-                </td>
-            </tr>
-        `;
+        oldTableBody.innerHTML = renderSkeletonTableRows(9, 5);
     }
 
     /**
-     * Render empty state with info icon and "No records found"
+     * Render empty state with inline ledger SVG illustration and "No old bookings"
      */
     function renderEmptyState() {
         if (!oldTableBody) return;
@@ -102,8 +93,8 @@ document.addEventListener('DOMContentLoaded', function () {
         oldTableBody.innerHTML = `
             <tr class="table-empty-row">
                 <td colspan="9" class="py-5 text-center text-muted">
-                    <i class="fa-solid fa-circle-info fa-2x text-secondary opacity-50 mb-2 d-block"></i>
-                    <span class="fw-semibold">No records found</span>
+                    ${getLedgerEmptyStateSvg()}
+                    <div class="fw-semibold text-secondary mb-2" style="font-size: 13px;">No old bookings</div>
                 </td>
             </tr>
         `;
@@ -165,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
             lastLoadedBookingsMap[booking.id] = booking;
 
             const sn = startFrom + index;
-            const dateTimeHtml = formatDateTimeTwoLines(booking.booked_at);
+            const dateTimeHtml = formatBookingDateTime(booking.booked_at);
 
             // Customer Details
             const customer = booking.customer || {};
@@ -187,14 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const singleRate = parseFloat(items[0].rate) || 0;
                 rateDisplay = `₹${formatIndianCurrency(singleRate)}`;
             } else if (items.length > 1) {
-                const lines = items.map((it, i) => {
-                    const w = (parseFloat(it.weight) || 0).toFixed(3);
-                    const r = formatIndianCurrency(it.rate || 0);
-                    const a = formatIndianCurrency(it.amount || 0);
-                    return `#${i + 1}: ${w} gm × ₹${r} = ₹${a}`;
-                });
-                const tooltipContent = lines.join('\n');
-                rateDisplay = `<span class="badge bg-light text-dark border cursor-help text-nowrap" title="${escapeHtml(tooltipContent)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(tooltipContent)}"><i class="fa-solid fa-layer-group text-primary me-1"></i>Multiple</span>`;
+                rateDisplay = renderMultipleRatesBadge(booking.id);
             }
 
             // BUY / SELL Columns logic:
@@ -219,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const actionHtml = renderActionKebabMenu(booking);
 
             html += `
-                <tr data-id="${booking.id}">
+                <tr class="bhav-old-row ${isBuy ? 'row-trade-buy' : 'row-trade-sell'}" data-id="${booking.id}">
                     <td class="bhav-old-col-sn text-center">
                         <div class="d-flex align-items-center justify-content-center gap-1">
                             <input type="checkbox" class="form-check-input row-select-checkbox m-0 cursor-pointer" data-id="${booking.id}">
@@ -257,6 +241,10 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
         });
 
+        // Close active popovers and dispose previous popover instances
+        closeActiveItemsPopover();
+        disposeAllItemsPopovers(oldTableBody);
+
         // Dispose existing tooltips if any before replacing/rendering
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const existingTooltips = oldTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
@@ -273,6 +261,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const tooltipElements = oldTableBody.querySelectorAll('[data-bs-toggle="tooltip"]');
             tooltipElements.forEach((el) => new bootstrap.Tooltip(el));
         }
+
+        // Initialize multiple rates popovers
+        initItemsPopovers(oldTableBody, lastLoadedBookingsMap);
 
         // Row checkbox state is tracked via a single delegated event listener on oldTableBody
     }
@@ -376,6 +367,7 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function fetchOldBookings(page = 1) {
         currentOldPage = page;
+        closeActiveItemsPopover();
 
         if (oldListAbortController) {
             oldListAbortController.abort();

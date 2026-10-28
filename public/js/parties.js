@@ -1,4 +1,4 @@
-/* global escapeHtml, formatDateDisplay, showToast, apiFetch */
+/* global escapeHtml, formatDateDisplay, showToast, apiFetch, renderSkeletonTableRows */
 /**
  * Party Master JavaScript Module
  * Application: Just Udhari
@@ -189,16 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function showLoadingState() {
         if (!partiesTableBody) return;
-        partiesTableBody.innerHTML = `
-            <tr class="table-loading-row">
-                <td colspan="8" class="py-5 text-center text-muted">
-                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <span class="fw-semibold">Loading parties...</span>
-                </td>
-            </tr>
-        `;
+        partiesTableBody.innerHTML = renderSkeletonTableRows(8, 5);
     }
 
     function renderErrorState(message) {

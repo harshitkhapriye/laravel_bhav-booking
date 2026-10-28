@@ -77,4 +77,107 @@ class Format
 
         return 'XXXXX'.substr($clean, -5);
     }
+
+    /**
+     * Convert an amount into Indian words (e.g. "Rupees One Lakh Sixty Five Thousand Only").
+     * Supports crore, lakh, thousand, and paise ("and Fifty Paise").
+     */
+    public static function amountToIndianWords(float|int|string|null $amount): string
+    {
+        if ($amount === null || $amount === '') {
+            return 'Rupees Zero Only';
+        }
+
+        $num = (float) $amount;
+        if ($num < 0) {
+            $num = abs($num);
+        }
+
+        $parts = explode('.', sprintf('%.2f', $num));
+        $rupees = (int) $parts[0];
+        $paise = isset($parts[1]) ? (int) $parts[1] : 0;
+
+        $rupeeWords = self::convertNumberToIndianWords($rupees);
+        if ($rupeeWords === '') {
+            $rupeeWords = 'Zero';
+        }
+
+        $paiseWords = '';
+        if ($paise > 0) {
+            $paiseWords = self::convertNumberToIndianWords($paise).' Paise';
+        }
+
+        if ($paiseWords !== '') {
+            return 'Rupees '.$rupeeWords.' and '.$paiseWords.' Only';
+        }
+
+        return 'Rupees '.$rupeeWords.' Only';
+    }
+
+    /**
+     * Internal recursive helper for Indian numbering word conversion.
+     */
+    private static function convertNumberToIndianWords(int $n): string
+    {
+        if ($n === 0) {
+            return '';
+        }
+
+        $units = [
+            1 => 'One', 2 => 'Two', 3 => 'Three', 4 => 'Four', 5 => 'Five',
+            6 => 'Six', 7 => 'Seven', 8 => 'Eight', 9 => 'Nine', 10 => 'Ten',
+            11 => 'Eleven', 12 => 'Twelve', 13 => 'Thirteen', 14 => 'Fourteen',
+            15 => 'Fifteen', 16 => 'Sixteen', 17 => 'Seventeen', 18 => 'Eighteen', 19 => 'Nineteen',
+        ];
+
+        $tens = [
+            2 => 'Twenty', 3 => 'Thirty', 4 => 'Forty', 5 => 'Fifty',
+            6 => 'Sixty', 7 => 'Seventy', 8 => 'Eighty', 9 => 'Ninety',
+        ];
+
+        $convertTwoDigits = function (int $num) use ($units, $tens) {
+            if ($num === 0) return '';
+            if ($num < 20) return $units[$num];
+            $t = (int) ($num / 10);
+            $u = $num % 10;
+            return $tens[$t].($u > 0 ? ' '.$units[$u] : '');
+        };
+
+        $convertThreeDigits = function (int $num) use ($units, $convertTwoDigits) {
+            $h = (int) ($num / 100);
+            $rem = $num % 100;
+            $res = [];
+            if ($h > 0) {
+                $res[] = $units[$h].' Hundred';
+            }
+            if ($rem > 0) {
+                $res[] = $convertTwoDigits($rem);
+            }
+            return implode(' ', $res);
+        };
+
+        $crores = (int) ($n / 10000000);
+        $n = $n % 10000000;
+        $lakhs = (int) ($n / 100000);
+        $n = $n % 100000;
+        $thousands = (int) ($n / 1000);
+        $remaining = $n % 1000;
+
+        $words = [];
+
+        if ($crores > 0) {
+            $words[] = self::convertNumberToIndianWords($crores).' Crore';
+        }
+        if ($lakhs > 0) {
+            $words[] = $convertTwoDigits($lakhs).' Lakh';
+        }
+        if ($thousands > 0) {
+            $words[] = $convertTwoDigits($thousands).' Thousand';
+        }
+        if ($remaining > 0) {
+            $words[] = $convertThreeDigits($remaining);
+        }
+
+        return implode(' ', $words);
+    }
 }
