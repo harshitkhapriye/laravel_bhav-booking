@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePartyRequest;
 use App\Models\BhavBooking;
 use App\Models\Customer;
+use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -186,5 +187,47 @@ class CustomerController extends Controller
             'party_type' => $customer->party_type,
             'profile_image_url' => $customer->profile_image_url,
         ], 201);
+    }
+
+    /**
+     * Get aggregate booking insights for a customer.
+     * Uses a single aggregate query on bhav_bookings; excludes soft-deleted bookings.
+     * Never exposes aadhaar_no or pan_no.
+     */
+    public function insight(Customer $customer): JsonResponse
+    {
+        $stats = DB::table('bhav_bookings')
+            ->where('customer_id', $customer->id)
+            ->whereNull('deleted_at')
+            ->selectRaw("
+                MAX(booked_at) as last_booking_at,
+                COUNT(*) as total_bookings,
+                COUNT(CASE WHEN status IN ('PENDING', 'PARTIAL') THEN 1 END) as pending_bookings_count,
+                COALESCE(SUM(CASE WHEN status IN ('PENDING', 'PARTIAL') AND metal = 'GOLD' THEN (total_weight - delivered_weight) ELSE 0 END), 0) as pending_gold_weight,
+                COALESCE(SUM(CASE WHEN status IN ('PENDING', 'PARTIAL') AND metal = 'SILVER' THEN (total_weight - delivered_weight) ELSE 0 END), 0) as pending_silver_weight,
+                COALESCE(SUM(CASE WHEN status IN ('PENDING', 'PARTIAL') AND trade_type = 'SELL' THEN (total_amount - received_amount) ELSE 0 END), 0) as to_receive,
+                COALESCE(SUM(CASE WHEN status IN ('PENDING', 'PARTIAL') AND trade_type = 'BUY' THEN (total_amount - given_amount) ELSE 0 END), 0) as to_give
+            ")
+            ->first();
+
+        $lastBookingAt = $stats && $stats->last_booking_at
+            ? Carbon::parse($stats->last_booking_at)->toIso8601String()
+            : null;
+
+        return response()->json([
+            'customer_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'last_booking_at' => $lastBookingAt,
+            'total_bookings' => (int) ($stats->total_bookings ?? 0),
+            'pending_bookings_count' => (int) ($stats->pending_bookings_count ?? 0),
+            'pending_weight' => [
+                'gold' => round((float) ($stats->pending_gold_weight ?? 0), 3),
+                'silver' => round((float) ($stats->pending_silver_weight ?? 0), 3),
+            ],
+            'pending_gold_weight' => round((float) ($stats->pending_gold_weight ?? 0), 3),
+            'pending_silver_weight' => round((float) ($stats->pending_silver_weight ?? 0), 3),
+            'to_receive' => round((float) ($stats->to_receive ?? 0), 2),
+            'to_give' => round((float) ($stats->to_give ?? 0), 2),
+        ]);
     }
 }

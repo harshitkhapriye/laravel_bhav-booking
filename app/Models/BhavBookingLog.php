@@ -102,6 +102,9 @@ class BhavBookingLog extends Model
             case 'SILENT_DELETED':
                 return 'Silent deleted booking';
 
+            case 'RESTORED':
+                return 'Restored booking';
+
             case 'PRINTED':
                 return 'Voucher printed';
 

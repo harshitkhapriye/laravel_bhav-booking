@@ -211,6 +211,7 @@
         bhavBookingShow: "{{ route('bhav-bookings.show', ['bhavBooking' => '__ID__']) }}",
         bhavBookingUpdate: "{{ route('bhav-bookings.update', ['bhavBooking' => '__ID__']) }}",
         bhavBookingDelete: "{{ route('bhav-bookings.destroy', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingRestore: "{{ route('bhav-bookings.restore', ['id' => '__ID__']) }}",
         bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}",
         bhavBookingExport: "{{ route('bhav-bookings.export') }}",
         bhavBookingLogAction: "{{ route('bhav-bookings.log-action', ['bhavBooking' => '__ID__']) }}"

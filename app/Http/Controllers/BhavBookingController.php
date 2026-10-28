@@ -6,6 +6,7 @@ use App\Http\Requests\ListBhavBookingRequest;
 use App\Http\Requests\StoreBhavBookingRequest;
 use App\Http\Requests\UpdateBhavBookingRequest;
 use App\Models\BhavBooking;
+use App\Models\BhavBookingLog;
 use App\Models\Customer;
 use App\Services\BhavBookingService;
 use Illuminate\Database\Eloquent\Builder;
@@ -403,6 +404,51 @@ class BhavBookingController extends Controller
 
         return response()->json([
             'message' => 'Booking deleted successfully.',
+        ]);
+    }
+
+    /**
+     * Restore a soft-deleted Bhav Booking.
+     * Allowed only within 5 minutes of soft delete (deleted_at >= now() - 5 min).
+     * If booking belongs to a group, only this booking is restored.
+     */
+    public function restore(int|string $id): JsonResponse
+    {
+        $booking = BhavBooking::withTrashed()->find($id);
+
+        if (! $booking) {
+            return response()->json(['message' => 'Booking not found'], 404);
+        }
+
+        if (! $booking->trashed()) {
+            return response()->json(['message' => 'Booking is not deleted.'], 422);
+        }
+
+        if ($booking->deleted_at && $booking->deleted_at->lt(now()->subMinutes(5))) {
+            return response()->json(['message' => 'Undo time expired'], 422);
+        }
+
+        $deletedAt = $booking->deleted_at;
+        $booking->restore();
+
+        BhavBookingLog::create([
+            'bhav_booking_id' => $booking->id,
+            'action' => 'RESTORED',
+            'old_values' => [
+                'deleted_at' => $deletedAt ? $deletedAt->toIso8601String() : null,
+            ],
+            'new_values' => [
+                'status' => $booking->status,
+                'booking_no' => $booking->booking_no,
+            ],
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Booking restored successfully.',
+            'booking' => $booking,
         ]);
     }
 

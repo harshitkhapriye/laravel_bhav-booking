@@ -19,8 +19,14 @@
             <button type="button" class="btn btn-outline-warning rounded-pill px-3 py-1 d-flex align-items-center gap-2 text-dark bg-white shadow-sm" id="btnTodayRateModal" title="Click to view or set today's bullion rates">
                 <i class="fa-solid fa-coins text-warning"></i>
                 <span class="small fw-bold text-nowrap">Today's Rate:</span>
-                <span class="badge bg-warning-subtle text-dark border border-warning-subtle small" id="badgeTodayGold">Gold: ₹...</span>
-                <span class="badge bg-secondary-subtle text-dark border border-secondary-subtle small" id="badgeTodaySilver">Silver: ₹...</span>
+                <span class="badge bg-warning-subtle text-dark border border-warning-subtle small d-inline-flex align-items-center gap-1" id="badgeTodayGold">
+                    <span id="rateTextTodayGold">Gold: ₹...</span>
+                    <span id="trendTodayGold" class="rate-trend" style="display: none;"></span>
+                </span>
+                <span class="badge bg-secondary-subtle text-dark border border-secondary-subtle small d-inline-flex align-items-center gap-1" id="badgeTodaySilver">
+                    <span id="rateTextTodaySilver">Silver: ₹...</span>
+                    <span id="trendTodaySilver" class="rate-trend" style="display: none;"></span>
+                </span>
             </button>
 
             <!-- Keyboard Shortcuts Link -->
@@ -138,6 +144,8 @@
                                 </div>
                                 <!-- Customer details info line (mobile & city) -->
                                 <div id="customerSelectedInfo" class="customer-info-line text-muted small mt-1 ps-2" style="display: none;"></div>
+                                <!-- Customer Insight Card (compact summary of previous & pending bookings) -->
+                                <div id="customerInsightCard" class="customer-insight-card mt-1 px-2.5 py-1.5 rounded border small" style="display: none; background-color: #f8fafc; font-size: 11px; line-height: 1.4;"></div>
                                 <!-- Validation error for customer -->
                                 <div id="customerError" class="field-error-text text-danger small mt-1 ps-2" style="display: none;"></div>
                             </div>
@@ -618,6 +626,7 @@
         customerSearch: "{{ route('customers.search') }}",
         customerRecent: "{{ route('customers.recent') }}",
         customerStore: "{{ route('customers.store') }}",
+        customerInsight: "{{ route('customers.insight', ['customer' => '__ID__']) }}",
         bhavBookingIndex: "{{ route('bhav-booking.index') }}",
         bhavBookingOld: "{{ route('bhav-booking.old') }}",
         bhavBookingStore: "{{ route('bhav-bookings.store') }}",
@@ -625,6 +634,7 @@
         bhavBookingShow: "{{ route('bhav-bookings.show', ['bhavBooking' => '__ID__']) }}",
         bhavBookingUpdate: "{{ route('bhav-bookings.update', ['bhavBooking' => '__ID__']) }}",
         bhavBookingDelete: "{{ route('bhav-bookings.destroy', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingRestore: "{{ route('bhav-bookings.restore', ['id' => '__ID__']) }}",
         bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}",
         bhavBookingGroupPrint: "{{ route('bhav-bookings.group.print', ['groupId' => '__GROUP_ID__']) }}",
         bhavBookingExport: "{{ route('bhav-bookings.export') }}",

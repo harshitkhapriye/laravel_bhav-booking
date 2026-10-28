@@ -457,6 +457,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 onDeleted: function () {
                     fetchOldBookings(currentOldPage);
                 },
+                onRestored: function () {
+                    fetchOldBookings(currentOldPage);
+                },
             });
         });
 

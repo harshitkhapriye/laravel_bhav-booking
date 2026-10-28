@@ -110,6 +110,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const customerSelectedInfo = document.getElementById('customerSelectedInfo');
     const customerError = document.getElementById('customerError');
     const customerSearchWrapper = document.getElementById('customerSearchWrapper');
+    const customerInsightCard = document.getElementById('customerInsightCard');
 
     let selectedCustomer = null;
     let searchDebounceTimer = null;
@@ -117,6 +118,118 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentSearchResults = [];
     let currentSearchAbortController = null;
     let suppressNextFocusDropdown = false;
+
+    // Customer Insight Cache (in-memory for page session): customerId -> insight object
+    const customerInsightCache = new Map();
+
+    function hideCustomerInsight() {
+        if (customerInsightCard) {
+            customerInsightCard.style.display = 'none';
+            customerInsightCard.innerHTML = '';
+        }
+    }
+
+    function formatHumanRelativeDate(dateStr) {
+        if (!dateStr) return 'Never';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return 'Never';
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 3600 * 24));
+        if (diffDays <= 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 30) return `${diffDays} days ago`;
+        if (diffDays < 365) {
+            const months = Math.floor(diffDays / 30);
+            return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+        }
+        const years = Math.floor(diffDays / 365);
+        return `${years} ${years === 1 ? 'year' : 'years'} ago`;
+    }
+
+    function renderCustomerInsight(data) {
+        if (!customerInsightCard) return;
+
+        const parts = [];
+
+        // 1. Last booking
+        const lastBookingText = formatHumanRelativeDate(data.last_booking_at);
+        parts.push(`Last booking: <span class="fw-bold text-dark">${escapeHtml(lastBookingText)}</span>`);
+
+        // 2. Pending bookings count
+        const pendingCount = data.pending_bookings_count || 0;
+        const pendingCountClass = pendingCount > 0 ? 'text-primary fw-bold' : 'text-muted';
+        parts.push(`<span class="${pendingCountClass}">${pendingCount} pending</span>`);
+
+        // 3. Pending weight per metal (sum of total_weight - delivered_weight of pending bookings)
+        const goldPending = data.pending_weight ? (parseFloat(data.pending_weight.gold) || 0) : 0;
+        const silverPending = data.pending_weight ? (parseFloat(data.pending_weight.silver) || 0) : 0;
+
+        let weightText = '';
+        if (goldPending > 0 && silverPending > 0) {
+            weightText = `Gold <span class="fw-bold" style="color: #92400e;">${goldPending.toFixed(3)} gm</span> / Silver <span class="fw-bold text-secondary">${silverPending.toFixed(3)} gm</span> pending`;
+        } else if (goldPending > 0) {
+            weightText = `Gold <span class="fw-bold" style="color: #92400e;">${goldPending.toFixed(3)} gm</span> pending`;
+        } else if (silverPending > 0) {
+            weightText = `Silver <span class="fw-bold text-secondary">${silverPending.toFixed(3)} gm</span> pending`;
+        } else {
+            weightText = '<span class="text-muted">0 gm pending</span>';
+        }
+        parts.push(weightText);
+
+        // 4. To receive (SELL pending: total_amount - received_amount)
+        const toReceive = parseFloat(data.to_receive) || 0;
+        if (toReceive > 0) {
+            parts.push(`To receive <span class="fw-bold text-success">₹${formatIndianCurrency(toReceive)}</span>`);
+        }
+
+        // 5. To give (BUY pending: total_amount - given_amount)
+        const toGive = parseFloat(data.to_give) || 0;
+        if (toGive > 0) {
+            parts.push(`To give <span class="fw-bold text-danger">₹${formatIndianCurrency(toGive)}</span>`);
+        }
+
+        customerInsightCard.innerHTML = `
+            <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                <i class="fa-solid fa-chart-pie text-secondary opacity-75 me-1"></i>
+                ${parts.join(' <span class="text-muted opacity-50">•</span> ')}
+            </div>
+        `;
+        customerInsightCard.style.display = 'block';
+    }
+
+    function fetchCustomerInsight(customerId, forceRefresh = false) {
+        if (!customerId || !customerInsightCard) return;
+
+        if (!forceRefresh && customerInsightCache.has(customerId)) {
+            renderCustomerInsight(customerInsightCache.get(customerId));
+            return;
+        }
+
+        // Show small skeleton shimmer while loading
+        customerInsightCard.innerHTML = `
+            <div class="d-flex align-items-center gap-2 py-0.5">
+                <span class="skeleton-bar" style="width: 120px; height: 10px;"></span>
+                <span class="skeleton-bar" style="width: 70px; height: 10px;"></span>
+                <span class="skeleton-bar" style="width: 150px; height: 10px;"></span>
+            </div>
+        `;
+        customerInsightCard.style.display = 'block';
+
+        const insightUrl = getRoute('customerInsight', customerId);
+        apiFetch(insightUrl)
+            .then((data) => {
+                customerInsightCache.set(customerId, data);
+                if (selectedCustomer && String(selectedCustomer.id) === String(customerId)) {
+                    renderCustomerInsight(data);
+                } else if (editingBookingId !== null && hiddenCustomerId && String(hiddenCustomerId.value) === String(customerId)) {
+                    renderCustomerInsight(data);
+                }
+            })
+            .catch((err) => {
+                console.warn('Could not fetch customer insight:', err);
+                hideCustomerInsight();
+            });
+    }
 
     /**
      * Select a customer and update all related UI fields
@@ -139,6 +252,7 @@ document.addEventListener('DOMContentLoaded', function () {
         hideCustomerError();
         hideCustomerDropdown();
         updateStickySummaryBar();
+        fetchCustomerInsight(customer.id);
     }
 
     /**
@@ -154,6 +268,7 @@ document.addEventListener('DOMContentLoaded', function () {
         hideCustomerDropdown();
         hideCustomerError();
         updateStickySummaryBar();
+        hideCustomerInsight();
 
         const whatsappSwitch = document.getElementById('whatsappSwitch');
         if (whatsappSwitch && whatsappSwitch.checked) {
@@ -4331,6 +4446,50 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // TODAY'S RATE MASTER
     // =========================================================================
+    function renderRateTrendBadge(trendEl, metalData) {
+        if (!trendEl) return;
+        if (!metalData || !metalData.is_set) {
+            const tooltipText = "Set today's rate to see the change";
+            trendEl.textContent = '—';
+            trendEl.className = 'rate-trend text-muted fw-bold ms-1';
+            trendEl.title = tooltipText;
+            trendEl.setAttribute('data-bs-toggle', 'tooltip');
+            trendEl.setAttribute('data-bs-placement', 'top');
+            trendEl.setAttribute('data-bs-title', tooltipText);
+            trendEl.style.display = 'inline-block';
+            return;
+        }
+
+        if (metalData.change === null || metalData.previous_rate === null || metalData.previous_rate === undefined || metalData.change === 0) {
+            const tooltipText = metalData.previous_rate
+                ? `Previous: ₹${formatIndianCurrency(metalData.previous_rate)} on ${metalData.previous_date || ''}`
+                : 'No previous rate';
+            trendEl.textContent = '—';
+            trendEl.className = 'rate-trend text-muted fw-bold ms-1';
+            trendEl.title = tooltipText;
+            trendEl.setAttribute('data-bs-toggle', 'tooltip');
+            trendEl.setAttribute('data-bs-placement', 'top');
+            trendEl.setAttribute('data-bs-title', tooltipText);
+            trendEl.style.display = 'inline-block';
+            return;
+        }
+
+        const prevFormatted = `Previous: ₹${formatIndianCurrency(metalData.previous_rate)} on ${metalData.previous_date || ''}`;
+        const absChange = Math.abs(metalData.change);
+        const absPct = Math.abs(metalData.percent || 0);
+
+        if (metalData.change > 0) {
+            trendEl.innerHTML = `<span class="text-success fw-bold ms-1">▲ ₹${formatIndianCurrency(absChange)} (${absPct}%)</span>`;
+        } else {
+            trendEl.innerHTML = `<span class="text-danger fw-bold ms-1">▼ ₹${formatIndianCurrency(absChange)} (${absPct}%)</span>`;
+        }
+        trendEl.title = prevFormatted;
+        trendEl.setAttribute('data-bs-toggle', 'tooltip');
+        trendEl.setAttribute('data-bs-placement', 'top');
+        trendEl.setAttribute('data-bs-title', prevFormatted);
+        trendEl.style.display = 'inline-block';
+    }
+
     function fetchTodayRates() {
         if (!window.APP_ROUTES || !window.APP_ROUTES.dailyRatesToday) return;
 
@@ -4340,12 +4499,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const badgeGold = document.getElementById('badgeTodayGold');
                 const badgeSilver = document.getElementById('badgeTodaySilver');
+                const rateTextGold = document.getElementById('rateTextTodayGold');
+                const rateTextSilver = document.getElementById('rateTextTodaySilver');
+                const trendGold = document.getElementById('trendTodayGold');
+                const trendSilver = document.getElementById('trendTodaySilver');
 
-                if (badgeGold && rates.GOLD) {
-                    badgeGold.textContent = `Gold: ₹${formatIndianCurrency(rates.GOLD.rate)}`;
+                if (rates.GOLD) {
+                    if (rateTextGold) {
+                        rateTextGold.textContent = `Gold: ₹${formatIndianCurrency(rates.GOLD.rate)}`;
+                    } else if (badgeGold) {
+                        badgeGold.textContent = `Gold: ₹${formatIndianCurrency(rates.GOLD.rate)}`;
+                    }
+                    renderRateTrendBadge(trendGold, rates.GOLD);
                 }
-                if (badgeSilver && rates.SILVER) {
-                    badgeSilver.textContent = `Silver: ₹${formatIndianCurrency(rates.SILVER.rate)}`;
+                if (rates.SILVER) {
+                    if (rateTextSilver) {
+                        rateTextSilver.textContent = `Silver: ₹${formatIndianCurrency(rates.SILVER.rate)}`;
+                    } else if (badgeSilver) {
+                        badgeSilver.textContent = `Silver: ₹${formatIndianCurrency(rates.SILVER.rate)}`;
+                    }
+                    renderRateTrendBadge(trendSilver, rates.SILVER);
                 }
 
                 const isEditing = Boolean(editingBookingId);
@@ -4485,6 +4658,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (editingBookingId === bookingId) {
                         exitEditMode();
                     }
+                    fetchBookingList(currentListPage);
+                },
+                onRestored: function () {
                     fetchBookingList(currentListPage);
                 },
             });

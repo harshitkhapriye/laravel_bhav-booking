@@ -1,4 +1,4 @@
-/* exported escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateTimeDisplay, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, formatBookingDateTime, refreshRelativeTimeLabels, pad2, metalIconSvg, renderMultipleRatesBadge, buildItemsPopoverContent, openItemsPopover, closeActiveItemsPopover, disposeAllItemsPopovers, initItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getCsrfToken, getRoute, showToast, isBookingModifiable, generateBookingSummary, shareBooking, copySummaryToClipboard, fallbackClipboardCopy, whatsappBooking, deleteBookingWithConfirm, viewBookingDetails, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, initExportHandler, initKeyboardShortcuts */
+/* exported escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateTimeDisplay, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, formatBookingDateTime, refreshRelativeTimeLabels, pad2, metalIconSvg, renderMultipleRatesBadge, buildItemsPopoverContent, openItemsPopover, closeActiveItemsPopover, disposeAllItemsPopovers, initItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getCsrfToken, getRoute, showToast, showDeleteUndoToast, isBookingModifiable, generateBookingSummary, shareBooking, copySummaryToClipboard, fallbackClipboardCopy, whatsappBooking, deleteBookingWithConfirm, viewBookingDetails, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, initExportHandler, initKeyboardShortcuts */
 /**
  * Bhav Booking - Shared JavaScript Utilities & Handlers
  * Application: Just Udhari - Buy-Sell Module
@@ -717,8 +717,71 @@ function whatsappBooking(input) {
     window.open(url, '_blank');
 }
 
+// Global helper: Show toast with Undo countdown button and call restore on click
+function showDeleteUndoToast(bookingId, bookingNo, isSilent, onRestoredCallback) {
+    const escapedBookingNo = escapeHtml(bookingNo || 'Booking');
+    let secondsLeft = 5;
+    const btnUndoId = 'btnUndoDelete_' + bookingId + '_' + Date.now();
+    const countdownId = 'undoCountdown_' + bookingId + '_' + Date.now();
+
+    const undoMsg = `
+        <div class="d-flex align-items-center justify-content-between gap-2 w-100">
+            <span>Booking ${escapedBookingNo} ${isSilent ? 'silently deleted' : 'deleted'}</span>
+            <button type="button" class="btn btn-sm btn-dark rounded-pill px-2.5 py-0.5 fw-bold ms-2 text-nowrap" id="${btnUndoId}" style="font-size: 11px;">
+                Undo (<span id="${countdownId}">${secondsLeft}</span>s)
+            </button>
+        </div>
+    `;
+
+    showToast(undoMsg, 'success', 5500, { html: true });
+
+    let countdownInterval = setInterval(() => {
+        secondsLeft -= 1;
+        const countdownEl = document.getElementById(countdownId);
+        if (countdownEl) {
+            countdownEl.textContent = String(Math.max(0, secondsLeft));
+        }
+        if (secondsLeft <= 0) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+    }, 1000);
+
+    setTimeout(() => {
+        const undoBtn = document.getElementById(btnUndoId);
+        if (undoBtn) {
+            undoBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                }
+                undoBtn.disabled = true;
+                undoBtn.textContent = 'Restoring...';
+
+                const restoreUrl = getRoute('bhavBookingRestore', bookingId);
+                apiFetch(restoreUrl, { method: 'POST' })
+                    .then(() => {
+                        showToast(`Booking ${escapedBookingNo} restored`, 'success');
+                        const toastEl = undoBtn.closest('.toast');
+                        if (toastEl && typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+                            const inst = bootstrap.Toast.getInstance(toastEl);
+                            if (inst) inst.hide();
+                        }
+                        if (typeof onRestoredCallback === 'function') {
+                            onRestoredCallback(bookingId);
+                        }
+                    })
+                    .catch((err) => {
+                        console.warn('Booking restore error:', err);
+                    });
+            });
+        }
+    }, 50);
+}
+
 // Global helper: Confirm and execute normal or silent soft delete
-function deleteBookingWithConfirm(bookingId, bookingNo, amount, isSilent, onDeletedCallback) {
+function deleteBookingWithConfirm(bookingId, bookingNo, amount, isSilent, onDeletedCallback, onRestoredCallback) {
     const formattedAmt = formatIndianCurrency(amount || 0);
     const confirmMessage = isSilent
         ? `Silently delete booking ${bookingNo} (₹${formattedAmt})? No message will be sent.`
@@ -732,11 +795,10 @@ function deleteBookingWithConfirm(bookingId, bookingNo, amount, isSilent, onDele
 
     apiFetch(deleteUrl, { method: 'DELETE' })
         .then(() => {
-            const msg = isSilent ? `Booking ${bookingNo} silently deleted` : `Booking ${bookingNo} deleted`;
-            showToast(msg, 'success');
             if (typeof onDeletedCallback === 'function') {
                 onDeletedCallback(bookingId, bookingNo);
             }
+            showDeleteUndoToast(bookingId, bookingNo, isSilent, onRestoredCallback);
         })
         .catch((err) => {
             console.warn('Booking delete error:', err);
@@ -1155,7 +1217,7 @@ function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
         const id = parseInt(deleteItem.getAttribute('data-id'), 10);
         const bNo = deleteItem.getAttribute('data-booking-no') || 'Booking';
         const amt = deleteItem.getAttribute('data-amount') || 0;
-        deleteBookingWithConfirm(id, bNo, amt, false, callbacks.onDeleted);
+        deleteBookingWithConfirm(id, bNo, amt, false, callbacks.onDeleted, callbacks.onRestored);
         return;
     }
 
@@ -1170,7 +1232,7 @@ function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
         const id = parseInt(silentItem.getAttribute('data-id'), 10);
         const bNo = silentItem.getAttribute('data-booking-no') || 'Booking';
         const amt = silentItem.getAttribute('data-amount') || 0;
-        deleteBookingWithConfirm(id, bNo, amt, true, callbacks.onDeleted);
+        deleteBookingWithConfirm(id, bNo, amt, true, callbacks.onDeleted, callbacks.onRestored);
         return;
     }
 }

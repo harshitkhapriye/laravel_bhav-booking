@@ -32,6 +32,12 @@ Route::post('/daily-rates', [DailyRateController::class, 'store'])
     ->middleware('throttle:30,1')
     ->name('daily-rates.store');
 
+// Callback for route model binding failure on parties / customers
+// Returns JSON 404 "Party not found"
+$missingPartyCallback = function (Request $request) {
+    return response()->json(['message' => 'Party not found'], 404);
+};
+
 // Customer Search, Recent & Creation (with throttling)
 Route::get('/customers/search', [CustomerController::class, 'search'])
     ->middleware('throttle:120,1')
@@ -44,6 +50,11 @@ Route::get('/customers/recent', [CustomerController::class, 'recent'])
 Route::post('/customers', [CustomerController::class, 'store'])
     ->middleware('throttle:30,1')
     ->name('customers.store');
+
+Route::get('/customers/{customer}/insight', [CustomerController::class, 'insight'])
+    ->middleware('throttle:120,1')
+    ->name('customers.insight')
+    ->missing($missingPartyCallback);
 
 // Callback for route model binding failure on bhav-bookings
 // Why: If a requested booking ID does not exist in the database,
@@ -96,11 +107,9 @@ Route::post('/bhav-bookings/{bhavBooking}/log-action', [BhavBookingController::c
     ->name('bhav-bookings.log-action')
     ->missing($missingBookingCallback);
 
-// Callback for route model binding failure on parties
-// Returns JSON 404 "Party not found"
-$missingPartyCallback = function (Request $request) {
-    return response()->json(['message' => 'Party not found'], 404);
-};
+Route::post('/bhav-bookings/{id}/restore', [BhavBookingController::class, 'restore'])
+    ->middleware('throttle:30,1')
+    ->name('bhav-bookings.restore');
 
 // Party Master Routes
 Route::get('/parties', [PartyController::class, 'index'])->name('parties.index');
