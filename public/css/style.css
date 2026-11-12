@@ -102,6 +102,7 @@ textarea::placeholder,
 .form-input-pill::placeholder,
 .party-input-pill::placeholder,
 .party-textarea-rounded::placeholder {
+    font-size: 13px !important;
     font-weight: 500 !important;
     color: #94a3b8 !important;
     opacity: 0.85;
@@ -670,12 +671,39 @@ textarea::placeholder,
 }
 
 /* --------------------------------------------------------------------------
+   Bhav Booking Form Content Container (Narrower & Centered)
+   -------------------------------------------------------------------------- */
+.bhav-form-container {
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    padding-left: 16px;
+    padding-right: 16px;
+    box-sizing: border-box;
+}
+
+@media (min-width: 576px) {
+    .bhav-form-container {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .bhav-form-container {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+/* --------------------------------------------------------------------------
    Form Controls & Active Field Highlight
    -------------------------------------------------------------------------- */
 .form-label-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
-    color: #4a5568;
+    color: #1e293b;
     letter-spacing: 0.3px;
     margin-bottom: 0;
     transition: color 0.2s ease;
@@ -688,6 +716,7 @@ textarea::placeholder,
 
 .form-row-group {
     margin-bottom: 8px;
+    align-items: flex-start !important;
 }
 
 /* Fixed narrow label column (~120px) on sm and above */
@@ -695,6 +724,7 @@ textarea::placeholder,
     .form-label-col {
         margin-bottom: 3px;
         text-align: left;
+        padding-top: 0;
     }
 }
 
@@ -707,11 +737,19 @@ textarea::placeholder,
         text-align: right;
         white-space: nowrap;
         padding-right: 6px;
+        padding-top: 9px;
+        line-height: 1.25;
     }
 
     .form-label-col.label-wrap-allowed {
         white-space: normal;
         line-height: 1.15;
+        padding-top: 4px;
+    }
+
+    #labelEntries,
+    #labelPaymentEntries {
+        padding-top: 6px !important;
     }
 
     .col-12.form-input-col,
@@ -890,11 +928,36 @@ textarea::placeholder,
     background-color: #f8fafc;
     border: 1px solid var(--border-light);
     border-radius: 50px;
-    height: 34px;
-    font-size: 13px;
+    height: 36px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-dark);
     padding: 4px 12px;
+}
+
+#bhavBookingForm select.form-select.form-input-pill {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dark);
+    height: 36px;
+}
+
+#inputAmount {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+}
+
+.amount-in-words {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+}
+
+#paymentSummaryBox,
+#paymentSummaryBox span,
+#paymentSummaryPaid,
+#paymentSummaryBalance {
+    font-size: 14px !important;
+    font-weight: 700 !important;
 }
 
 /* Active field orange border + soft glow for all inputs/selects in form and modal */
@@ -1132,8 +1195,8 @@ textarea::placeholder,
 .bhav-table td {
     white-space: nowrap !important;
     vertical-align: middle !important;
-    padding: 5px 8px !important;
-    line-height: 1.25 !important;
+    padding: 10px 10px !important;
+    line-height: 1.3 !important;
     border-top: none !important;
     border-bottom: 1px solid #edf2f7 !important;
 }
@@ -1142,20 +1205,20 @@ textarea::placeholder,
 .bhav-table thead th {
     background-color: var(--table-header-bg, #e8edf3);
     color: #475569;
-    font-size: 10px !important;
+    font-size: 11px !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.4px;
-    padding: 5px 8px !important;
+    padding: 7px 10px !important;
     border-bottom: 1.5px solid #cbd5e1 !important;
     vertical-align: middle !important;
 }
 
 .bhav-table thead tr.header-row-sub th {
-    font-size: 9.5px !important;
+    font-size: 10.5px !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
-    padding: 4px 6px !important;
+    padding: 6px 10px !important;
     letter-spacing: 0.3px;
     border-top: 1px solid #cbd5e1 !important;
     border-bottom: 1.5px solid #cbd5e1 !important;
@@ -1313,8 +1376,9 @@ textarea::placeholder,
 }
 
 .bhav-table tfoot tr.table-total-row td {
-    padding: 6px 8px !important;
-    font-size: 11.5px !important;
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
     border-top: 2px solid #cbd5e1 !important;
     border-bottom: 1px solid #cbd5e1 !important;
     background-color: #ffffff !important;
@@ -1530,28 +1594,32 @@ textarea::placeholder,
 }
 
 .entries-table {
-    font-size: 12px;
+    font-size: 13px !important;
     background-color: #ffffff;
 }
 
 .entries-table thead th {
-    font-weight: 700;
-    font-size: 10.5px;
+    font-weight: 700 !important;
+    font-size: 11px !important;
     letter-spacing: 0.5px;
     color: #64748b;
     background-color: #f1f5f9;
     border-bottom: 1px solid #e2e8f0;
-    padding: 4px 6px;
+    padding: 5px 8px !important;
 }
 
 .entries-table tbody td {
-    padding: 4px 6px;
+    padding: 5px 8px !important;
     vertical-align: middle;
+    font-size: 13px !important;
+    font-weight: 600 !important;
 }
 
 .entries-table tfoot td {
-    padding: 4px 6px;
+    padding: 6px 8px !important;
     border-top: 2px solid #e2e8f0;
+    font-size: 13px !important;
+    font-weight: 700 !important;
 }
 
 .col-entry-sn {
@@ -1576,10 +1644,10 @@ textarea::placeholder,
 
 .entry-cell-input {
     width: 100%;
-    height: 28px;
-    padding: 2px 6px;
-    font-size: 12px;
-    font-weight: 600;
+    height: 30px !important;
+    padding: 2px 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
     text-align: right;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
@@ -1658,12 +1726,12 @@ textarea::placeholder,
     background-color: #fef3c7;
     color: #92400e;
     border: 1px solid #fde68a;
-    font-size: 9px;
-    font-weight: 700;
-    padding: 1px 5px;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    padding: 1px 6px !important;
     border-radius: 4px;
     letter-spacing: 0.3px;
-    line-height: 1.2;
+    line-height: 1.25 !important;
     display: inline-flex;
     align-items: center;
     gap: 3px;
@@ -1673,12 +1741,12 @@ textarea::placeholder,
     background-color: #f1f5f9;
     color: #475569;
     border: 1px solid #cbd5e1;
-    font-size: 9px;
-    font-weight: 700;
-    padding: 1px 5px;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    padding: 1px 6px !important;
     border-radius: 4px;
     letter-spacing: 0.3px;
-    line-height: 1.2;
+    line-height: 1.25 !important;
     display: inline-flex;
     align-items: center;
     gap: 3px;
@@ -1688,22 +1756,22 @@ textarea::placeholder,
     background-color: #e0f2fe;
     color: #0369a1;
     border: 1px solid #bae6fd;
-    font-size: 9px;
-    font-weight: 600;
-    padding: 1px 5px;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    padding: 1px 6px !important;
     border-radius: 4px;
-    line-height: 1.2;
+    line-height: 1.25 !important;
 }
 
 .badge-type-ledger {
     background-color: #f3e8ff;
     color: #7e22ce;
     border: 1px solid #e9d5ff;
-    font-size: 9px;
-    font-weight: 600;
-    padding: 1px 5px;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    padding: 1px 6px !important;
     border-radius: 4px;
-    line-height: 1.2;
+    line-height: 1.25 !important;
 }
 
 .badge-status-pending {
@@ -1721,11 +1789,11 @@ textarea::placeholder,
     background-color: #cffafe;
     color: #155e75;
     border: 1px solid #a5f3fc;
-    font-size: 9px;
-    font-weight: 600;
-    padding: 1px 5px;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    padding: 1px 6px !important;
     border-radius: 4px;
-    line-height: 1.2;
+    line-height: 1.25 !important;
 }
 
 .badge-status-delivered {
@@ -1892,8 +1960,8 @@ textarea::placeholder,
 .old-bhav-table td {
     white-space: nowrap !important;
     vertical-align: middle !important;
-    padding: 5px 8px !important;
-    line-height: 1.25 !important;
+    padding: 10px 10px !important;
+    line-height: 1.3 !important;
     border-top: none !important;
     border-bottom: 1px solid #edf2f7 !important;
 }
@@ -1908,10 +1976,10 @@ textarea::placeholder,
     background-color: #e8edf3 !important;
     color: #334155;
     font-weight: 700 !important;
-    font-size: 10px !important;
+    font-size: 11px !important;
     text-transform: uppercase !important;
     letter-spacing: 0.3px;
-    padding: 6px 8px !important;
+    padding: 7px 10px !important;
     border: none !important;
     border-bottom: 1.5px solid #cbd5e1 !important;
     vertical-align: middle !important;
@@ -2647,8 +2715,8 @@ textarea::placeholder,
     user-select: none;
     box-sizing: border-box;
     height: 38px;
-    width: 130px;
-    min-width: 130px;
+    width: 120px;
+    min-width: 120px;
 }
 
 .payment-mode-toggle-pill {
@@ -2656,7 +2724,7 @@ textarea::placeholder,
     top: 2px;
     bottom: 2px;
     left: 2px;
-    width: 63px;
+    width: 58px;
     border-radius: 50px;
     transition:
         transform 250ms ease,
@@ -2675,7 +2743,7 @@ textarea::placeholder,
 
 .payment-mode-toggle-container[data-mode='ONLINE'] .payment-mode-toggle-pill,
 .payment-mode-toggle-container.mode-online .payment-mode-toggle-pill {
-    transform: translateX(63px);
+    transform: translateX(58px);
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
 }
@@ -2683,7 +2751,7 @@ textarea::placeholder,
 .payment-mode-toggle-btn {
     border: none;
     background: transparent !important;
-    padding: 4px 6px;
+    padding: 4px 4px;
     font-size: 11.5px;
     font-weight: 700;
     border-radius: 50px;
@@ -2692,8 +2760,8 @@ textarea::placeholder,
     position: relative;
     z-index: 2;
     flex: 1 1 0;
-    width: 63px;
-    min-width: 63px;
+    width: 58px;
+    min-width: 58px;
     text-align: center;
     transition: color 250ms ease;
     box-shadow: none !important;
@@ -2914,4 +2982,105 @@ textarea::placeholder,
     display: block;
     margin-left: auto;
     margin-right: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Bhav Booking Row & Number Text Hierarchy
+   -------------------------------------------------------------------------- */
+.sticky-summary-info {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    min-width: 0 !important;
+    gap: 5px !important;
+    overflow: hidden !important;
+}
+
+.sticky-summary-info span {
+    font-size: 13px;
+}
+
+.sticky-summary-info #stickyCustomerName {
+    max-width: 120px !important;
+    min-width: 50px !important;
+    flex-shrink: 1 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+
+.sticky-summary-info #stickyGrandAmount,
+.sticky-summary-info #stickyPaidAmount,
+.sticky-summary-info #stickyBalanceAmount,
+.sticky-summary-info #stickyGoldWeight,
+.sticky-summary-info #stickySilverWeight {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+
+.sticky-summary-info #stickyEntriesCount {
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+}
+
+.sticky-entries-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+@media (max-width: 1599.98px) {
+    #stickyEntriesChip,
+    .sticky-entries-chip {
+        display: none !important;
+    }
+}
+
+.bhav-table tbody td.bhav-col-buy-wt,
+.bhav-table tbody td.bhav-col-buy-rate,
+.bhav-table tbody td.bhav-col-buy-amt,
+.bhav-table tbody td.bhav-col-sell-wt,
+.bhav-table tbody td.bhav-col-sell-rate,
+.bhav-table tbody td.bhav-col-sell-amt,
+.bhav-table tbody td.bhav-col-given-received,
+.old-bhav-table tbody td:nth-child(5),
+.old-bhav-table tbody td:nth-child(6),
+.old-bhav-table tbody td:nth-child(7),
+.old-bhav-table tbody td:nth-child(8) {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+
+.bhav-table .unit-text,
+.old-bhav-table .unit-text {
+    font-size: 10.5px !important;
+    font-weight: 500 !important;
+}
+
+.given-amt-line,
+.received-amt-line {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+
+.customer-name-text {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+}
+
+.customer-id-text {
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+}
+
+#totalGiven,
+#totalReceived {
+    font-size: 13px !important;
+    font-weight: 700 !important;
 }

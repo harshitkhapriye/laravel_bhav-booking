@@ -115,8 +115,11 @@
                         <input type="hidden" name="customer_id" id="hiddenCustomerId" value="">
                         <input type="hidden" name="amount" id="hiddenAmount" value="0.00">
 
-                        <!-- CUSTOMER NO / NAME -->
-                        <div class="row mb-2 align-items-center form-row-group">
+                        <!-- Form Rows Container (Limits width to ~560px, centered inside card with side padding) -->
+                        <div class="bhav-form-container">
+
+                            <!-- CUSTOMER NO / NAME -->
+                        <div class="row mb-2 align-items-start form-row-group">
                             <label class="col-12 form-label-col form-label-label label-wrap-allowed" for="customerSearchInput">
                                 CUSTOMER NO /<br class="d-none d-sm-inline"> NAME :
                             </label>
@@ -152,7 +155,7 @@
                         </div>
 
                         <!-- TYPE -->
-                        <div class="row mb-2 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-start form-row-group">
                             <label class="col-12 form-label-col form-label-label" for="typeSelect">
                                 TYPE :
                             </label>
@@ -168,7 +171,7 @@
                         </div>
 
                         <!-- CATEGORY -->
-                        <div class="row mb-2 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-start form-row-group">
                             <label class="col-12 form-label-col form-label-label" for="categorySelect">
                                 CATEGORY :
                             </label>
@@ -184,7 +187,7 @@
                         </div>
 
                         <!-- WEIGHT (Dynamic Label) -->
-                        <div class="row mb-2 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-start form-row-group">
                             <label class="col-12 form-label-col form-label-label" id="labelWeight" for="inputWeight">
                                 SELL WEIGHT :
                             </label>
@@ -203,7 +206,7 @@
                         </div>
 
                         <!-- RATE (Dynamic Label: Quoted per 10 Grams) -->
-                        <div class="row mb-2 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-start form-row-group">
                             <label class="col-12 form-label-col form-label-label" id="labelRate" for="inputRate">
                                 SELL RATE {{ rate_unit_label() }} :
                             </label>
@@ -212,30 +215,27 @@
                                     <input type="text" inputmode="decimal" class="form-control form-input-pill pe-5" id="inputRate" value="165000">
                                     <span class="field-suffix">₹</span>
                                 </div>
-                                <span class="small text-muted ps-2 fst-italic d-inline-block mt-1" id="rateTodayHint" style="display: none;">
-                                    <i class="fa-solid fa-circle-check text-success me-1"></i> (today's rate)
-                                </span>
                                 <div id="rateError" class="field-error-text text-danger small mt-1 ps-2" style="display: none;"></div>
                             </div>
                         </div>
 
                         <!-- AMOUNT -->
-                        <div class="row mb-2 align-items-center form-row-group">
+                        <div class="row mb-2 align-items-start form-row-group">
                             <label class="col-12 form-label-col form-label-label" for="inputAmount">
                                 AMOUNT :
                             </label>
                             <div class="col-12 form-input-col">
                                 <div class="input-with-icon input-with-suffix">
                                     <i class="fa-solid fa-calculator field-icon"></i>
-                                    <input type="text" class="form-control form-input-pill ps-5 pe-5 bg-light-readonly" id="inputAmount" value="0.00" readonly>
+                                    <input type="text" class="form-control form-input-pill ps-5 pe-5 bg-light-readonly fw-bold" id="inputAmount" value="0.00" readonly style="font-size: 15px; font-weight: 700;">
                                     <span class="field-suffix">₹</span>
                                 </div>
-                                <div class="amount-in-words text-muted fst-italic mt-1 ps-2 small" id="amountInWords" style="font-size: 11px; line-height: 1.25;">Rupees Zero Only</div>
+                                <div class="amount-in-words text-muted fst-italic mt-1 ps-2 small" id="amountInWords" style="font-size: 12px; font-weight: 500; line-height: 1.25;">Rupees Zero Only</div>
                             </div>
                         </div>
 
                         <!-- ENTRIES MINI-TABLE (Multi-weight rows) -->
-                        <div class="row mb-2 form-row-group" id="entriesRowWrapper" style="display: none;">
+                        <div class="row mb-2 align-items-start form-row-group" id="entriesRowWrapper" style="display: none;">
                             <label class="col-12 form-label-col form-label-label pt-1" id="labelEntries">
                                 ENTRIES (<span id="entriesCountBadge">0</span>) :
                             </label>
@@ -275,7 +275,7 @@
                                                     <td colspan="2" class="text-start ps-2 text-muted">TOTAL AMOUNT</td>
                                                     <td class="text-end text-muted small" id="entriesTotalWeight">-</td>
                                                     <td></td>
-                                                    <td class="text-end text-success fs-6" id="entriesTotalAmount">₹0.00</td>
+                                                    <td class="text-end text-success fw-bold" id="entriesTotalAmount" style="font-size: 13px; font-weight: 700;">₹0.00</td>
                                                     <td></td>
                                                 </tr>
                                             </tfoot>
@@ -287,12 +287,12 @@
                         </div>
 
                         <!-- PAYMENT (Dynamic Label: SELL -> RECEIVED :, BUY -> GIVEN :) -->
-                        <div class="row mb-2 align-items-center form-row-group" id="paymentRowGroup">
+                        <div class="row mb-2 align-items-start form-row-group" id="paymentRowGroup">
                             <label class="col-12 form-label-col form-label-label" id="labelPayment" for="inputPaymentAmount">
                                 RECEIVED :
                             </label>
                             <div class="col-12 form-input-col">
-                                <div class="d-flex align-items-center gap-2 flex-wrap flex-sm-nowrap" style="min-width: 0; width: 100%;">
+                                <div class="d-flex align-items-center gap-1.5 gap-sm-2 flex-nowrap" style="min-width: 0; width: 100%;">
                                     <!-- Payment Mode Toggle (Cash / Online) -->
                                     <div class="payment-mode-toggle-container mode-cash flex-shrink-0" id="paymentModeToggle" data-mode="CASH">
                                         <div class="payment-mode-toggle-pill" id="paymentModeTogglePill"></div>
@@ -302,7 +302,7 @@
 
                                     <!-- Online Method (Shown only when Online is selected) -->
                                     <div id="paymentOnlineFields" class="d-none align-items-center flex-shrink-0">
-                                        <select class="form-select form-input-pill py-1 px-2 small" id="paymentOnlineMethod" style="width: auto; min-width: 82px; font-size: 11.5px; height: 38px;">
+                                        <select class="form-select form-input-pill py-1 px-2 small" id="paymentOnlineMethod" style="width: auto; min-width: 72px; font-size: 11.5px; height: 38px;">
                                             <option value="UPI" selected>UPI</option>
                                             <option value="BANK">Bank</option>
                                             <option value="CARD">Card</option>
@@ -312,7 +312,7 @@
 
                                     <!-- Payment Amount Input (Takes remaining width) -->
                                     <div class="input-with-suffix flex-grow-1" style="min-width: 0;">
-                                        <input type="text" inputmode="decimal" class="form-control form-input-pill pe-5" id="inputPaymentAmount" placeholder="0.00" style="min-width: 0;">
+                                        <input type="text" inputmode="decimal" class="form-control form-input-pill pe-4" id="inputPaymentAmount" placeholder="0.00" style="min-width: 0;">
                                         <span class="field-suffix">₹</span>
                                     </div>
 
@@ -326,7 +326,7 @@
                         </div>
 
                         <!-- PAYMENT ENTRIES MINI-TABLE -->
-                        <div class="row mb-2 form-row-group" id="paymentEntriesRowWrapper" style="display: none;">
+                        <div class="row mb-2 align-items-start form-row-group" id="paymentEntriesRowWrapper" style="display: none;">
                             <label class="col-12 form-label-col form-label-label pt-1" id="labelPaymentEntries">
                                 PAYMENTS (<span id="paymentEntriesCountBadge">0</span>) :
                             </label>
@@ -354,12 +354,12 @@
                         <!-- SUMMARY LINE: Paid: ₹x | Balance: ₹y -->
                         <div class="row mb-2 form-row-group" id="paymentSummaryRow">
                             <div class="col-12 form-offset-col">
-                                <div class="d-flex align-items-center justify-content-between px-3 py-1 rounded bg-light border small fw-bold" id="paymentSummaryBox">
-                                    <span class="text-secondary">
-                                        Paid: <span id="paymentSummaryPaid" class="text-dark">₹0.00</span>
+                                <div class="d-flex align-items-center justify-content-between px-3 py-1.5 rounded bg-light border fw-bold" id="paymentSummaryBox" style="font-size: 14px; font-weight: 700;">
+                                    <span class="text-secondary" style="font-size: 14px; font-weight: 700;">
+                                        Paid: <span id="paymentSummaryPaid" class="text-dark" style="font-size: 14px; font-weight: 700;">₹0.00</span>
                                     </span>
-                                    <span>
-                                        Balance: <span id="paymentSummaryBalance" class="text-success">₹0.00</span>
+                                    <span style="font-size: 14px; font-weight: 700;">
+                                        Balance: <span id="paymentSummaryBalance" class="text-success" style="font-size: 14px; font-weight: 700;">₹0.00</span>
                                     </span>
                                 </div>
                             </div>
@@ -388,21 +388,26 @@
                             </div>
                         </div>
 
+                        </div>
+                        <!-- /.bhav-form-container -->
+
                         <!-- Sticky Summary Bar -->
                         <div class="bhav-sticky-summary-bar d-flex align-items-center justify-content-between gap-2" id="bhavStickySummaryBar">
-                            <div class="sticky-summary-info d-flex align-items-center gap-1 gap-md-2 flex-wrap" style="min-width: 0; font-size: 11px;">
-                                <span class="fw-bold text-dark text-truncate" id="stickyCustomerName" style="max-width: 110px;" title="No customer">No customer</span>
-                                <span class="text-muted opacity-50">•</span>
-                                <span class="badge bg-light text-secondary border px-1.5 py-0.5" id="stickyEntriesCount" style="font-size: 10px;">0 entries</span>
-                                <span class="text-muted opacity-50">•</span>
-                                <span id="stickyGoldWeight" class="fw-semibold text-nowrap" style="color: #92400e; font-size: 10.5px; display: none;"></span>
-                                <span id="stickySilverWeight" class="fw-semibold text-nowrap" style="color: #475569; font-size: 10.5px; display: none;"></span>
+                            <div class="sticky-summary-info d-flex align-items-center flex-nowrap" style="min-width: 0; font-size: 13px; font-weight: 600; gap: 5px;">
+                                <span class="fw-bold text-dark text-truncate" id="stickyCustomerName" style="max-width: 120px; font-size: 13px; font-weight: 700;" title="No customer">No customer</span>
+                                <span class="text-muted opacity-50" id="stickyCustomerDot">•</span>
+                                <span class="sticky-entries-chip align-items-center gap-1" id="stickyEntriesChip">
+                                    <span class="badge bg-light text-secondary border px-1.5 py-0.5" id="stickyEntriesCount" style="font-size: 11.5px; font-weight: 600;">0 entries</span>
+                                    <span class="text-muted opacity-50">•</span>
+                                </span>
+                                <span id="stickyGoldWeight" class="fw-bold text-nowrap" style="color: #92400e; font-size: 13px; font-weight: 700; display: none;"></span>
+                                <span id="stickySilverWeight" class="fw-bold text-nowrap" style="color: #475569; font-size: 13px; font-weight: 700; display: none;"></span>
                                 <span class="text-muted opacity-50" id="stickyMetalDot" style="display: none;">•</span>
-                                <span class="fw-bold text-dark text-nowrap" id="stickyGrandAmount" style="font-size: 11.5px;">₹0.00</span>
+                                <span class="fw-bold text-dark text-nowrap" id="stickyGrandAmount" style="font-size: 13px; font-weight: 700;">₹0.00</span>
                                 <span class="text-muted opacity-50 d-none d-sm-inline">•</span>
-                                <span class="text-nowrap d-none d-sm-inline" style="font-size: 10.5px;">Paid: <span id="stickyPaidAmount" class="fw-bold text-success">₹0.00</span></span>
+                                <span class="text-nowrap d-none d-sm-inline" style="font-size: 13px; font-weight: 600;">Paid: <span id="stickyPaidAmount" class="fw-bold text-success" style="font-size: 13px; font-weight: 700;">₹0.00</span></span>
                                 <span class="text-muted opacity-50">•</span>
-                                <span class="text-nowrap" style="font-size: 10.5px;">Bal: <span id="stickyBalanceAmount" class="fw-bold text-success">₹0.00</span></span>
+                                <span class="text-nowrap" style="font-size: 13px; font-weight: 600;">Bal: <span id="stickyBalanceAmount" class="fw-bold text-success" style="font-size: 13px; font-weight: 700;">₹0.00</span></span>
                             </div>
 
                             <div class="sticky-summary-actions d-flex align-items-center gap-1 gap-sm-2 flex-shrink-0">

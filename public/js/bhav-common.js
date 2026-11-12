@@ -259,8 +259,8 @@ function formatBookingDateTime(dateString) {
 
     return (
         `<div class="booking-datetime-cell cursor-help" data-booked-at="${escapeHtml(dateString)}" title="${escapeHtml(fullDateTime)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(fullDateTime)}">` +
-        `<div class="${topClass}" style="font-size: 11px; line-height: 1.2;">${escapeHtml(topText)}</div>` +
-        `<div class="text-muted text-nowrap" style="font-size: 10px; line-height: 1.2;">${pad2(hours)}:${minutes} ${ampm}</div>` +
+        `<div class="${topClass} booking-date-line" style="font-size: 12px; font-weight: 600; line-height: 1.25;">${escapeHtml(topText)}</div>` +
+        `<div class="text-muted text-nowrap booking-time-line" style="font-size: 11px; font-weight: 500; line-height: 1.25;">${pad2(hours)}:${minutes} ${ampm}</div>` +
         `</div>`
     );
 }

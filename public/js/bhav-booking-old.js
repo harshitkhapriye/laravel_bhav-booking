@@ -192,11 +192,11 @@ document.addEventListener('DOMContentLoaded', function () {
             let buyRateHtml = emptyCell;
 
             if (isBuy) {
-                buyWeightHtml = `<span class="text-success fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10px; font-weight: normal;">gm</span></span>`;
-                buyRateHtml = `<span class="text-success fw-semibold text-nowrap">${rateDisplay}</span>`;
+                buyWeightHtml = `<span class="text-success fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500;">gm</span></span>`;
+                buyRateHtml = `<span class="text-success fw-bold text-nowrap">${rateDisplay}</span>`;
             } else {
-                sellWeightHtml = `<span class="text-danger fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10px; font-weight: normal;">gm</span></span>`;
-                sellRateHtml = `<span class="text-danger fw-semibold text-nowrap">${rateDisplay}</span>`;
+                sellWeightHtml = `<span class="text-danger fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500;">gm</span></span>`;
+                sellRateHtml = `<span class="text-danger fw-bold text-nowrap">${rateDisplay}</span>`;
             }
 
             // Action column 3-dot dropdown menu
@@ -214,9 +214,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         ${dateTimeHtml}
                     </td>
                     <td class="bhav-old-col-customer text-start">
-                        <div class="fw-bold text-dark text-truncate" style="max-width: 185px; font-size: 12px; line-height: 1.25;" title="${escapeHtml(customerName)}">${escapeHtml(customerName)}</div>
-                        <div class="text-muted text-nowrap" style="font-size: 10.5px; line-height: 1.25;">
-                            <span class="text-secondary">${escapeHtml(customerNo)}</span> • <span class="fw-semibold text-dark">${escapeHtml(booking.booking_no || '')}</span>
+                        <div class="text-dark text-truncate" style="max-width: 210px; line-height: 1.35;" title="${escapeHtml(customerName)} (${escapeHtml(customerNo)})">
+                            <span class="customer-name-text text-dark" style="font-size: 13.5px; font-weight: 700;">${escapeHtml(customerName)}</span> <span class="customer-id-text text-muted" style="font-size: 11.5px; font-weight: 600; color: #64748b;">(${escapeHtml(customerNo)})</span>
+                        </div>
+                        <div class="text-muted text-nowrap" style="font-size: 11px; line-height: 1.25; margin-top: 2px;">
+                            <span class="fw-semibold text-dark">${escapeHtml(booking.booking_no || '')}</span>
                         </div>
                     </td>
                     <td class="text-start">

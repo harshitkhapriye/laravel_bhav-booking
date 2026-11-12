@@ -1915,27 +1915,9 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
-    function updateTodayRateHint() {
-        const hintEl = document.getElementById('rateTodayHint');
-        if (!hintEl || !inputRate) return;
-
-        const metal = categorySelect ? categorySelect.value : currentMetal;
-        const currentRateVal = parseFloat(inputRate.value) || 0;
-
-        if (window.TODAY_RATES && window.TODAY_RATES[metal] && window.TODAY_RATES[metal].is_set) {
-            const todayRateVal = parseFloat(window.TODAY_RATES[metal].rate) || 0;
-            if (Math.abs(currentRateVal - todayRateVal) < 0.001) {
-                hintEl.style.display = 'inline-block';
-                return;
-            }
-        }
-        hintEl.style.display = 'none';
-    }
-
     if (inputRate) {
         const def = getDefaultRateForMetal(currentMetal);
         inputRate.value = def.rate;
-        updateTodayRateHint();
     }
 
     /**
@@ -2331,7 +2313,6 @@ document.addEventListener('DOMContentLoaded', function () {
             if (inputRate) {
                 const def = getDefaultRateForMetal(newMetal);
                 inputRate.value = def.rate;
-                updateTodayRateHint();
                 if (rateError) {
                     rateError.style.display = 'none';
                     inputRate.classList.remove('is-invalid');
@@ -2385,7 +2366,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.classList.remove('is-invalid');
             }
 
-            updateTodayRateHint();
             scheduleUpdateAllTotals();
         });
 
@@ -2395,7 +2375,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 const num = parseFloat(val);
                 if (num >= 0) this.value = num.toFixed(2);
             }
-            updateTodayRateHint();
             updateAllTotals();
         });
     }
@@ -3837,12 +3816,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 sellAmt = emptyCell;
 
             if (isBuy) {
-                buyWt = `<span class="text-success fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10px; font-weight: normal;">gm</span></span>`;
-                buyRate = `<span class="text-success fw-semibold text-nowrap">${rateDisplay}</span>`;
+                buyWt = `<span class="text-success fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500;">gm</span></span>`;
+                buyRate = `<span class="text-success fw-bold text-nowrap">${rateDisplay}</span>`;
                 buyAmt = `<span class="text-success fw-bold text-nowrap">${amtFormatted}</span>`;
             } else {
-                sellWt = `<span class="text-danger fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10px; font-weight: normal;">gm</span></span>`;
-                sellRate = `<span class="text-danger fw-semibold text-nowrap">${rateDisplay}</span>`;
+                sellWt = `<span class="text-danger fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500;">gm</span></span>`;
+                sellRate = `<span class="text-danger fw-bold text-nowrap">${rateDisplay}</span>`;
                 sellAmt = `<span class="text-danger fw-bold text-nowrap">${amtFormatted}</span>`;
             }
 
@@ -3858,8 +3837,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="progress-bar bg-success" role="progressbar" style="width: ${pct}%; border-radius: 2px;" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
             `;
-            const givenHtml = `<div class="text-danger fw-bold text-nowrap" style="font-size: 11px; line-height: 1.25;">G: ₹${formatIndianCurrency(givenAmt)}</div>`;
-            const receivedHtml = `<div class="text-success fw-bold text-nowrap" style="font-size: 11px; line-height: 1.25;">R: ₹${formatIndianCurrency(receivedAmt)}</div>`;
+            const givenHtml = `<div class="text-danger fw-bold text-nowrap given-amt-line" style="font-size: 13px; line-height: 1.25;">G: ₹${formatIndianCurrency(givenAmt)}</div>`;
+            const receivedHtml = `<div class="text-success fw-bold text-nowrap received-amt-line" style="font-size: 13px; line-height: 1.25;">R: ₹${formatIndianCurrency(receivedAmt)}</div>`;
 
             // Action column: 3-dot Kebab menu (View, Edit, Print, Share, WhatsApp, Delete, Silent Delete)
             const actionHtml = renderActionKebabMenu(booking);
@@ -3869,10 +3848,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td class="bhav-col-sn fw-semibold text-muted text-center">${sn}</td>
                     <td class="bhav-col-datetime text-center">${dateTimeHtml}</td>
                     <td class="bhav-col-customer text-start" title="Booking: ${escapeHtml(bookingNo)}">
-                        <div class="text-truncate" style="font-size: 12px; line-height: 1.35; max-width: 190px;" title="${escapeHtml(customerName)} (${escapeHtml(customerNo)})">
-                            <span class="fw-bold text-dark">${escapeHtml(customerName)}</span> <span class="text-muted fw-normal" style="font-size: 10.5px;">(${escapeHtml(customerNo)})</span>
+                        <div class="text-truncate" style="line-height: 1.35; max-width: 210px;" title="${escapeHtml(customerName)} (${escapeHtml(customerNo)})">
+                            <span class="customer-name-text text-dark" style="font-size: 13.5px; font-weight: 700;">${escapeHtml(customerName)}</span> <span class="customer-id-text text-muted" style="font-size: 11.5px; font-weight: 600; color: #64748b;">(${escapeHtml(customerNo)})</span>
                         </div>
-                        <div class="d-flex align-items-center gap-1 text-nowrap" style="line-height: 1; margin-top: 2px;">
+                        <div class="d-flex align-items-center gap-1 text-nowrap" style="line-height: 1; margin-top: 3px;">
                             ${metalBadge}
                             ${typeBadge}
                             ${statusBadge}
@@ -4527,7 +4506,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (inputRate && def.isToday) {
                         inputRate.value = def.rate;
                     }
-                    updateTodayRateHint();
                     updateAllTotals();
                 }
             })
