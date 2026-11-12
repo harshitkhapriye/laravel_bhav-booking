@@ -207,8 +207,8 @@
 
                         <!-- RATE (Dynamic Label: Quoted per 10 Grams) -->
                         <div class="row mb-2 align-items-start form-row-group">
-                            <label class="col-12 form-label-col form-label-label" id="labelRate" for="inputRate">
-                                SELL RATE {{ rate_unit_label() }} :
+                            <label class="col-12 form-label-col form-label-label label-two-line label-wrap-allowed" id="labelRate" for="inputRate">
+                                SELL RATE :<br class="d-none d-sm-inline"><span class="rate-unit-subtext text-muted" id="rateUnitSubtext">{{ rate_unit_label() }}</span>
                             </label>
                             <div class="col-12 form-input-col">
                                 <div class="input-with-suffix">
@@ -392,24 +392,7 @@
                         <!-- /.bhav-form-container -->
 
                         <!-- Sticky Summary Bar -->
-                        <div class="bhav-sticky-summary-bar d-flex align-items-center justify-content-between gap-2" id="bhavStickySummaryBar">
-                            <div class="sticky-summary-info d-flex align-items-center flex-nowrap" style="min-width: 0; font-size: 13px; font-weight: 600; gap: 5px;">
-                                <span class="fw-bold text-dark text-truncate" id="stickyCustomerName" style="max-width: 120px; font-size: 13px; font-weight: 700;" title="No customer">No customer</span>
-                                <span class="text-muted opacity-50" id="stickyCustomerDot">•</span>
-                                <span class="sticky-entries-chip align-items-center gap-1" id="stickyEntriesChip">
-                                    <span class="badge bg-light text-secondary border px-1.5 py-0.5" id="stickyEntriesCount" style="font-size: 11.5px; font-weight: 600;">0 entries</span>
-                                    <span class="text-muted opacity-50">•</span>
-                                </span>
-                                <span id="stickyGoldWeight" class="fw-bold text-nowrap" style="color: #92400e; font-size: 13px; font-weight: 700; display: none;"></span>
-                                <span id="stickySilverWeight" class="fw-bold text-nowrap" style="color: #475569; font-size: 13px; font-weight: 700; display: none;"></span>
-                                <span class="text-muted opacity-50" id="stickyMetalDot" style="display: none;">•</span>
-                                <span class="fw-bold text-dark text-nowrap" id="stickyGrandAmount" style="font-size: 13px; font-weight: 700;">₹0.00</span>
-                                <span class="text-muted opacity-50 d-none d-sm-inline">•</span>
-                                <span class="text-nowrap d-none d-sm-inline" style="font-size: 13px; font-weight: 600;">Paid: <span id="stickyPaidAmount" class="fw-bold text-success" style="font-size: 13px; font-weight: 700;">₹0.00</span></span>
-                                <span class="text-muted opacity-50">•</span>
-                                <span class="text-nowrap" style="font-size: 13px; font-weight: 600;">Bal: <span id="stickyBalanceAmount" class="fw-bold text-success" style="font-size: 13px; font-weight: 700;">₹0.00</span></span>
-                            </div>
-
+                        <div class="bhav-sticky-summary-bar d-flex align-items-center justify-content-end gap-2" id="bhavStickySummaryBar">
                             <div class="sticky-summary-actions d-flex align-items-center gap-1 gap-sm-2 flex-shrink-0">
                                 <button type="button" class="btn btn-outline-print btn-sm rounded-pill px-2 px-sm-3 py-1 fw-bold" id="btnPrint" style="height: 32px; font-size: 11.5px;">
                                     <i class="fa-solid fa-print me-1"></i> PRINT
@@ -622,6 +605,7 @@
 @include('partials.bhav-save-success-modal')
 @include('partials.daily-rate-modal')
 @include('partials.shortcuts-modal')
+@include('partials.confirm-remove-customer-modal')
 
 <!-- Pass dynamic application route URLs & Bhav config to JavaScript -->
 <script>

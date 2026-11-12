@@ -685,12 +685,12 @@ textarea::placeholder,
 
 @media (min-width: 576px) {
     .bhav-form-container {
-        padding-left: 20px;
-        padding-right: 20px;
+        padding-left: 18px;
+        padding-right: 18px;
     }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1440px) {
     .bhav-form-container {
         padding-left: 24px;
         padding-right: 24px;
@@ -719,7 +719,7 @@ textarea::placeholder,
     align-items: flex-start !important;
 }
 
-/* Fixed narrow label column (~120px) on sm and above */
+/* Fixed narrow label column (~140px) on sm and above */
 @media (max-width: 575.98px) {
     .form-label-col {
         margin-bottom: 3px;
@@ -731,20 +731,21 @@ textarea::placeholder,
 @media (min-width: 576px) {
     .col-12.form-label-col,
     .form-label-col {
-        flex: 0 0 120px;
-        width: 120px;
-        max-width: 120px;
+        flex: 0 0 140px;
+        width: 140px;
+        max-width: 140px;
         text-align: right;
-        white-space: nowrap;
-        padding-right: 6px;
+        padding-right: 12px;
         padding-top: 9px;
         line-height: 1.25;
+        overflow-wrap: anywhere;
+        box-sizing: border-box;
     }
 
+    .form-label-col.label-two-line,
     .form-label-col.label-wrap-allowed {
-        white-space: normal;
         line-height: 1.15;
-        padding-top: 4px;
+        padding-top: 4.5px;
     }
 
     #labelEntries,
@@ -756,19 +757,47 @@ textarea::placeholder,
     .form-input-col {
         flex: 1 1 0%;
         min-width: 0;
-        max-width: calc(100% - 120px);
-        padding-left: 4px;
+        max-width: calc(100% - 140px);
+        width: calc(100% - 140px);
+        padding-left: 0;
+        box-sizing: border-box;
     }
 
     .col-12.form-offset-col,
     .form-offset-col {
         flex: 1 1 0%;
         min-width: 0;
-        margin-left: 120px;
-        max-width: calc(100% - 120px);
-        width: calc(100% - 120px);
-        padding-left: 4px;
+        margin-left: 140px;
+        max-width: calc(100% - 140px);
+        width: calc(100% - 140px);
+        padding-left: 0;
+        box-sizing: border-box;
     }
+}
+
+/* Rate unit subtext (second line of rate label) */
+@media (min-width: 576px) {
+    .rate-unit-subtext {
+        display: block;
+        font-size: 10px;
+        font-weight: 600;
+        color: #64748b;
+        line-height: 1.2;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .rate-unit-subtext {
+        display: inline;
+        font-size: 10.5px;
+        font-weight: 600;
+        color: #64748b;
+        margin-left: 4px;
+    }
+}
+
+.form-row-group:focus-within .rate-unit-subtext {
+    color: #94a3b8;
 }
 
 /* List Header Badges & Export Button */
@@ -2987,60 +3016,6 @@ textarea::placeholder,
 /* --------------------------------------------------------------------------
    Bhav Booking Row & Number Text Hierarchy
    -------------------------------------------------------------------------- */
-.sticky-summary-info {
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    display: flex !important;
-    align-items: center !important;
-    flex-wrap: nowrap !important;
-    white-space: nowrap !important;
-    min-width: 0 !important;
-    gap: 5px !important;
-    overflow: hidden !important;
-}
-
-.sticky-summary-info span {
-    font-size: 13px;
-}
-
-.sticky-summary-info #stickyCustomerName {
-    max-width: 120px !important;
-    min-width: 50px !important;
-    flex-shrink: 1 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-}
-
-.sticky-summary-info #stickyGrandAmount,
-.sticky-summary-info #stickyPaidAmount,
-.sticky-summary-info #stickyBalanceAmount,
-.sticky-summary-info #stickyGoldWeight,
-.sticky-summary-info #stickySilverWeight {
-    font-size: 13px !important;
-    font-weight: 700 !important;
-}
-
-.sticky-summary-info #stickyEntriesCount {
-    font-size: 11.5px !important;
-    font-weight: 600 !important;
-}
-
-.sticky-entries-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-@media (max-width: 1599.98px) {
-    #stickyEntriesChip,
-    .sticky-entries-chip {
-        display: none !important;
-    }
-}
-
 .bhav-table tbody td.bhav-col-buy-wt,
 .bhav-table tbody td.bhav-col-buy-rate,
 .bhav-table tbody td.bhav-col-buy-amt,

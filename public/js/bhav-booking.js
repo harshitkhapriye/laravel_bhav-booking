@@ -251,7 +251,6 @@ document.addEventListener('DOMContentLoaded', function () {
         customerClearBtn.style.display = 'block';
         hideCustomerError();
         hideCustomerDropdown();
-        updateStickySummaryBar();
         fetchCustomerInsight(customer.id);
     }
 
@@ -267,7 +266,6 @@ document.addEventListener('DOMContentLoaded', function () {
         customerSelectedInfo.innerHTML = '';
         hideCustomerDropdown();
         hideCustomerError();
-        updateStickySummaryBar();
         hideCustomerInsight();
 
         const whatsappSwitch = document.getElementById('whatsappSwitch');
@@ -751,10 +749,86 @@ document.addEventListener('DOMContentLoaded', function () {
         customerClearBtn.addEventListener('click', function (e) {
             e.preventDefault();
             if (editingBookingId !== null) return;
+
+            const hasCustomer = Boolean(selectedCustomer || (hiddenCustomerId && hiddenCustomerId.value));
+            if (!hasCustomer) {
+                clearCustomerSelection();
+                if (customerSearchInput) {
+                    customerSearchInput.focus();
+                    showRecentCustomersDropdown();
+                }
+                return;
+            }
+
+            if (formHasBookingDetails()) {
+                const modalEl = document.getElementById('confirmRemoveCustomerModal');
+                if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                    modal.show();
+                }
+            } else {
+                clearCustomerSelection();
+                if (customerSearchInput) {
+                    customerSearchInput.focus();
+                    showRecentCustomersDropdown();
+                }
+            }
+        });
+    }
+
+    const confirmRemoveCustomerModalEl = document.getElementById('confirmRemoveCustomerModal');
+    let pendingFocusCustomerAfterRemove = false;
+
+    if (confirmRemoveCustomerModalEl) {
+        confirmRemoveCustomerModalEl.addEventListener('shown.bs.modal', function () {
+            const btnOnly = document.getElementById('btnRemoveCustomerOnly');
+            if (btnOnly) {
+                btnOnly.focus();
+            }
+        });
+
+        confirmRemoveCustomerModalEl.addEventListener('hidden.bs.modal', function () {
+            if (pendingFocusCustomerAfterRemove) {
+                pendingFocusCustomerAfterRemove = false;
+                if (customerSearchInput) {
+                    suppressNextFocusDropdown = true;
+                    customerSearchInput.focus();
+                }
+            }
+        });
+    }
+
+    const btnRemoveCustomerOnly = document.getElementById('btnRemoveCustomerOnly');
+    if (btnRemoveCustomerOnly) {
+        btnRemoveCustomerOnly.addEventListener('click', function () {
+            pendingFocusCustomerAfterRemove = true;
+            if (confirmRemoveCustomerModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                bootstrap.Modal.getInstance(confirmRemoveCustomerModalEl)?.hide();
+            }
             clearCustomerSelection();
             if (customerSearchInput) {
+                suppressNextFocusDropdown = true;
                 customerSearchInput.focus();
-                showRecentCustomersDropdown();
+            }
+        });
+    }
+
+    const btnRemoveCustomerAndClear = document.getElementById('btnRemoveCustomerAndClear');
+    if (btnRemoveCustomerAndClear) {
+        btnRemoveCustomerAndClear.addEventListener('click', function () {
+            pendingFocusCustomerAfterRemove = true;
+            if (confirmRemoveCustomerModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                bootstrap.Modal.getInstance(confirmRemoveCustomerModalEl)?.hide();
+            }
+            resetFormAfterSave(false);
+            if (inputRate) {
+                const def = getDefaultRateForMetal(currentMetal);
+                inputRate.value = def.rate;
+            }
+            updateAllTotals();
+            if (customerSearchInput) {
+                suppressNextFocusDropdown = true;
+                customerSearchInput.focus();
             }
         });
     }
@@ -1789,13 +1863,17 @@ document.addEventListener('DOMContentLoaded', function () {
             btnBuy.classList.add('active');
             btnSell.classList.remove('active');
             if (labelWeight) labelWeight.textContent = 'BUY WEIGHT :';
-            if (labelRate) labelRate.textContent = `BUY RATE ${unitLabel} :`;
+            if (labelRate) {
+                labelRate.innerHTML = `BUY RATE :<br class="d-none d-sm-inline"><span class="rate-unit-subtext text-muted" id="rateUnitSubtext">${escapeHtml(unitLabel)}</span>`;
+            }
             if (labelPayment) labelPayment.textContent = 'GIVEN :';
         } else {
             btnSell.classList.add('active');
             btnBuy.classList.remove('active');
             if (labelWeight) labelWeight.textContent = 'SELL WEIGHT :';
-            if (labelRate) labelRate.textContent = `SELL RATE ${unitLabel} :`;
+            if (labelRate) {
+                labelRate.innerHTML = `SELL RATE :<br class="d-none d-sm-inline"><span class="rate-unit-subtext text-muted" id="rateUnitSubtext">${escapeHtml(unitLabel)}</span>`;
+            }
             if (labelPayment) labelPayment.textContent = 'RECEIVED :';
         }
     }
@@ -2464,82 +2542,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (inputPaymentAmount) inputPaymentAmount.classList.remove('is-invalid');
             }
         }
-
-        updateStickySummaryBar(null, payTotals);
-    }
-
-    /**
-     * Live update the sticky summary bar at bottom of the form card
-     */
-    function updateStickySummaryBar(totals, payTotals) {
-        const stickyGrandAmount = document.getElementById('stickyGrandAmount');
-        if (!stickyGrandAmount) return;
-
-        if (!totals) totals = calculateTotals();
-        if (!payTotals) payTotals = calculatePaymentTotals(totals.grandAmount);
-
-        const stickyCustomerName = document.getElementById('stickyCustomerName');
-        if (stickyCustomerName) {
-            if (selectedCustomer && selectedCustomer.name) {
-                stickyCustomerName.textContent = selectedCustomer.name;
-                stickyCustomerName.title = `${selectedCustomer.name} (${selectedCustomer.customer_no || ''})`;
-            } else {
-                stickyCustomerName.textContent = 'No customer';
-                stickyCustomerName.title = 'No customer';
-            }
-        }
-
-        const stickyEntriesCount = document.getElementById('stickyEntriesCount');
-        if (stickyEntriesCount) {
-            stickyEntriesCount.textContent = `${bookingItems.length} entries`;
-        }
-
-        const stickyGoldWeight = document.getElementById('stickyGoldWeight');
-        const stickySilverWeight = document.getElementById('stickySilverWeight');
-        const stickyMetalDot = document.getElementById('stickyMetalDot');
-
-        const hasGold = totals.tableGoldWeight > 0;
-        const hasSilver = totals.tableSilverWeight > 0;
-
-        if (stickyGoldWeight) {
-            if (hasGold) {
-                stickyGoldWeight.innerHTML = `${metalIconSvg('GOLD', 11)} ${totals.tableGoldWeight.toFixed(3)}g`;
-                stickyGoldWeight.style.display = '';
-            } else {
-                stickyGoldWeight.style.display = 'none';
-            }
-        }
-
-        if (stickySilverWeight) {
-            if (hasSilver) {
-                stickySilverWeight.innerHTML = `${metalIconSvg('SILVER', 11)} ${totals.tableSilverWeight.toFixed(3)}g`;
-                stickySilverWeight.style.display = '';
-            } else {
-                stickySilverWeight.style.display = 'none';
-            }
-        }
-
-        if (stickyMetalDot) {
-            stickyMetalDot.style.display = hasGold || hasSilver ? '' : 'none';
-        }
-
-        stickyGrandAmount.textContent = `₹${formatIndianCurrency(totals.grandAmount)}`;
-
-        const stickyPaidAmount = document.getElementById('stickyPaidAmount');
-        if (stickyPaidAmount) {
-            stickyPaidAmount.textContent = `₹${formatIndianCurrency(payTotals.totalPaid)}`;
-        }
-
-        const stickyBalanceAmount = document.getElementById('stickyBalanceAmount');
-        if (stickyBalanceAmount) {
-            const bal = Math.max(0, payTotals.balance);
-            stickyBalanceAmount.textContent = `₹${formatIndianCurrency(bal)}`;
-            if (bal > 0) {
-                stickyBalanceAmount.className = 'fw-bold text-danger';
-            } else {
-                stickyBalanceAmount.className = 'fw-bold text-success';
-            }
-        }
     }
 
     /**
@@ -2966,6 +2968,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
+     * Check if the form has any entered details (items, weight, payments, narration)
+     */
+    function formHasBookingDetails() {
+        const hasRows = Array.isArray(bookingItems) && bookingItems.length > 0;
+        const hasWeight = Boolean(inputWeight && inputWeight.value && inputWeight.value.trim() !== '');
+        const hasPayments =
+            (Array.isArray(bookingPayments) && bookingPayments.length > 0) ||
+            Boolean(inputPaymentAmount && inputPaymentAmount.value && parseFloat(inputPaymentAmount.value) > 0);
+        const hasNarration = Boolean(inputNarration && inputNarration.value && inputNarration.value.trim() !== '');
+        return hasRows || hasWeight || hasPayments || hasNarration;
+    }
+
+    /**
      * Reset form after a successful booking save:
      * - Clear rows
      * - Clear weight
@@ -2992,6 +3007,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (inputNarration) inputNarration.value = '';
         if (narrationCounter) narrationCounter.textContent = '0/255';
         if (whatsappSwitch) whatsappSwitch.checked = false;
+
+        // Reset rate to today's rate for current metal if available
+        if (inputRate) {
+            const def = getDefaultRateForMetal(currentMetal);
+            inputRate.value = def.rate;
+        }
 
         // Generate fresh request_token for the next save
         currentRequestToken = generateRequestToken();
