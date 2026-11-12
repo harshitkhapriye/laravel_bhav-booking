@@ -616,6 +616,7 @@
         customerRecent: "{{ route('customers.recent') }}",
         customerStore: "{{ route('customers.store') }}",
         customerInsight: "{{ route('customers.insight', ['customer' => '__ID__']) }}",
+        customerPendingBookings: "{{ route('customers.pending-bookings', ['customer' => '__ID__']) }}",
         bhavBookingIndex: "{{ route('bhav-booking.index') }}",
         bhavBookingOld: "{{ route('bhav-booking.old') }}",
         bhavBookingStore: "{{ route('bhav-bookings.store') }}",

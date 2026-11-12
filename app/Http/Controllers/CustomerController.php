@@ -230,4 +230,73 @@ class CustomerController extends Controller
             'to_give' => round((float) ($stats->to_give ?? 0), 2),
         ]);
     }
+
+    /**
+     * Get pending and partial bookings for a customer (max 20, newest first).
+     * Eager-loads items, selects only needed columns, and never exposes sensitive customer data.
+     */
+    public function pendingBookings(Customer $customer): JsonResponse
+    {
+        $bookings = BhavBooking::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', ['PENDING', 'PARTIAL'])
+            ->select([
+                'id',
+                'booking_no',
+                'booked_at',
+                'trade_type',
+                'metal',
+                'entry_type',
+                'total_weight',
+                'total_amount',
+                'received_amount',
+                'given_amount',
+            ])
+            ->with(['items' => function ($query) {
+                $query->select([
+                    'id',
+                    'bhav_booking_id',
+                    'weight',
+                    'rate',
+                    'amount',
+                    'metal',
+                    'sort_order',
+                ])->orderBy('sort_order', 'asc');
+            }])
+            ->orderByDesc('booked_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        $result = $bookings->map(function (BhavBooking $booking) {
+            $isSell = strtoupper($booking->trade_type) === 'SELL';
+            $paid = $isSell ? (float) $booking->received_amount : (float) $booking->given_amount;
+            $totalAmount = (float) $booking->total_amount;
+            $balance = round($totalAmount - $paid, 2);
+
+            return [
+                'id' => $booking->id,
+                'booking_no' => $booking->booking_no,
+                'booked_at' => $booking->booked_at ? $booking->booked_at->toIso8601String() : null,
+                'trade_type' => $booking->trade_type,
+                'metal' => $booking->metal,
+                'entry_type' => $booking->entry_type,
+                'total_weight' => round((float) $booking->total_weight, 3),
+                'total_amount' => round($totalAmount, 2),
+                'paid' => round($paid, 2),
+                'balance' => $balance,
+                'items' => $booking->items->map(function ($item) use ($booking) {
+                    return [
+                        'id' => $item->id,
+                        'weight' => round((float) $item->weight, 3),
+                        'rate' => round((float) $item->rate, 2),
+                        'amount' => round((float) $item->amount, 2),
+                        'metal' => $item->metal ?: $booking->metal,
+                    ];
+                })->values()->all(),
+            ];
+        })->values()->all();
+
+        return response()->json($result);
+    }
 }

@@ -56,6 +56,11 @@ Route::get('/customers/{customer}/insight', [CustomerController::class, 'insight
     ->name('customers.insight')
     ->missing($missingPartyCallback);
 
+Route::get('/customers/{customer}/pending-bookings', [CustomerController::class, 'pendingBookings'])
+    ->middleware('throttle:120,1')
+    ->name('customers.pending-bookings')
+    ->missing($missingPartyCallback);
+
 // Callback for route model binding failure on bhav-bookings
 // Why: If a requested booking ID does not exist in the database,
 // JSON requests receive HTTP 404 with {"message": "Booking not found"}

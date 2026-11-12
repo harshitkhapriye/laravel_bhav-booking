@@ -870,9 +870,13 @@ function viewBookingDetails(bookingId) {
 
             if (viewItemsTableBody) {
                 const items = Array.isArray(booking.items) ? booking.items : [];
+                const viewItemsCountBadge = document.getElementById('viewItemsCountBadge');
+                if (viewItemsCountBadge) {
+                    viewItemsCountBadge.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
+                }
                 if (items.length === 0) {
                     viewItemsTableBody.innerHTML =
-                        '<tr><td colspan="4" class="py-3 text-muted text-center">No items recorded</td></tr>';
+                        '<tr><td colspan="4" class="py-2 text-muted text-center">No items recorded</td></tr>';
                 } else {
                     let itemsHtml = '';
                     items.forEach((it, idx) => {
@@ -905,6 +909,10 @@ function viewBookingDetails(bookingId) {
             const viewPaymentsTableBody = document.getElementById('viewPaymentsTableBody');
             const viewPaymentsPaid = document.getElementById('viewPaymentsPaid');
             const viewPaymentsBalance = document.getElementById('viewPaymentsBalance');
+            const viewTotalsPaidCol = document.getElementById('viewTotalsPaidCol');
+            const viewTotalsBalanceCol = document.getElementById('viewTotalsBalanceCol');
+            const viewTotalsPaid = document.getElementById('viewTotalsPaid');
+            const viewTotalsBalance = document.getElementById('viewTotalsBalance');
 
             const payments = Array.isArray(booking.payments) ? booking.payments : [];
             const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
@@ -919,10 +927,28 @@ function viewBookingDetails(bookingId) {
                 viewPaymentsBalance.className = balance > 0 ? 'text-danger' : 'text-success';
             }
 
+            // Stat chips in Totals grid (if payments exist)
+            if (viewTotalsPaid) {
+                viewTotalsPaid.textContent = `₹${formatIndianCurrency(totalPaid)}`;
+            }
+            if (viewTotalsBalance) {
+                viewTotalsBalance.textContent = `₹${formatIndianCurrency(balance)}`;
+                viewTotalsBalance.className = balance > 0 ? 'fw-bold text-danger' : 'fw-bold text-success';
+            }
+            if (viewTotalsPaidCol && viewTotalsBalanceCol) {
+                if (payments.length > 0) {
+                    viewTotalsPaidCol.style.display = '';
+                    viewTotalsBalanceCol.style.display = '';
+                } else {
+                    viewTotalsPaidCol.style.display = 'none';
+                    viewTotalsBalanceCol.style.display = 'none';
+                }
+            }
+
             if (viewPaymentsTableBody) {
                 if (payments.length === 0) {
                     viewPaymentsTableBody.innerHTML =
-                        '<tr><td colspan="4" class="py-3 text-muted text-center">No payments recorded</td></tr>';
+                        '<tr><td colspan="4" class="py-2 text-muted text-center">No payments recorded</td></tr>';
                 } else {
                     let pRowsHtml = '';
                     payments.forEach((p, pIdx) => {
@@ -949,17 +975,44 @@ function viewBookingDetails(bookingId) {
                 }
             }
 
-            if (viewNarration) viewNarration.textContent = booking.narration || 'None';
+            // Narration with one-line ellipsis and more toggle
+            const btnToggleNarration = document.getElementById('btnToggleNarration');
+            const narrationText = booking.narration ? booking.narration.trim() : '';
+            if (viewNarration) {
+                viewNarration.textContent = narrationText || 'None';
+                viewNarration.className = 'text-dark view-narration-collapsed fst-italic';
+            }
+            if (btnToggleNarration) {
+                btnToggleNarration.textContent = 'More';
+                if (narrationText.length > 40) {
+                    btnToggleNarration.style.display = 'inline';
+                    btnToggleNarration.onclick = function () {
+                        if (!viewNarration) return;
+                        if (viewNarration.classList.contains('view-narration-collapsed')) {
+                            viewNarration.classList.remove('view-narration-collapsed');
+                            viewNarration.classList.add('view-narration-expanded');
+                            btnToggleNarration.textContent = 'Less';
+                        } else {
+                            viewNarration.classList.remove('view-narration-expanded');
+                            viewNarration.classList.add('view-narration-collapsed');
+                            btnToggleNarration.textContent = 'More';
+                        }
+                    };
+                } else {
+                    btnToggleNarration.style.display = 'none';
+                    btnToggleNarration.onclick = null;
+                }
+            }
 
             // Track last saved/viewed booking ID for shortcuts
             window.lastSavedBookingId = booking.id;
 
-            // Populate History Tab
+            // Populate History Section (Collapsible card under payments)
             const viewHistoryCount = document.getElementById('viewHistoryCount');
             const viewHistoryEmpty = document.getElementById('viewHistoryEmpty');
             const viewHistoryTableWrapper = document.getElementById('viewHistoryTableWrapper');
             const viewHistoryTableBody = document.getElementById('viewHistoryTableBody');
-            const logs = booking.logs || [];
+            const logs = Array.isArray(booking.logs) ? booking.logs : [];
 
             if (viewHistoryCount) viewHistoryCount.textContent = logs.length;
 
@@ -1028,11 +1081,39 @@ function viewBookingDetails(bookingId) {
                 }
             }
 
-            // Always activate Details tab by default on open
-            const tabDetailsBtn = document.getElementById('tabViewDetailsBtn');
-            if (tabDetailsBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
-                bootstrap.Tab.getOrCreateInstance(tabDetailsBtn).show();
+            // Reset history collapse to collapsed state by default on open
+            const collapseViewHistoryEl = document.getElementById('collapseViewHistory');
+            const viewHistoryChevron = document.getElementById('viewHistoryChevron');
+            const viewHistoryCollapseText = document.getElementById('viewHistoryCollapseText');
+            if (collapseViewHistoryEl) {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                    const bsCollapse = bootstrap.Collapse.getInstance(collapseViewHistoryEl);
+                    if (bsCollapse) {
+                        bsCollapse.hide();
+                    } else {
+                        collapseViewHistoryEl.classList.remove('show');
+                    }
+                } else {
+                    collapseViewHistoryEl.classList.remove('show');
+                }
+                if (!collapseViewHistoryEl.dataset.listenerAttached) {
+                    collapseViewHistoryEl.dataset.listenerAttached = 'true';
+                    collapseViewHistoryEl.addEventListener('show.bs.collapse', function () {
+                        const chev = document.getElementById('viewHistoryChevron');
+                        const txt = document.getElementById('viewHistoryCollapseText');
+                        if (chev) chev.classList.add('view-history-chevron-rotated');
+                        if (txt) txt.textContent = 'Hide History';
+                    });
+                    collapseViewHistoryEl.addEventListener('hide.bs.collapse', function () {
+                        const chev = document.getElementById('viewHistoryChevron');
+                        const txt = document.getElementById('viewHistoryCollapseText');
+                        if (chev) chev.classList.remove('view-history-chevron-rotated');
+                        if (txt) txt.textContent = 'Show History';
+                    });
+                }
             }
+            if (viewHistoryChevron) viewHistoryChevron.classList.remove('view-history-chevron-rotated');
+            if (viewHistoryCollapseText) viewHistoryCollapseText.textContent = 'Show History';
 
             if (btnViewModalPrint) {
                 btnViewModalPrint.onclick = function () {

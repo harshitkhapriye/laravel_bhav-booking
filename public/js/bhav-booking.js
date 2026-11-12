@@ -1,4 +1,4 @@
-/* global escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateISO, formatDateDisplay, formatBookingDateTime, metalIconSvg, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, showToast, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility */
+/* global escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateISO, formatDateDisplay, formatBookingDateTime, pad2, metalIconSvg, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, showToast, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, viewBookingDetails */
 
 /**
  * Bhav Booking UI Logic & Interactivity
@@ -119,10 +119,36 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentSearchAbortController = null;
     let suppressNextFocusDropdown = false;
 
-    // Customer Insight Cache (in-memory for page session): customerId -> insight object
+    // Customer Insight & Pending Bookings Caches (in-memory for page session)
     const customerInsightCache = new Map();
+    const customerPendingBookingsCache = new Map();
+    let activePendingBillsPopover = null;
+
+    function invalidateCustomerInsightCache(customerId = null) {
+        if (customerId) {
+            customerInsightCache.delete(customerId);
+            customerPendingBookingsCache.delete(customerId);
+        } else {
+            customerInsightCache.clear();
+            customerPendingBookingsCache.clear();
+        }
+    }
+
+    function closePendingBillsPopover() {
+        if (activePendingBillsPopover) {
+            if (activePendingBillsPopover.popover) {
+                try {
+                    activePendingBillsPopover.popover.dispose();
+                } catch (err) {
+                    // Ignore if already disposed
+                }
+            }
+            activePendingBillsPopover = null;
+        }
+    }
 
     function hideCustomerInsight() {
+        closePendingBillsPopover();
         if (customerInsightCard) {
             customerInsightCard.style.display = 'none';
             customerInsightCard.innerHTML = '';
@@ -130,13 +156,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function formatHumanRelativeDate(dateStr) {
-        if (!dateStr) return 'Never';
+        if (!dateStr) return null;
         const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return 'Never';
+        if (isNaN(d.getTime())) return null;
         const now = new Date();
         const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 3600 * 24));
-        if (diffDays <= 0) return 'Today';
-        if (diffDays === 1) return 'Yesterday';
+        if (diffDays <= 0) return 'today';
+        if (diffDays === 1) return 'yesterday';
         if (diffDays < 30) return `${diffDays} days ago`;
         if (diffDays < 365) {
             const months = Math.floor(diffDays / 30);
@@ -146,46 +172,367 @@ document.addEventListener('DOMContentLoaded', function () {
         return `${years} ${years === 1 ? 'year' : 'years'} ago`;
     }
 
+    function formatPendingBillDateTime(dateString) {
+        if (!dateString) return '–';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return String(dateString);
+        const day = pad2(d.getDate());
+        const month = pad2(d.getMonth() + 1);
+        const year = d.getFullYear();
+        let hours = d.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = pad2(d.getMinutes());
+        return `${day}-${month}-${year} ${pad2(hours)}:${minutes} ${ampm}`;
+    }
+
+    function buildPendingBillsSkeletonContent() {
+        const box = document.createElement('div');
+        box.className = 'pending-bills-popover-box';
+
+        const header = document.createElement('div');
+        header.className = 'd-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light';
+
+        const title = document.createElement('span');
+        title.className = 'fw-bold text-dark';
+        title.style.fontSize = '12px';
+        title.textContent = 'Pending bills';
+        header.appendChild(title);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-close btn-close-sm';
+        closeBtn.style.fontSize = '9px';
+        closeBtn.setAttribute('aria-label', 'Close');
+        closeBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closePendingBillsPopover();
+        });
+        header.appendChild(closeBtn);
+        box.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'p-3 d-flex flex-column gap-3';
+        for (let i = 0; i < 2; i++) {
+            const item = document.createElement('div');
+            item.className = 'd-flex flex-column gap-1.5';
+            item.innerHTML = `
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="skeleton-bar" style="width: 140px; height: 11px;"></span>
+                    <span class="skeleton-bar" style="width: 45px; height: 11px;"></span>
+                </div>
+                <span class="skeleton-bar" style="width: 220px; height: 10px;"></span>
+                <span class="skeleton-bar" style="width: 180px; height: 10px;"></span>
+            `;
+            body.appendChild(item);
+        }
+        box.appendChild(body);
+        return box;
+    }
+
+    function buildPendingBillsPopoverContent(bookings) {
+        const box = document.createElement('div');
+        box.className = 'pending-bills-popover-box';
+
+        const header = document.createElement('div');
+        header.className = 'd-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light';
+
+        const title = document.createElement('span');
+        title.className = 'fw-bold text-dark';
+        title.style.fontSize = '12px';
+        title.textContent = `Pending bills (${bookings.length})`;
+        header.appendChild(title);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-close btn-close-sm';
+        closeBtn.style.fontSize = '9px';
+        closeBtn.setAttribute('aria-label', 'Close');
+        closeBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closePendingBillsPopover();
+        });
+        header.appendChild(closeBtn);
+        box.appendChild(header);
+
+        const listContainer = document.createElement('div');
+        listContainer.className = 'p-2 d-flex flex-column gap-2';
+
+        if (!bookings || bookings.length === 0) {
+            const emptyEl = document.createElement('div');
+            emptyEl.className = 'text-center text-muted py-3 small';
+            emptyEl.textContent = 'No pending bills found.';
+            listContainer.appendChild(emptyEl);
+        } else {
+            bookings.forEach((booking, idx) => {
+                if (idx > 0) {
+                    const sep = document.createElement('div');
+                    sep.className = 'pending-bills-separator my-1';
+                    listContainer.appendChild(sep);
+                }
+
+                const billCard = document.createElement('div');
+                billCard.className = 'pending-bill-item p-2 rounded';
+
+                const line1 = document.createElement('div');
+                line1.className = 'd-flex align-items-center justify-content-between gap-1 flex-wrap mb-1';
+
+                const leftGroup = document.createElement('div');
+                leftGroup.className = 'd-flex align-items-center gap-1.5 flex-wrap';
+
+                const dateSpan = document.createElement('span');
+                dateSpan.className = 'fw-bold text-dark';
+                dateSpan.textContent = formatPendingBillDateTime(booking.booked_at);
+                leftGroup.appendChild(dateSpan);
+
+                const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
+                const tradeBadge = document.createElement('span');
+                tradeBadge.className = `badge rounded-pill px-1.5 py-0.5 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
+                tradeBadge.style.fontSize = '9.5px';
+                tradeBadge.textContent = isBuy ? 'BUY' : 'SELL';
+                leftGroup.appendChild(tradeBadge);
+
+                const metalSpan = document.createElement('span');
+                metalSpan.className = 'd-inline-flex align-items-center gap-1 fw-bold';
+                const bookingMetal = (booking.metal || 'GOLD').toUpperCase();
+                metalSpan.style.color = bookingMetal === 'GOLD' ? '#92400e' : '#475569';
+                const iconContainer = document.createElement('span');
+                iconContainer.innerHTML = metalIconSvg(bookingMetal, 12);
+                metalSpan.appendChild(iconContainer);
+                const metalText = document.createElement('span');
+                metalText.textContent = bookingMetal === 'GOLD' ? 'Gold' : 'Silver';
+                metalSpan.appendChild(metalText);
+                leftGroup.appendChild(metalSpan);
+
+                line1.appendChild(leftGroup);
+
+                if (booking.booking_no) {
+                    const bnoSpan = document.createElement('span');
+                    bnoSpan.className = 'text-muted';
+                    bnoSpan.style.fontSize = '10.5px';
+                    bnoSpan.textContent = booking.booking_no;
+                    line1.appendChild(bnoSpan);
+                }
+
+                billCard.appendChild(line1);
+
+                const entriesContainer = document.createElement('div');
+                entriesContainer.className = 'd-flex flex-column gap-0.5 ps-1 py-1 text-secondary';
+                entriesContainer.style.fontSize = '11px';
+
+                const items = Array.isArray(booking.items) ? booking.items : [];
+                const rateUnit = (window.BHAV_CONFIG && window.BHAV_CONFIG.rate_unit_grams)
+                    ? (Number(window.BHAV_CONFIG.rate_unit_grams) === 1 ? '/gm' : `/${window.BHAV_CONFIG.rate_unit_grams}gm`)
+                    : '/10gm';
+
+                if (items.length > 0) {
+                    items.forEach((item) => {
+                        const itemLine = document.createElement('div');
+                        itemLine.className = 'text-nowrap';
+                        const wt = parseFloat(item.weight) || 0;
+                        const rt = parseFloat(item.rate) || 0;
+                        const amt = parseFloat(item.amount) || 0;
+                        itemLine.textContent = `${wt.toFixed(3)} gm × ₹${formatIndianCurrency(rt)} ${rateUnit} = ₹${formatIndianCurrency(amt)}`;
+                        entriesContainer.appendChild(itemLine);
+                    });
+                } else {
+                    const itemLine = document.createElement('div');
+                    const wt = parseFloat(booking.total_weight) || 0;
+                    const amt = parseFloat(booking.total_amount) || 0;
+                    itemLine.textContent = `${wt.toFixed(3)} gm = ₹${formatIndianCurrency(amt)}`;
+                    entriesContainer.appendChild(itemLine);
+                }
+
+                billCard.appendChild(entriesContainer);
+
+                const line3 = document.createElement('div');
+                line3.className = 'd-flex align-items-center justify-content-between pt-1 border-top border-light-subtle flex-wrap gap-1';
+                line3.style.fontSize = '11.5px';
+
+                const summaryText = document.createElement('div');
+                summaryText.className = 'd-flex align-items-center gap-1 flex-wrap';
+
+                const totalAmt = parseFloat(booking.total_amount) || 0;
+                const paidAmt = parseFloat(booking.paid) || 0;
+                const balAmt = parseFloat(booking.balance) || 0;
+
+                const totalSpan = document.createElement('span');
+                totalSpan.innerHTML = `Total <strong class="text-dark">₹${formatIndianCurrency(totalAmt)}</strong>`;
+                summaryText.appendChild(totalSpan);
+
+                const dot1 = document.createElement('span');
+                dot1.className = 'text-muted opacity-50';
+                dot1.textContent = '•';
+                summaryText.appendChild(dot1);
+
+                const paidSpan = document.createElement('span');
+                paidSpan.innerHTML = `Paid <strong class="text-dark">₹${formatIndianCurrency(paidAmt)}</strong>`;
+                summaryText.appendChild(paidSpan);
+
+                const dot2 = document.createElement('span');
+                dot2.className = 'text-muted opacity-50';
+                dot2.textContent = '•';
+                summaryText.appendChild(dot2);
+
+                const balSpan = document.createElement('span');
+                const balColorClass = balAmt > 0 ? 'text-danger fw-bold' : 'text-success fw-bold';
+                balSpan.innerHTML = `Balance <strong class="${balColorClass}">₹${formatIndianCurrency(balAmt)}</strong>`;
+                summaryText.appendChild(balSpan);
+
+                line3.appendChild(summaryText);
+
+                const viewLink = document.createElement('a');
+                viewLink.href = '#';
+                viewLink.className = 'btn-link text-primary text-decoration-none fw-bold ms-auto';
+                viewLink.style.fontSize = '11px';
+                viewLink.innerHTML = '<i class="fa-solid fa-eye me-0.5"></i> View';
+                viewLink.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closePendingBillsPopover();
+                    if (typeof viewBookingDetails === 'function') {
+                        viewBookingDetails(booking.id);
+                    }
+                });
+                line3.appendChild(viewLink);
+
+                billCard.appendChild(line3);
+                listContainer.appendChild(billCard);
+            });
+        }
+
+        box.appendChild(listContainer);
+        return box;
+    }
+
+    function togglePendingBillsPopover(badgeEl, customerId) {
+        if (typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
+        if (!badgeEl || !customerId) return;
+
+        if (activePendingBillsPopover && activePendingBillsPopover.badgeEl === badgeEl) {
+            closePendingBillsPopover();
+            return;
+        }
+
+        closePendingBillsPopover();
+        if (typeof closeActiveItemsPopover === 'function') {
+            closeActiveItemsPopover();
+        }
+
+        const isCached = customerPendingBookingsCache.has(customerId);
+        const cachedData = isCached ? customerPendingBookingsCache.get(customerId) : null;
+
+        const popover = new bootstrap.Popover(badgeEl, {
+            trigger: 'manual',
+            html: true,
+            container: 'body',
+            placement: 'auto',
+            sanitize: false,
+            content: function () {
+                if (isCached && cachedData) {
+                    return buildPendingBillsPopoverContent(cachedData);
+                }
+                return buildPendingBillsSkeletonContent();
+            },
+            popperConfig: {
+                strategy: 'fixed',
+            },
+            customClass: 'pending-bills-popover-wrapper',
+        });
+
+        activePendingBillsPopover = {
+            badgeEl,
+            customerId,
+            popover,
+        };
+
+        popover.show();
+
+        if (!isCached) {
+            const pendingUrl = getRoute('customerPendingBookings', customerId);
+            apiFetch(pendingUrl)
+                .then((data) => {
+                    const bookings = Array.isArray(data) ? data : (data.bookings || data.pending_bookings || []);
+                    customerPendingBookingsCache.set(customerId, bookings);
+
+                    if (activePendingBillsPopover && activePendingBillsPopover.badgeEl === badgeEl) {
+                        const popoverWrapper = document.querySelector('.pending-bills-popover-wrapper');
+                        if (popoverWrapper) {
+                            const bodyEl = popoverWrapper.querySelector('.popover-body');
+                            if (bodyEl) {
+                                bodyEl.innerHTML = '';
+                                bodyEl.appendChild(buildPendingBillsPopoverContent(bookings));
+                                if (typeof popover.update === 'function') {
+                                    popover.update();
+                                }
+                            }
+                        }
+                    }
+                })
+                .catch((err) => {
+                    console.warn('Could not fetch pending bookings:', err);
+                    if (activePendingBillsPopover && activePendingBillsPopover.badgeEl === badgeEl) {
+                        const popoverWrapper = document.querySelector('.pending-bills-popover-wrapper');
+                        if (popoverWrapper) {
+                            const bodyEl = popoverWrapper.querySelector('.popover-body');
+                            if (bodyEl) {
+                                bodyEl.innerHTML = '<div class="text-danger small p-3 text-center">Failed to load pending bills.</div>';
+                            }
+                        }
+                    }
+                });
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        if (!activePendingBillsPopover) return;
+        const popoverWrapper = document.querySelector('.pending-bills-popover-wrapper');
+        if (
+            popoverWrapper &&
+            !popoverWrapper.contains(e.target) &&
+            activePendingBillsPopover.badgeEl &&
+            !activePendingBillsPopover.badgeEl.contains(e.target)
+        ) {
+            closePendingBillsPopover();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && activePendingBillsPopover) {
+            closePendingBillsPopover();
+        }
+    });
+
     function renderCustomerInsight(data) {
         if (!customerInsightCard) return;
+
+        closePendingBillsPopover();
 
         const parts = [];
 
         // 1. Last booking
-        const lastBookingText = formatHumanRelativeDate(data.last_booking_at);
-        parts.push(`Last booking: <span class="fw-bold text-dark">${escapeHtml(lastBookingText)}</span>`);
-
-        // 2. Pending bookings count
-        const pendingCount = data.pending_bookings_count || 0;
-        const pendingCountClass = pendingCount > 0 ? 'text-primary fw-bold' : 'text-muted';
-        parts.push(`<span class="${pendingCountClass}">${pendingCount} pending</span>`);
-
-        // 3. Pending weight per metal (sum of total_weight - delivered_weight of pending bookings)
-        const goldPending = data.pending_weight ? (parseFloat(data.pending_weight.gold) || 0) : 0;
-        const silverPending = data.pending_weight ? (parseFloat(data.pending_weight.silver) || 0) : 0;
-
-        let weightText = '';
-        if (goldPending > 0 && silverPending > 0) {
-            weightText = `Gold <span class="fw-bold" style="color: #92400e;">${goldPending.toFixed(3)} gm</span> / Silver <span class="fw-bold text-secondary">${silverPending.toFixed(3)} gm</span> pending`;
-        } else if (goldPending > 0) {
-            weightText = `Gold <span class="fw-bold" style="color: #92400e;">${goldPending.toFixed(3)} gm</span> pending`;
-        } else if (silverPending > 0) {
-            weightText = `Silver <span class="fw-bold text-secondary">${silverPending.toFixed(3)} gm</span> pending`;
+        const hasBookings = (data.total_bookings && data.total_bookings > 0) || Boolean(data.last_booking_at);
+        if (hasBookings && data.last_booking_at) {
+            const relText = formatHumanRelativeDate(data.last_booking_at) || 'today';
+            parts.push(`Last booking: <span class="fw-bold text-dark">${escapeHtml(relText)}</span>`);
         } else {
-            weightText = '<span class="text-muted">0 gm pending</span>';
-        }
-        parts.push(weightText);
-
-        // 4. To receive (SELL pending: total_amount - received_amount)
-        const toReceive = parseFloat(data.to_receive) || 0;
-        if (toReceive > 0) {
-            parts.push(`To receive <span class="fw-bold text-success">₹${formatIndianCurrency(toReceive)}</span>`);
+            parts.push('<span class="text-muted">No previous bookings</span>');
         }
 
-        // 5. To give (BUY pending: total_amount - given_amount)
-        const toGive = parseFloat(data.to_give) || 0;
-        if (toGive > 0) {
-            parts.push(`To give <span class="fw-bold text-danger">₹${formatIndianCurrency(toGive)}</span>`);
+        // 2. Pending bills [n] (only if pendingCount > 0)
+        const pendingCount = parseInt(data.pending_bookings_count, 10) || 0;
+        if (pendingCount > 0) {
+            parts.push(`
+                <span class="d-inline-flex align-items-center gap-1">
+                    <span>Pending bills</span>
+                    <span class="badge rounded-pill pending-bills-badge" id="pendingBillsBadge" role="button" tabindex="0" title="Click to view pending bills">
+                        [${pendingCount}] <i class="fa-solid fa-chevron-down ms-0.5" style="font-size: 8px;"></i>
+                    </span>
+                </span>
+            `.trim());
         }
 
         customerInsightCard.innerHTML = `
@@ -195,6 +542,23 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `;
         customerInsightCard.style.display = 'block';
+
+        const badgeEl = document.getElementById('pendingBillsBadge');
+        if (badgeEl && data.customer_id) {
+            const customerId = data.customer_id;
+            badgeEl.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                togglePendingBillsPopover(badgeEl, customerId);
+            });
+            badgeEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    togglePendingBillsPopover(badgeEl, customerId);
+                }
+            });
+        }
     }
 
     function fetchCustomerInsight(customerId, forceRefresh = false) {
@@ -210,7 +574,6 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="d-flex align-items-center gap-2 py-0.5">
                 <span class="skeleton-bar" style="width: 120px; height: 10px;"></span>
                 <span class="skeleton-bar" style="width: 70px; height: 10px;"></span>
-                <span class="skeleton-bar" style="width: 150px; height: 10px;"></span>
             </div>
         `;
         customerInsightCard.style.display = 'block';
@@ -235,16 +598,14 @@ document.addEventListener('DOMContentLoaded', function () {
      * Select a customer and update all related UI fields
      */
     function selectCustomer(customer) {
+        closePendingBillsPopover();
         selectedCustomer = customer;
         hiddenCustomerId.value = customer.id;
         customerSearchInput.value = `${customer.name} (${customer.customer_no})`;
 
         const mobileText = customer.mobile ? escapeHtml(customer.mobile) : 'N/A';
-        const cityText = customer.city ? escapeHtml(customer.city) : 'N/A';
         customerSelectedInfo.innerHTML = `
             <i class="fa-solid fa-phone me-1 text-success"></i> <strong>Mobile:</strong> ${mobileText}
-            <span class="mx-2 text-muted">|</span>
-            <i class="fa-solid fa-location-dot me-1 text-primary"></i> <strong>City:</strong> ${cityText}
         `;
         customerSelectedInfo.style.display = 'block';
 
@@ -258,6 +619,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * Clear customer selection and reset search state
      */
     function clearCustomerSelection() {
+        closePendingBillsPopover();
         selectedCustomer = null;
         hiddenCustomerId.value = '';
         customerSearchInput.value = '';
@@ -3349,6 +3711,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         // Refresh recent customers cache after booking save
                         fetchRecentCustomers(true);
+                        invalidateCustomerInsightCache();
+                        if (selectedCustomer) {
+                            fetchCustomerInsight(selectedCustomer.id, true);
+                        }
 
                         if (isEditMode) {
                             exitEditMode(true);
@@ -4657,9 +5023,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (editingBookingId === bookingId) {
                         exitEditMode();
                     }
+                    invalidateCustomerInsightCache();
+                    if (selectedCustomer) {
+                        fetchCustomerInsight(selectedCustomer.id, true);
+                    }
                     fetchBookingList(currentListPage);
                 },
                 onRestored: function () {
+                    invalidateCustomerInsightCache();
+                    if (selectedCustomer) {
+                        fetchCustomerInsight(selectedCustomer.id, true);
+                    }
                     fetchBookingList(currentListPage);
                 },
             });
