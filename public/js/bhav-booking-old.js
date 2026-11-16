@@ -163,6 +163,16 @@ document.addEventListener('DOMContentLoaded', function () {
             const customerName = customer.name || 'Unknown';
             const customerNo = customer.customer_no || '-';
 
+            // Status Badge for Old Bookings (DELIVERED or CANCELLED)
+            const statusUpper = (booking.status || '').toUpperCase();
+            let statusBadgeHtml = '';
+            if (statusUpper === 'CANCELLED') {
+                const reason = booking.cancel_reason ? escapeHtml(booking.cancel_reason) : 'Cancelled';
+                statusBadgeHtml = `<span class="badge bg-danger rounded-pill px-2 py-0 ms-1 fw-bold cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="top" title="${reason}" style="font-size: 10px;">Cancelled</span>`;
+            } else if (statusUpper === 'DELIVERED') {
+                statusBadgeHtml = `<span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-0 ms-1 fw-bold" style="font-size: 10px;">Delivered</span>`;
+            }
+
             // Narration: truncate with ellipsis, full text in tooltip
             const narrationText = booking.narration ? booking.narration.trim() : '';
             const emptyCell = '<span class="text-muted opacity-50">–</span>';
@@ -192,10 +202,10 @@ document.addEventListener('DOMContentLoaded', function () {
             let buyRateHtml = emptyCell;
 
             if (isBuy) {
-                buyWeightHtml = `<span class="text-success fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500;">gm</span></span>`;
+                buyWeightHtml = `<span class="text-success fw-bold text-nowrap">${wtFormatted}<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></span>`;
                 buyRateHtml = `<span class="text-success fw-bold text-nowrap">${rateDisplay}</span>`;
             } else {
-                sellWeightHtml = `<span class="text-danger fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500;">gm</span></span>`;
+                sellWeightHtml = `<span class="text-danger fw-bold text-nowrap">${wtFormatted}<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></span>`;
                 sellRateHtml = `<span class="text-danger fw-bold text-nowrap">${rateDisplay}</span>`;
             }
 
@@ -217,8 +227,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="text-dark text-truncate" style="max-width: 210px; line-height: 1.35;" title="${escapeHtml(customerName)} (${escapeHtml(customerNo)})">
                             <span class="customer-name-text text-dark" style="font-size: 13.5px; font-weight: 700;">${escapeHtml(customerName)}</span> <span class="customer-id-text text-muted" style="font-size: 11.5px; font-weight: 600; color: #64748b;">(${escapeHtml(customerNo)})</span>
                         </div>
-                        <div class="text-muted text-nowrap" style="font-size: 11px; line-height: 1.25; margin-top: 2px;">
+                        <div class="d-flex align-items-center text-nowrap" style="font-size: 11px; line-height: 1.25; margin-top: 2px;">
                             <span class="fw-semibold text-dark">${escapeHtml(booking.booking_no || '')}</span>
+                            ${statusBadgeHtml}
                         </div>
                     </td>
                     <td class="text-start">
@@ -370,6 +381,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function fetchOldBookings(page = 1) {
         currentOldPage = page;
         closeActiveItemsPopover();
+        clearTableSpotlight();
 
         if (oldListAbortController) {
             oldListAbortController.abort();
@@ -455,8 +467,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     const indexUrl = getRoute('bhavBookingIndex') || '/buy-sell/bhav-booking';
                     window.location.href = `${indexUrl}?edit=${booking.id}`;
                 },
+                // On Repeat: redirect to main page with ?repeat={id}
+                onRepeat: function (booking) {
+                    const indexUrl = getRoute('bhavBookingIndex') || '/buy-sell/bhav-booking';
+                    window.location.href = `${indexUrl}?repeat=${booking.id}`;
+                },
                 // On Delete or Silent Delete: refresh current page
                 onDeleted: function () {
+                    fetchOldBookings(currentOldPage);
+                },
+                onCancelled: function () {
                     fetchOldBookings(currentOldPage);
                 },
                 onRestored: function () {

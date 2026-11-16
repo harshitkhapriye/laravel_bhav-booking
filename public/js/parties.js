@@ -1,4 +1,4 @@
-/* global escapeHtml, formatDateDisplay, showToast, apiFetch, renderSkeletonTableRows */
+/* global escapeHtml, formatDateDisplay, showToast, apiFetch, renderSkeletonTableRows, showConfirmDialog */
 /**
  * Party Master JavaScript Module
  * Application: Just Udhari
@@ -1600,28 +1600,35 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
 
     function confirmDeleteParty(partyId, partyName) {
-        const confirmed = window.confirm(`Are you sure you want to delete ${partyName}? This action cannot be undone.`);
-        if (!confirmed) return;
+        showConfirmDialog({
+            title: 'Delete Customer?',
+            message: `Are you sure you want to delete ${partyName}? This action cannot be undone.`,
+            confirmText: 'Delete Customer',
+            confirmClass: 'btn-danger',
+            icon: 'fa-solid fa-trash-can text-danger',
+        }).then(({ confirmed }) => {
+            if (!confirmed) return;
 
-        const originalConfirmHtml = document.getElementById('btnConfirmDeleteParty')?.innerHTML;
-        const confirmBtn = document.getElementById('btnConfirmDeleteParty');
-        if (confirmBtn) confirmBtn.disabled = true;
+            const originalConfirmHtml = document.getElementById('btnConfirmDeleteParty')?.innerHTML;
+            const confirmBtn = document.getElementById('btnConfirmDeleteParty');
+            if (confirmBtn) confirmBtn.disabled = true;
 
-        const deleteUrl = routes.partiesDestroy.replace('__ID__', partyId);
-        apiFetch(deleteUrl, { method: 'DELETE' })
-            .then((data) => {
-                showToast(data.message || 'Party deleted successfully', 'success');
-                fetchParties(currentPage);
-            })
-            .catch((err) => {
-                console.error('Delete party error:', err);
-            })
-            .finally(() => {
-                if (confirmBtn) {
-                    confirmBtn.disabled = false;
-                    if (originalConfirmHtml) confirmBtn.innerHTML = originalConfirmHtml;
-                }
-            });
+            const deleteUrl = routes.partiesDestroy.replace('__ID__', partyId);
+            apiFetch(deleteUrl, { method: 'DELETE' })
+                .then((data) => {
+                    showToast(data.message || 'Party deleted successfully', 'success');
+                    fetchParties(currentPage);
+                })
+                .catch((err) => {
+                    console.error('Delete party error:', err);
+                })
+                .finally(() => {
+                    if (confirmBtn) {
+                        confirmBtn.disabled = false;
+                        if (originalConfirmHtml) confirmBtn.innerHTML = originalConfirmHtml;
+                    }
+                });
+        });
     }
 
     // =========================================================================

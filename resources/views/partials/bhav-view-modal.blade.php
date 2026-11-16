@@ -31,6 +31,16 @@
                             </div>
                         </div>
 
+                        <!-- Cancelled Booking Alert (shown if status is CANCELLED) -->
+                        <div id="viewCancelledAlert" class="alert alert-danger p-2 mb-2 small" style="display: none; font-size: 11.5px; border-left: 4px solid #dc2626;">
+                            <div class="d-flex align-items-center gap-1 fw-bold mb-1 text-danger">
+                                <i class="fa-solid fa-ban"></i> Cancelled on <span id="viewCancelledAt">-</span>
+                            </div>
+                            <div class="text-dark">
+                                <span class="text-muted">Reason:</span> <strong id="viewCancelReason">-</strong>
+                            </div>
+                        </div>
+
                         <!-- Customer Details 2x2 Grid -->
                         <div class="card border rounded-3 mb-2 shadow-none bg-white">
                             <div class="card-body p-2">
@@ -82,6 +92,13 @@
                                 <div class="p-2 border rounded-2 bg-light">
                                     <div class="text-muted fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">PENDING WEIGHT</div>
                                     <div class="fw-bold text-warning-emphasis" style="font-size: 13px;" id="viewPendingWeight">0.000 gm</div>
+                                </div>
+                            </div>
+                            <!-- VS TODAY Stat Chip -->
+                            <div class="col-6" id="viewTotalsVsTodayCol">
+                                <div class="p-2 border rounded-2 bg-light">
+                                    <div class="text-muted fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">VS TODAY</div>
+                                    <div class="fw-bold text-muted" style="font-size: 13px;" id="viewVsToday">—</div>
                                 </div>
                             </div>
                             <!-- Extra Stat Chips shown only when payments exist -->
@@ -215,9 +232,18 @@
 
             <!-- Modal Footer: Compact height with Print Voucher and Close -->
             <div class="modal-footer bg-light px-3 py-2 border-0 d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-print rounded-pill px-3 py-1 fw-bold" id="btnViewModalPrint" style="font-size: 12px; height: 32px;">
-                    <i class="fa-solid fa-print me-1"></i> Print Voucher
-                </button>
+                <div class="btn-group btn-group-sm rounded-pill" id="viewModalPrintGroup" style="height: 32px;">
+                    <button type="button" class="btn btn-outline-print btn-sm rounded-start-pill px-3 py-1 fw-bold" id="btnViewModalPrint" style="font-size: 12px;">
+                        <i class="fa-solid fa-print me-1"></i> <span id="viewModalPrintLabel">Print Voucher</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-print btn-sm rounded-end-pill dropdown-toggle dropdown-toggle-split px-2" data-bs-toggle="dropdown" aria-expanded="false" title="Print Format">
+                        <span class="visually-hidden">Toggle print format</span>
+                    </button>
+                    <ul class="dropdown-menu shadow-sm py-1" style="min-width: 150px; font-size: 12px;">
+                        <li><a class="dropdown-item py-1 px-3 d-flex align-items-center justify-content-between print-option-a4" href="#" data-format="a4"><span>A4</span></a></li>
+                        <li><a class="dropdown-item py-1 px-3 d-flex align-items-center justify-content-between print-option-thermal" href="#" data-format="thermal"><span>Thermal (80mm)</span></a></li>
+                    </ul>
+                </div>
                 <button type="button" class="btn btn-outline-secondary rounded-pill px-3 py-1 fw-bold" data-bs-dismiss="modal" style="font-size: 12px; height: 32px;">
                     Close
                 </button>

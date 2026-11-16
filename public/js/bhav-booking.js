@@ -1,4 +1,4 @@
-/* global escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateISO, formatDateDisplay, formatBookingDateTime, pad2, metalIconSvg, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, showToast, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, viewBookingDetails */
+/* global escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateISO, formatDateDisplay, formatBookingDateTime, pad2, metalIconSvg, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, showToast, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, viewBookingDetails, showConfirmDialog, getBhavPrintFormat, setBhavPrintFormat, updatePrintButtonLabels */
 
 /**
  * Bhav Booking UI Logic & Interactivity
@@ -41,16 +41,91 @@ document.addEventListener('DOMContentLoaded', function () {
     // Unique request token for duplicate-save protection (idempotency)
     let currentRequestToken = generateRequestToken();
 
-    // Track last saved booking ID for the form PRINT button (Task C3)
-    let lastSavedBookingId = null;
-    let lastSavedGroupId = null;
-
     // Track current booking being edited (null when in create mode) (Task C4)
     let editingBookingId = null;
     let editingBookingNo = null;
 
     // Map of currently loaded bookings on the page by ID for action menu operations
     let lastLoadedBookingsMap = {};
+
+    // =========================================================================
+    // 1B. MOBILE TABS (< 992px)
+    // Sticky tabs bar: [Booking] [List (n)]
+    // =========================================================================
+    const MOBILE_TAB_KEY = 'bhavActiveMobileTab';
+    const tabBtnBooking = document.getElementById('tabBtnBooking');
+    const tabBtnList = document.getElementById('tabBtnList');
+    const mobileListCountText = document.getElementById('mobileListCountText');
+    const bhavMainRow = document.getElementById('bhavMainRow');
+
+    function getSavedMobileTab() {
+        try {
+            const saved = localStorage.getItem(MOBILE_TAB_KEY);
+            return saved === 'list' ? 'list' : 'booking';
+        } catch (e) {
+            return 'booking';
+        }
+    }
+
+    function setSavedMobileTab(tab) {
+        try {
+            const target = tab === 'list' ? 'list' : 'booking';
+            localStorage.setItem(MOBILE_TAB_KEY, target);
+        } catch (e) {
+            // Ignore localStorage errors
+        }
+    }
+
+    function switchMobileTab(tab) {
+        const target = tab === 'list' ? 'list' : 'booking';
+        setSavedMobileTab(target);
+
+        if (target === 'list') {
+            if (tabBtnList) {
+                tabBtnList.classList.add('active');
+                tabBtnList.classList.remove('text-muted');
+            }
+            if (tabBtnBooking) {
+                tabBtnBooking.classList.remove('active');
+                tabBtnBooking.classList.add('text-muted');
+            }
+            if (bhavMainRow) {
+                bhavMainRow.classList.remove('bhav-active-tab-booking');
+                bhavMainRow.classList.add('bhav-active-tab-list');
+            }
+        } else {
+            if (tabBtnBooking) {
+                tabBtnBooking.classList.add('active');
+                tabBtnBooking.classList.remove('text-muted');
+            }
+            if (tabBtnList) {
+                tabBtnList.classList.remove('active');
+                tabBtnList.classList.add('text-muted');
+            }
+            if (bhavMainRow) {
+                bhavMainRow.classList.remove('bhav-active-tab-list');
+                bhavMainRow.classList.add('bhav-active-tab-booking');
+            }
+        }
+    }
+
+    function updateMobileListTabCount(count) {
+        if (mobileListCountText) {
+            mobileListCountText.textContent = String(count || 0);
+        }
+    }
+
+    if (tabBtnBooking) {
+        tabBtnBooking.addEventListener('click', function () {
+            switchMobileTab('booking');
+        });
+    }
+
+    if (tabBtnList) {
+        tabBtnList.addEventListener('click', function () {
+            switchMobileTab('list');
+        });
+    }
 
     // =========================================================================
     // 2. HELPERS
@@ -613,6 +688,7 @@ document.addEventListener('DOMContentLoaded', function () {
         hideCustomerError();
         hideCustomerDropdown();
         fetchCustomerInsight(customer.id);
+        triggerDraftSave();
     }
 
     /**
@@ -634,6 +710,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (whatsappSwitch && whatsappSwitch.checked) {
             whatsappSwitch.checked = false;
         }
+        triggerDraftSave();
     }
 
     function showCustomerError(message) {
@@ -2253,6 +2330,7 @@ document.addEventListener('DOMContentLoaded', function () {
         applyTradeColumnVisibility(mode);
         updateTradeViewBadge(mode);
         fetchBookingList(1);
+        triggerDraftSave();
 
         if (editingBookingId !== null) {
             return;
@@ -2347,8 +2425,8 @@ document.addEventListener('DOMContentLoaded', function () {
             BHAV_CONFIG.default_rates && BHAV_CONFIG.default_rates[metal] !== undefined
                 ? BHAV_CONFIG.default_rates[metal]
                 : metal === 'GOLD'
-                  ? 165000
-                  : 1800;
+                    ? 165000
+                    : 1800;
         return {
             rate: def,
             isToday: false,
@@ -2577,6 +2655,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         entriesTableBody.innerHTML = rowsHtml;
         updateAllTotals();
+        updateFormPrintButtonState();
     }
 
     // Delegated event listeners for Entries Table Body
@@ -2604,6 +2683,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 target.classList.remove('is-invalid');
                 scheduleUpdateAllTotals();
+                triggerDraftSave();
             } else if (target.classList.contains('row-input-rate')) {
                 const itemId = parseInt(target.getAttribute('data-id'), 10);
                 const item = bookingItems.find((it) => it.id === itemId);
@@ -2625,6 +2705,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 target.classList.remove('is-invalid');
                 scheduleUpdateAllTotals();
+                triggerDraftSave();
             }
         });
 
@@ -2670,6 +2751,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (itemIndex !== -1) {
                 bookingItems.splice(itemIndex, 1);
                 renderEntriesTable();
+                triggerDraftSave();
             }
         });
     }
@@ -2726,6 +2808,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Clear weight, keep rate, re-render table, focus weight
         inputWeight.value = '';
         renderEntriesTable();
+        triggerDraftSave();
         inputWeight.focus();
         return true;
     }
@@ -2760,6 +2843,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             updateAllTotals();
+            triggerDraftSave();
+        });
+    }
+
+    // Entry type selection change
+    if (typeSelect) {
+        typeSelect.addEventListener('change', function () {
+            triggerDraftSave();
         });
     }
 
@@ -2779,6 +2870,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             scheduleUpdateAllTotals();
+            triggerDraftSave();
         });
 
         inputWeight.addEventListener('blur', function () {
@@ -2807,6 +2899,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             scheduleUpdateAllTotals();
+            triggerDraftSave();
         });
 
         inputRate.addEventListener('blur', function () {
@@ -2823,6 +2916,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (inputNarration && narrationCounter) {
         inputNarration.addEventListener('input', function () {
             narrationCounter.textContent = `${this.value.length}/255`;
+            triggerDraftSave();
         });
     }
 
@@ -2835,6 +2929,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     showToast('Customer mobile number required for WhatsApp', 'warning');
                 }
             }
+            triggerDraftSave();
         });
     }
 
@@ -2942,6 +3037,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 paymentOnlineFields.classList.add('d-none');
             }
         }
+        triggerDraftSave();
+    }
+
+    if (paymentOnlineMethod) {
+        paymentOnlineMethod.addEventListener('change', function () {
+            triggerDraftSave();
+        });
     }
 
     if (btnPaymentCash) {
@@ -3020,6 +3122,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         renderPaymentEntriesTable();
         updateAllTotals();
+        triggerDraftSave();
         return true;
     }
 
@@ -3051,6 +3154,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             scheduleUpdateAllTotals();
+            triggerDraftSave();
         });
 
         inputPaymentAmount.addEventListener('blur', function () {
@@ -3128,6 +3232,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         paymentEntriesTableBody.innerHTML = rowsHtml;
         updateAllTotals();
+        updateFormPrintButtonState();
     }
 
     // Delegated event listeners for Payment Entries Table Body
@@ -3148,6 +3253,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 payment.amount = parseFloat(val) || 0;
                 target.classList.remove('is-invalid');
                 scheduleUpdateAllTotals();
+                triggerDraftSave();
             }
         });
 
@@ -3171,6 +3277,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (pIndex !== -1) {
                 bookingPayments.splice(pIndex, 1);
                 renderPaymentEntriesTable();
+                triggerDraftSave();
             }
         });
     }
@@ -3190,24 +3297,95 @@ document.addEventListener('DOMContentLoaded', function () {
     const editModeIndicator = document.getElementById('editModeIndicator');
     const editingBookingNoLabel = document.getElementById('editingBookingNoLabel');
 
-    // Form PRINT button: prints the last saved group (or booking) in this session
-    // If none, displays toast: "Save the booking first"
-    if (btnPrint) {
-        btnPrint.addEventListener('click', function () {
-            if (!lastSavedGroupId && !lastSavedBookingId) {
-                showToast('Save the booking first', 'warning');
-                return;
-            }
-            if (lastSavedGroupId) {
-                const groupUrl =
-                    window.APP_ROUTES && window.APP_ROUTES.bhavBookingGroupPrint
-                        ? window.APP_ROUTES.bhavBookingGroupPrint.replace('__GROUP_ID__', encodeURIComponent(lastSavedGroupId))
-                        : `/bhav-bookings/group/${encodeURIComponent(lastSavedGroupId)}/print`;
-                window.open(groupUrl, '_blank');
+    /**
+     * Update the Form PRINT button label and disabled state live:
+     * - Form empty: label "PRINT", disabled, tooltip "Fill booking details to Save & Print"
+     * - Form has details (and not edit mode): label "SAVE & PRINT", enabled, no tooltip
+     * - Edit mode: label "UPDATE & PRINT", enabled, no tooltip
+     */
+    function updateFormPrintButtonState() {
+        if (!btnPrint) return;
+        const isEditMode = Boolean(editingBookingId);
+        const hasCustomer = Boolean(selectedCustomer || (hiddenCustomerId && hiddenCustomerId.value));
+        const hasDetails = hasCustomer || formHasBookingDetails();
+        const labelEl = document.getElementById('formPrintLabel');
+
+        if (isEditMode) {
+            btnPrint.disabled = false;
+            btnPrint.removeAttribute('title');
+            if (labelEl) {
+                labelEl.textContent = 'UPDATE & PRINT';
             } else {
-                window.open(getRoute('bhavBookingPrint', lastSavedBookingId), '_blank');
+                btnPrint.innerHTML = '<i class="fa-solid fa-print me-1"></i> <span id="formPrintLabel">UPDATE & PRINT</span>';
             }
+        } else if (hasDetails) {
+            btnPrint.disabled = false;
+            btnPrint.removeAttribute('title');
+            if (labelEl) {
+                labelEl.textContent = 'SAVE & PRINT';
+            } else {
+                btnPrint.innerHTML = '<i class="fa-solid fa-print me-1"></i> <span id="formPrintLabel">SAVE & PRINT</span>';
+            }
+        } else {
+            btnPrint.disabled = true;
+            btnPrint.setAttribute('title', 'Fill booking details to Save & Print');
+            if (labelEl) {
+                labelEl.textContent = 'PRINT';
+            } else {
+                btnPrint.innerHTML = '<i class="fa-solid fa-print me-1"></i> <span id="formPrintLabel">PRINT</span>';
+            }
+        }
+    }
+
+    // Form PRINT button: Save/Update first and then print in one click
+    if (btnPrint) {
+        btnPrint.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (btnPrint.disabled) return;
+
+            let printWin = null;
+            try {
+                printWin = window.open('', '_blank');
+                if (printWin) {
+                    try {
+                        printWin.document.write(
+                            '<!DOCTYPE html><html><head><title>Preparing print...</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:80vh;color:#475569;"><p style="font-size:16px;">Preparing print...</p></body></html>'
+                        );
+                        printWin.document.close();
+                    } catch (err) {
+                        // Ignore write error
+                    }
+                }
+            } catch (err) {
+                printWin = null;
+            }
+
+            submitBooking({ thenPrint: true, printWin: printWin });
         });
+    }
+
+    const formPrintGroup = document.getElementById('formPrintGroup');
+    if (formPrintGroup) {
+        const optA4 = formPrintGroup.querySelector('.print-option-a4');
+        const optThermal = formPrintGroup.querySelector('.print-option-thermal');
+        if (optA4) {
+            optA4.addEventListener('click', function (e) {
+                e.preventDefault();
+                setBhavPrintFormat('a4');
+                if (btnPrint && !btnPrint.disabled) {
+                    btnPrint.click();
+                }
+            });
+        }
+        if (optThermal) {
+            optThermal.addEventListener('click', function (e) {
+                e.preventDefault();
+                setBhavPrintFormat('thermal');
+                if (btnPrint && !btnPrint.disabled) {
+                    btnPrint.click();
+                }
+            });
+        }
     }
 
     // Cancel edit click handlers (both top banner link and bottom button link)
@@ -3235,6 +3413,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function enterEditMode(booking) {
         editingBookingId = booking.id;
         editingBookingNo = booking.booking_no;
+        hideDraftBanner();
 
         if (editingBookingNoLabel) editingBookingNoLabel.textContent = booking.booking_no;
         if (editModeIndicator) {
@@ -3256,6 +3435,8 @@ document.addEventListener('DOMContentLoaded', function () {
             categorySelect.disabled = true;
             currentMetal = booking.metal;
         }
+
+        updateFormPrintButtonState();
     }
 
     /**
@@ -3354,6 +3535,8 @@ document.addEventListener('DOMContentLoaded', function () {
      * - Focus customer input
      */
     function resetFormAfterSave(skipFocus = false) {
+        safeRemoveDraft();
+        hideDraftBanner();
         clearCustomerSelection();
         bookingItems = [];
         renderEntriesTable();
@@ -3389,6 +3572,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 customerSearchInput.focus();
             }
         }
+
+        updateFormPrintButtonState();
     }
 
     /**
@@ -3411,8 +3596,8 @@ document.addEventListener('DOMContentLoaded', function () {
             Array.isArray(savedData.bookings) && savedData.bookings.length > 0
                 ? savedData.bookings
                 : savedData.id
-                  ? [savedData]
-                  : [];
+                    ? [savedData]
+                    : [];
 
         const groupId =
             savedData.group_id || (bookings[0] ? bookings[0].booking_group_id || bookings[0].request_token : null);
@@ -3432,8 +3617,8 @@ document.addEventListener('DOMContentLoaded', function () {
             bookings[0] && bookings[0].customer && bookings[0].customer.name
                 ? bookings[0].customer.name
                 : selectedCustomer
-                  ? selectedCustomer.name
-                  : '-';
+                    ? selectedCustomer.name
+                    : '-';
         if (custEl) custEl.textContent = customerName;
 
         let combinedAmount = 0;
@@ -3493,16 +3678,38 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (btnSuccessPrint) {
             btnSuccessPrint.onclick = function () {
+                const fmt = getBhavPrintFormat();
+                const formatParam = fmt === 'thermal' ? '?format=thermal' : '';
                 if (groupId) {
-                    const groupUrl =
+                    const baseGroupUrl =
                         window.APP_ROUTES && window.APP_ROUTES.bhavBookingGroupPrint
                             ? window.APP_ROUTES.bhavBookingGroupPrint.replace('__GROUP_ID__', encodeURIComponent(groupId))
                             : `/bhav-bookings/group/${encodeURIComponent(groupId)}/print`;
-                    window.open(groupUrl, '_blank');
+                    window.open(`${baseGroupUrl}${formatParam}`, '_blank');
                 } else if (bookings[0] && bookings[0].id) {
-                    window.open(getRoute('bhavBookingPrint', bookings[0].id), '_blank');
+                    window.open(`${getRoute('bhavBookingPrint', bookings[0].id)}${formatParam}`, '_blank');
                 }
             };
+        }
+
+        const successPrintGroup = document.getElementById('successPrintGroup');
+        if (successPrintGroup) {
+            const optA4 = successPrintGroup.querySelector('.print-option-a4');
+            const optThermal = successPrintGroup.querySelector('.print-option-thermal');
+            if (optA4) {
+                optA4.onclick = function (e) {
+                    e.preventDefault();
+                    setBhavPrintFormat('a4');
+                    if (btnSuccessPrint) btnSuccessPrint.click();
+                };
+            }
+            if (optThermal) {
+                optThermal.onclick = function (e) {
+                    e.preventDefault();
+                    setBhavPrintFormat('thermal');
+                    if (btnSuccessPrint) btnSuccessPrint.click();
+                };
+            }
         }
 
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
@@ -3534,228 +3741,341 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    if (btnSave) {
-        btnSave.addEventListener('click', function (e) {
-            e.preventDefault();
-            try {
-                resetValidationErrors();
+    /**
+     * Unified handler for saving and updating bookings with optional print dispatch.
+     * Used by both SAVE button (Ctrl+S) and PRINT button (Alt+P / Save & Print / Update & Print).
+     *
+     * @param {Object} options
+     * @param {boolean} [options.thenPrint=false] If true, opens print URL without showing success modal
+     * @param {Window|null} [options.printWin=null] Pre-opened blank tab to avoid popup blocker
+     */
+    function submitBooking(options = {}) {
+        const thenPrint = Boolean(options.thenPrint);
+        const printWin = options.printWin || null;
 
-                // 1. Check if current entry line is filled: auto-treat as a row if "+" was not clicked
-                const currentWeight = parseFloat(inputWeight ? inputWeight.value : 0) || 0;
-                const currentRate = parseFloat(inputRate ? inputRate.value : 0) || 0;
+        try {
+            resetValidationErrors();
 
-                if (currentWeight > 0 && currentRate > 0) {
-                    const rowAmount = calculateRowAmount(currentWeight, currentRate);
-                    const selectedMetal = (categorySelect ? categorySelect.value : currentMetal) || 'GOLD';
-                    bookingItems.push({
-                        id: nextItemId++,
-                        metal: selectedMetal,
-                        weight: currentWeight,
-                        rate: currentRate,
-                        amount: rowAmount,
-                    });
-                    inputWeight.value = '';
-                    renderEntriesTable();
-                }
+            // 1. Check if current entry line is filled: auto-treat as a row if "+" was not clicked
+            const currentWeight = parseFloat(inputWeight ? inputWeight.value : 0) || 0;
+            const currentRate = parseFloat(inputRate ? inputRate.value : 0) || 0;
 
-                // Auto-treat typed payment amount as one entry with current mode if "+" was not clicked
-                const typedPayAmt = parseFloat(inputPaymentAmount ? inputPaymentAmount.value : 0) || 0;
-                if (typedPayAmt > 0) {
-                    const valStr = inputPaymentAmount.value.trim();
-                    const decMatch = valStr.match(/\.(\d+)$/);
-                    if (decMatch && decMatch[1].length > 2) {
-                        if (paymentError) {
-                            paymentError.textContent = 'Payment amount can have at most 2 decimals.';
-                            paymentError.style.display = 'block';
-                        }
-                        if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
-                        inputPaymentAmount.focus();
-                        return;
-                    }
-                    bookingPayments.push({
-                        id: nextPaymentId++,
-                        mode: currentPaymentMode,
-                        online_method:
-                            currentPaymentMode === 'ONLINE'
-                                ? paymentOnlineMethod
-                                    ? paymentOnlineMethod.value
-                                    : 'UPI'
-                                : null,
-                        amount: typedPayAmt,
-                    });
-                    inputPaymentAmount.value = '';
-                    renderPaymentEntriesTable();
-                }
+            if (currentWeight > 0 && currentRate > 0) {
+                const rowAmount = calculateRowAmount(currentWeight, currentRate);
+                const selectedMetal = (categorySelect ? categorySelect.value : currentMetal) || 'GOLD';
+                bookingItems.push({
+                    id: nextItemId++,
+                    metal: selectedMetal,
+                    weight: currentWeight,
+                    rate: currentRate,
+                    amount: rowAmount,
+                });
+                if (inputWeight) inputWeight.value = '';
+                renderEntriesTable();
+            }
 
-                let isValid = true;
-                let firstInvalidField = null;
-
-                // 2. Validate Customer
-                if (!hiddenCustomerId.value || !selectedCustomer) {
-                    showCustomerError('Customer must be selected.');
-                    isValid = false;
-                    if (!firstInvalidField) firstInvalidField = customerSearchInput;
-                }
-
-                // 3. Validate at least 1 row exists
-                if (bookingItems.length === 0) {
-                    // Highlight weight & rate inputs
-                    if (!currentWeight || currentWeight <= 0) {
-                        if (weightError) {
-                            weightError.textContent = 'Weight must be greater than 0.';
-                            weightError.style.display = 'block';
-                        }
-                        if (inputWeight) inputWeight.classList.add('is-invalid');
-                        if (!firstInvalidField) firstInvalidField = inputWeight;
-                    }
-                    if (!currentRate || currentRate <= 0) {
-                        if (rateError) {
-                            rateError.textContent = 'Rate must be greater than 0.';
-                            rateError.style.display = 'block';
-                        }
-                        if (inputRate) inputRate.classList.add('is-invalid');
-                        if (!firstInvalidField) firstInvalidField = inputRate;
-                    }
-                    isValid = false;
-                }
-
-                // Run pending scheduled update synchronously and compute fresh totals before validation
-                flushScheduledTotals();
-                const freshTotals = calculateTotals();
-                const grandTotalAmount = freshTotals.grandAmount;
-
-                // 4. Validate total payments do not exceed booking total amount
-                let totalConfirmedPaid = 0;
-                for (const p of bookingPayments) {
-                    totalConfirmedPaid += parseFloat(p.amount) || 0;
-                }
-                totalConfirmedPaid = Math.round(totalConfirmedPaid * 100) / 100;
-
-                if (totalConfirmedPaid > grandTotalAmount && grandTotalAmount >= 0) {
-                    const formattedBookingAmt = formatIndianCurrency(grandTotalAmount);
+            // Auto-treat typed payment amount as one entry with current mode if "+" was not clicked
+            const typedPayAmt = parseFloat(inputPaymentAmount ? inputPaymentAmount.value : 0) || 0;
+            if (typedPayAmt > 0) {
+                const valStr = inputPaymentAmount.value.trim();
+                const decMatch = valStr.match(/\.(\d+)$/);
+                if (decMatch && decMatch[1].length > 2) {
                     if (paymentError) {
-                        paymentError.textContent = `Payment cannot be more than booking amount ₹${formattedBookingAmt}`;
+                        paymentError.textContent = 'Payment amount can have at most 2 decimals.';
                         paymentError.style.display = 'block';
                     }
                     if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
-                    isValid = false;
-                    if (!firstInvalidField) firstInvalidField = inputPaymentAmount;
-                }
-
-                if (!isValid) {
-                    if (firstInvalidField) firstInvalidField.focus();
+                    if (inputPaymentAmount) inputPaymentAmount.focus();
+                    if (printWin && !printWin.closed) {
+                        try {
+                            printWin.close();
+                        } catch (e) {
+                            // Ignore close error
+                        }
+                    }
                     return;
                 }
+                bookingPayments.push({
+                    id: nextPaymentId++,
+                    mode: currentPaymentMode,
+                    online_method:
+                        currentPaymentMode === 'ONLINE'
+                            ? paymentOnlineMethod
+                                ? paymentOnlineMethod.value
+                                : 'UPI'
+                            : null,
+                    amount: typedPayAmt,
+                });
+                if (inputPaymentAmount) inputPaymentAmount.value = '';
+                renderPaymentEntriesTable();
+            }
 
-                const isEditMode = Boolean(editingBookingId);
+            let isValid = true;
+            let firstInvalidField = null;
 
-                // Disable save button + show spinner to prevent double submission
-                btnSave.disabled = true;
-                btnSave.innerHTML = isEditMode
-                    ? '<i class="fa-solid fa-spinner fa-spin me-2"></i> Updating...'
-                    : '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
+            // 2. Validate Customer
+            if (!hiddenCustomerId || !hiddenCustomerId.value || !selectedCustomer) {
+                showCustomerError('Customer must be selected.');
+                isValid = false;
+                if (!firstInvalidField) firstInvalidField = customerSearchInput;
+            }
 
-                const payload = {
-                    trade_type: hiddenTradeType ? hiddenTradeType.value : 'SELL',
-                    entry_type: typeSelect ? typeSelect.value : 'ONLY_ENTRY',
-                    metal: categorySelect ? categorySelect.value : 'GOLD',
-                    items: bookingItems.map((item) => ({
-                        metal: item.metal || (categorySelect ? categorySelect.value : 'GOLD'),
-                        weight: parseFloat(item.weight),
-                        rate: parseFloat(item.rate),
-                    })),
-                    payments: bookingPayments.map((p) => ({
-                        mode: p.mode,
-                        online_method: p.mode === 'ONLINE' ? p.online_method || 'UPI' : null,
-                        amount: parseFloat(p.amount),
-                    })),
-                    narration: inputNarration ? inputNarration.value.trim() : null,
-                    send_whatsapp: whatsappSwitch ? whatsappSwitch.checked : false,
-                };
-
-                // Only send customer_id and request_token on CREATE (store). Updates do not change customer or request_token.
-                if (!isEditMode) {
-                    payload.customer_id = parseInt(hiddenCustomerId.value, 10);
-                    payload.request_token = currentRequestToken;
+            // 3. Validate at least 1 row exists
+            if (bookingItems.length === 0) {
+                // Highlight weight & rate inputs
+                if (!currentWeight || currentWeight <= 0) {
+                    if (weightError) {
+                        weightError.textContent = 'Weight must be greater than 0.';
+                        weightError.style.display = 'block';
+                    }
+                    if (inputWeight) inputWeight.classList.add('is-invalid');
+                    if (!firstInvalidField) firstInvalidField = inputWeight;
                 }
+                if (!currentRate || currentRate <= 0) {
+                    if (rateError) {
+                        rateError.textContent = 'Rate must be greater than 0.';
+                        rateError.style.display = 'block';
+                    }
+                    if (inputRate) inputRate.classList.add('is-invalid');
+                    if (!firstInvalidField) firstInvalidField = inputRate;
+                }
+                isValid = false;
+            }
 
-                const targetUrl = isEditMode
-                    ? getRoute('bhavBookingUpdate', editingBookingId)
-                    : window.APP_ROUTES && window.APP_ROUTES.bhavBookingStore
-                      ? window.APP_ROUTES.bhavBookingStore
-                      : '/bhav-bookings';
+            // Run pending scheduled update synchronously and compute fresh totals before validation
+            flushScheduledTotals();
+            const freshTotals = calculateTotals();
+            const grandTotalAmount = freshTotals.grandAmount;
 
-                const targetMethod = isEditMode ? 'PUT' : 'POST';
+            // 4. Validate total payments do not exceed booking total amount
+            let totalConfirmedPaid = 0;
+            for (const p of bookingPayments) {
+                totalConfirmedPaid += parseFloat(p.amount) || 0;
+            }
+            totalConfirmedPaid = Math.round(totalConfirmedPaid * 100) / 100;
 
-                apiFetch(targetUrl, {
-                    method: targetMethod,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
-                })
-                    .then((savedData) => {
-                        const bookings =
-                            Array.isArray(savedData.bookings) && savedData.bookings.length > 0
-                                ? savedData.bookings
-                                : savedData.id
-                                  ? [savedData]
-                                  : [];
-                        const groupId =
-                            savedData.group_id ||
-                            (bookings[0] ? bookings[0].booking_group_id || bookings[0].request_token : null);
+            if (totalConfirmedPaid > grandTotalAmount && grandTotalAmount >= 0) {
+                const formattedBookingAmt = formatIndianCurrency(grandTotalAmount);
+                if (paymentError) {
+                    paymentError.textContent = `Payment cannot be more than booking amount ₹${formattedBookingAmt}`;
+                    paymentError.style.display = 'block';
+                }
+                if (inputPaymentAmount) inputPaymentAmount.classList.add('is-invalid');
+                isValid = false;
+                if (!firstInvalidField) firstInvalidField = inputPaymentAmount;
+            }
 
-                        // Remember last saved booking ID & group ID for the form PRINT button
-                        lastSavedBookingId = bookings[0] ? bookings[0].id : savedData.id;
-                        lastSavedGroupId = groupId;
+            if (!isValid) {
+                if (firstInvalidField) firstInvalidField.focus();
+                if (printWin && !printWin.closed) {
+                    try {
+                        printWin.close();
+                    } catch (e) {
+                        // Ignore close error
+                    }
+                }
+                return;
+            }
 
-                        // Refresh recent customers cache after booking save
-                        fetchRecentCustomers(true);
-                        invalidateCustomerInsightCache();
-                        if (selectedCustomer) {
-                            fetchCustomerInsight(selectedCustomer.id, true);
+            const isEditMode = Boolean(editingBookingId);
+
+            // Disable BOTH buttons while saving (no double submit)
+            if (btnSave) {
+                btnSave.disabled = true;
+                if (!thenPrint) {
+                    btnSave.innerHTML = isEditMode
+                        ? '<i class="fa-solid fa-spinner fa-spin me-2"></i> Updating...'
+                        : '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
+                }
+            }
+            if (btnPrint) {
+                btnPrint.disabled = true;
+                if (thenPrint) {
+                    btnPrint.innerHTML = isEditMode
+                        ? '<i class="fa-solid fa-spinner fa-spin me-1"></i> Updating...'
+                        : '<i class="fa-solid fa-spinner fa-spin me-1"></i> Saving...';
+                }
+            }
+
+            const payload = {
+                trade_type: hiddenTradeType ? hiddenTradeType.value : 'SELL',
+                entry_type: typeSelect ? typeSelect.value : 'ONLY_ENTRY',
+                metal: categorySelect ? categorySelect.value : 'GOLD',
+                items: bookingItems.map((item) => ({
+                    metal: item.metal || (categorySelect ? categorySelect.value : 'GOLD'),
+                    weight: parseFloat(item.weight),
+                    rate: parseFloat(item.rate),
+                })),
+                payments: bookingPayments.map((p) => ({
+                    mode: p.mode,
+                    online_method: p.mode === 'ONLINE' ? p.online_method || 'UPI' : null,
+                    amount: parseFloat(p.amount),
+                })),
+                narration: inputNarration ? inputNarration.value.trim() : null,
+                send_whatsapp: whatsappSwitch ? whatsappSwitch.checked : false,
+            };
+
+            // Only send customer_id and request_token on CREATE (store). Updates do not change customer or request_token.
+            if (!isEditMode) {
+                payload.customer_id = parseInt(hiddenCustomerId.value, 10);
+                payload.request_token = currentRequestToken;
+            }
+
+            const targetUrl = isEditMode
+                ? getRoute('bhavBookingUpdate', editingBookingId)
+                : window.APP_ROUTES && window.APP_ROUTES.bhavBookingStore
+                    ? window.APP_ROUTES.bhavBookingStore
+                    : '/bhav-bookings';
+
+            const targetMethod = isEditMode ? 'PUT' : 'POST';
+
+            apiFetch(targetUrl, {
+                method: targetMethod,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            })
+                .then((savedData) => {
+                    const bookings =
+                        Array.isArray(savedData.bookings) && savedData.bookings.length > 0
+                            ? savedData.bookings
+                            : savedData.id
+                                ? [savedData]
+                                : [];
+                    const groupId =
+                        savedData.group_id ||
+                        (bookings[0] ? bookings[0].booking_group_id || bookings[0].request_token : null);
+
+                    // Refresh recent customers cache after booking save
+                    fetchRecentCustomers(true);
+                    invalidateCustomerInsightCache();
+                    if (selectedCustomer) {
+                        fetchCustomerInsight(selectedCustomer.id, true);
+                    }
+
+                    const firstB = bookings[0] || savedData;
+                    const bNo =
+                        firstB && firstB.booking_no
+                            ? firstB.booking_no
+                            : editingBookingNo || (isEditMode ? 'booking' : '');
+
+                    if (thenPrint) {
+                        const fmt = typeof getBhavPrintFormat === 'function' ? getBhavPrintFormat() : 'a4';
+                        const formatParam = fmt === 'thermal' ? '?format=thermal' : '';
+                        let printUrl = '';
+                        if (bookings.length > 1 && groupId) {
+                            const baseGroupUrl =
+                                window.APP_ROUTES && window.APP_ROUTES.bhavBookingGroupPrint
+                                    ? window.APP_ROUTES.bhavBookingGroupPrint.replace(
+                                          '__GROUP_ID__',
+                                          encodeURIComponent(groupId)
+                                      )
+                                    : `/bhav-bookings/group/${encodeURIComponent(groupId)}/print`;
+                            printUrl = `${baseGroupUrl}${formatParam}`;
+                        } else {
+                            const targetId = bookings[0] ? bookings[0].id : savedData.id;
+                            printUrl = `${getRoute('bhavBookingPrint', targetId)}${formatParam}`;
                         }
 
-                        if (isEditMode) {
-                            exitEditMode(true);
-                            // Stay on current page when editing
-                            fetchBookingList(currentListPage);
-                            showSaveSuccessModal(savedData, true);
+                        if (printWin && !printWin.closed) {
+                            try {
+                                printWin.location.href = printUrl;
+                            } catch (e) {
+                                window.open(printUrl, '_blank');
+                            }
+                            showToast(`${isEditMode ? 'Updated' : 'Saved'} ${bNo} — opening print`, 'success');
                         } else {
-                            resetFormAfterSave(true);
-                            // Reload list from page 1 after new creation
-                            fetchBookingList(1);
+                            // Popup was blocked: show toast with "Print now" link
+                            const safeBNo = escapeHtml(bNo);
+                            const safeUrl = escapeHtml(printUrl);
+                            showToast(
+                                `${isEditMode ? 'Updated' : 'Saved'} ${safeBNo} — <a href="${safeUrl}" target="_blank" class="fw-bold text-decoration-underline ms-1" style="color: inherit;">Print now</a>`,
+                                'success',
+                                7000,
+                                { html: true }
+                            );
+                        }
+                    }
+
+                    if (isEditMode) {
+                        exitEditMode(true);
+                        // Stay on current page when editing
+                        fetchBookingList(currentListPage);
+                        if (!thenPrint) {
+                            showSaveSuccessModal(savedData, true);
+                        }
+                    } else {
+                        resetFormAfterSave(true);
+                        // Reload list from page 1 after new creation
+                        fetchBookingList(1);
+                        if (!thenPrint) {
                             showSaveSuccessModal(savedData, false);
                         }
-                    })
-                    .catch((err) => {
-                        console.error(isEditMode ? 'Booking update error:' : 'Booking save error:', err);
-                        if (err.status === 422 && err.data) {
-                            if (err.data.errors) {
-                                handleValidationErrors(err.data.errors);
-                            } else if (err.data.message) {
-                                showToast(err.data.message, 'error');
-                            }
+                    }
+                    switchMobileTab('booking');
+                })
+                .catch((err) => {
+                    console.error(isEditMode ? 'Booking update error:' : 'Booking save error:', err);
+                    if (printWin && !printWin.closed) {
+                        try {
+                            printWin.close();
+                        } catch (e) {
+                            // Ignore close error
                         }
-                    })
-                    .finally(() => {
+                    }
+                    if (err.status === 422 && err.data) {
+                        if (err.data.errors) {
+                            handleValidationErrors(err.data.errors);
+                        } else if (err.data.message) {
+                            showToast(err.data.message, 'error');
+                        }
+                    } else if (err.message) {
+                        showToast(err.message, 'error');
+                    } else {
+                        showToast('Something went wrong while saving. Please try again.', 'error');
+                    }
+                })
+                .finally(() => {
+                    if (btnSave) {
                         btnSave.disabled = false;
                         if (editingBookingId) {
                             btnSave.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i> UPDATE';
                         } else {
-                            btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
+                            btnSave.innerHTML =
+                                '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE <span class="badge bg-white text-dark ms-1 py-0.5 px-1.5 d-none d-md-inline" style="font-size: 9px; opacity: 0.9; font-weight: 700;">Ctrl+S</span>';
                         }
-                    });
-            } catch (syncErr) {
-                console.error('Something went wrong while saving:', syncErr);
-                showToast('Something went wrong while saving. Please try again.', 'error');
+                    }
+                    updateFormPrintButtonState();
+                });
+        } catch (syncErr) {
+            console.error('Something went wrong while saving:', syncErr);
+            if (printWin && !printWin.closed) {
+                try {
+                    printWin.close();
+                } catch (e) {
+                    // Ignore close error
+                }
+            }
+            showToast('Something went wrong while saving. Please try again.', 'error');
+            if (btnSave) {
                 btnSave.disabled = false;
                 if (editingBookingId) {
                     btnSave.innerHTML = '<i class="fa-solid fa-pen-to-square me-2"></i> UPDATE';
                 } else {
-                    btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
+                    btnSave.innerHTML =
+                        '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE <span class="badge bg-white text-dark ms-1 py-0.5 px-1.5 d-none d-md-inline" style="font-size: 9px; opacity: 0.9; font-weight: 700;">Ctrl+S</span>';
                 }
             }
+            updateFormPrintButtonState();
+        }
+    }
+
+    if (btnSave) {
+        btnSave.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (btnSave.disabled) return;
+            submitBooking({ thenPrint: false, printWin: null });
         });
     }
 
@@ -4022,13 +4342,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const s = parseFloat(silverWeight) || 0;
 
         if (g > 0 && s > 0) {
-            return `<div class="text-nowrap" style="line-height: 1.25;">G: ${g.toFixed(3)} gm</div><div class="text-nowrap" style="line-height: 1.25;">S: ${s.toFixed(3)} gm</div>`;
+            return `<div class="text-nowrap" style="line-height: 1.25;">G: ${g.toFixed(3)}<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></div><div class="text-nowrap" style="line-height: 1.25;">S: ${s.toFixed(3)}<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></div>`;
         } else if (g > 0) {
-            return `<div class="text-nowrap" style="line-height: 1.25;">G: ${g.toFixed(3)} gm</div>`;
+            return `<div class="text-nowrap" style="line-height: 1.25;">G: ${g.toFixed(3)}<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></div>`;
         } else if (s > 0) {
-            return `<div class="text-nowrap" style="line-height: 1.25;">S: ${s.toFixed(3)} gm</div>`;
+            return `<div class="text-nowrap" style="line-height: 1.25;">S: ${s.toFixed(3)}<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></div>`;
         } else {
-            return `<div class="text-nowrap" style="line-height: 1.25;">0.000 gm</div>`;
+            return `<div class="text-nowrap" style="line-height: 1.25;">0.000<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></div>`;
         }
     }
 
@@ -4036,16 +4356,16 @@ document.addEventListener('DOMContentLoaded', function () {
      * Reset table footer aggregate totals to zero
      */
     function resetTotalsToZero() {
-        if (totalBuyWt) totalBuyWt.innerHTML = '<div class="text-nowrap" style="line-height: 1.25;">0.000 gm</div>';
+        if (totalBuyWt) totalBuyWt.innerHTML = '<div class="text-nowrap" style="line-height: 1.25;">0.000<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></div>';
         if (totalBuyAmt) totalBuyAmt.textContent = '₹0.00';
-        if (totalSellWt) totalSellWt.innerHTML = '<div class="text-nowrap" style="line-height: 1.25;">0.000 gm</div>';
+        if (totalSellWt) totalSellWt.innerHTML = '<div class="text-nowrap" style="line-height: 1.25;">0.000<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></div>';
         if (totalSellAmt) totalSellAmt.textContent = '₹0.00';
         if (totalGiven)
             totalGiven.innerHTML =
-                '<div class="text-danger fw-bold text-nowrap" style="line-height: 1.25;">G: ₹0.00</div>';
+                '<div class="text-danger fw-bold text-nowrap" style="font-size: 14px; font-weight: 700; line-height: 1.25;"><span class="text-muted" style="font-size: 12px; font-weight: 600;">G:</span> ₹0.00</div>';
         if (totalReceived)
             totalReceived.innerHTML =
-                '<div class="text-success fw-bold text-nowrap" style="line-height: 1.25;">R: ₹0.00</div>';
+                '<div class="text-success fw-bold text-nowrap" style="font-size: 14px; font-weight: 700; line-height: 1.25;"><span class="text-muted" style="font-size: 12px; font-weight: 600;">R:</span> ₹0.00</div>';
     }
 
     /**
@@ -4072,10 +4392,10 @@ document.addEventListener('DOMContentLoaded', function () {
             totalSellAmt.textContent = '₹' + formatIndianCurrency(totals.sell_amount || 0);
         }
         if (totalGiven) {
-            totalGiven.innerHTML = `<div class="text-danger fw-bold text-nowrap" style="line-height: 1.25;">G: ₹${formatIndianCurrency(totals.given_total || 0)}</div>`;
+            totalGiven.innerHTML = `<div class="text-danger fw-bold text-nowrap" style="font-size: 14px; font-weight: 700; line-height: 1.25;"><span class="text-muted" style="font-size: 12px; font-weight: 600;">G:</span> ₹${formatIndianCurrency(totals.given_total || 0)}</div>`;
         }
         if (totalReceived) {
-            totalReceived.innerHTML = `<div class="text-success fw-bold text-nowrap" style="line-height: 1.25;">R: ₹${formatIndianCurrency(totals.received_total || 0)}</div>`;
+            totalReceived.innerHTML = `<div class="text-success fw-bold text-nowrap" style="font-size: 14px; font-weight: 700; line-height: 1.25;"><span class="text-muted" style="font-size: 12px; font-weight: 600;">R:</span> ₹${formatIndianCurrency(totals.received_total || 0)}</div>`;
         }
     }
 
@@ -4162,6 +4482,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const customerName = customer.name || 'Unknown Customer';
             const customerNo = customer.customer_no || '-';
             const bookingNo = booking.booking_no || '-';
+            const customerCellTooltip = `Customer: ${customerNo} • Booking: ${bookingNo}`;
 
             const isGold = (booking.metal || '').toUpperCase() === 'GOLD';
             const metalBadge = isGold
@@ -4203,11 +4524,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 sellAmt = emptyCell;
 
             if (isBuy) {
-                buyWt = `<span class="text-success fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500;">gm</span></span>`;
+                buyWt = `<span class="text-success fw-bold text-nowrap">${wtFormatted}<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></span>`;
                 buyRate = `<span class="text-success fw-bold text-nowrap">${rateDisplay}</span>`;
                 buyAmt = `<span class="text-success fw-bold text-nowrap">${amtFormatted}</span>`;
             } else {
-                sellWt = `<span class="text-danger fw-bold text-nowrap">${wtFormatted} <span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500;">gm</span></span>`;
+                sellWt = `<span class="text-danger fw-bold text-nowrap">${wtFormatted}<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></span>`;
                 sellRate = `<span class="text-danger fw-bold text-nowrap">${rateDisplay}</span>`;
                 sellAmt = `<span class="text-danger fw-bold text-nowrap">${amtFormatted}</span>`;
             }
@@ -4224,8 +4545,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="progress-bar bg-success" role="progressbar" style="width: ${pct}%; border-radius: 2px;" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
             `;
-            const givenHtml = `<div class="text-danger fw-bold text-nowrap given-amt-line" style="font-size: 13px; line-height: 1.25;">G: ₹${formatIndianCurrency(givenAmt)}</div>`;
-            const receivedHtml = `<div class="text-success fw-bold text-nowrap received-amt-line" style="font-size: 13px; line-height: 1.25;">R: ₹${formatIndianCurrency(receivedAmt)}</div>`;
+            const givenHtml = `<div class="text-danger fw-bold text-nowrap given-amt-line" style="font-size: 14px; font-weight: 700; line-height: 1.25;"><span class="text-muted" style="font-size: 12px; font-weight: 600;">G:</span> ₹${formatIndianCurrency(givenAmt)}</div>`;
+            const receivedHtml = `<div class="text-success fw-bold text-nowrap received-amt-line" style="font-size: 14px; font-weight: 700; line-height: 1.25;"><span class="text-muted" style="font-size: 12px; font-weight: 600;">R:</span> ₹${formatIndianCurrency(receivedAmt)}</div>`;
 
             // Action column: 3-dot Kebab menu (View, Edit, Print, Share, WhatsApp, Delete, Silent Delete)
             const actionHtml = renderActionKebabMenu(booking);
@@ -4234,11 +4555,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 <tr class="bhav-row ${isBuy ? 'row-trade-buy' : 'row-trade-sell'}" data-id="${booking.id}">
                     <td class="bhav-col-sn fw-semibold text-muted text-center">${sn}</td>
                     <td class="bhav-col-datetime text-center">${dateTimeHtml}</td>
-                    <td class="bhav-col-customer text-start" title="Booking: ${escapeHtml(bookingNo)}">
-                        <div class="text-truncate" style="line-height: 1.35; max-width: 210px;" title="${escapeHtml(customerName)} (${escapeHtml(customerNo)})">
-                            <span class="customer-name-text text-dark" style="font-size: 13.5px; font-weight: 700;">${escapeHtml(customerName)}</span> <span class="customer-id-text text-muted" style="font-size: 11.5px; font-weight: 600; color: #64748b;">(${escapeHtml(customerNo)})</span>
+                    <td class="bhav-col-customer text-start" title="${escapeHtml(customerCellTooltip)}" data-bs-toggle="tooltip" data-bs-placement="top">
+                        <div class="customer-name-wrapper text-truncate" style="line-height: 1.35;" title="${escapeHtml(customerName)}">
+                            <span class="customer-name-text text-dark" style="font-size: 13.5px; font-weight: 700;">${escapeHtml(customerName)}</span>
                         </div>
-                        <div class="d-flex align-items-center gap-1 text-nowrap" style="line-height: 1; margin-top: 3px;">
+                        <div class="d-flex align-items-center gap-1 text-nowrap customer-badges-wrapper" style="line-height: 1; margin-top: 3px;">
                             ${metalBadge}
                             ${typeBadge}
                             ${statusBadge}
@@ -4369,6 +4690,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function fetchBookingList(page = 1) {
         currentListPage = page;
         closeActiveItemsPopover();
+        clearTableSpotlight();
 
         // Cancel previous request if still running
         if (listAbortController) {
@@ -4448,6 +4770,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 const rows = data.rows || [];
                 const pagination = data.pagination || null;
                 const totals = data.totals || null;
+
+                const totalRows = pagination && typeof pagination.total === 'number' ? pagination.total : rows.length;
+                updateMobileListTabCount(totalRows);
 
                 renderTableRows(rows, pagination);
                 renderPagination(pagination);
@@ -4638,12 +4963,311 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 
+    // =========================================================================
+    // DRAFT AUTO-SAVE & RESTORE (LocalStorage)
+    // =========================================================================
+    const DRAFT_STORAGE_KEY = 'bhavBookingDraft';
+    const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+    const draftBanner = document.getElementById('draftBanner');
+    const draftBannerText = document.getElementById('draftBannerText');
+    const btnRestoreDraft = document.getElementById('btnRestoreDraft');
+    const btnDiscardDraft = document.getElementById('btnDiscardDraft');
+
+    let draftDebounceTimer = null;
+
+    function safeGetDraft() {
+        try {
+            const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function safeSetDraft(draft) {
+        try {
+            localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+        } catch (e) {
+            // LocalStorage might be full or disabled; ignore safely
+        }
+    }
+
+    function safeRemoveDraft() {
+        try {
+            localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch (e) {
+            // LocalStorage disabled; ignore safely
+        }
+    }
+
+    function draftHasDetails(draft) {
+        if (!draft || typeof draft !== 'object') return false;
+        const hasCustomer = Boolean(draft.customer && draft.customer.id);
+        const hasRows = Array.isArray(draft.entry_rows) && draft.entry_rows.length > 0;
+        const hasWeight = Boolean(draft.current_weight && String(draft.current_weight).trim() !== '');
+        const hasPayments = Array.isArray(draft.payment_entries) && draft.payment_entries.length > 0;
+        const hasPaymentInput = Boolean(draft.payment_input && parseFloat(draft.payment_input) > 0);
+        const hasNarration = Boolean(draft.narration && String(draft.narration).trim() !== '');
+        return hasCustomer || hasRows || hasWeight || hasPayments || hasPaymentInput || hasNarration;
+    }
+
+    function formatDraftRelativeTime(timestamp) {
+        const diffMs = Math.max(0, Date.now() - (timestamp || 0));
+        const diffSec = Math.floor(diffMs / 1000);
+        const diffMin = Math.floor(diffSec / 60);
+        const diffHours = Math.floor(diffMin / 60);
+
+        if (diffMin < 1) {
+            return 'just now';
+        } else if (diffMin === 1) {
+            return '1 min ago';
+        } else if (diffMin < 60) {
+            return `${diffMin} min ago`;
+        } else if (diffHours === 1) {
+            return '1 hr ago';
+        } else {
+            return `${diffHours} hrs ago`;
+        }
+    }
+
+    function hideDraftBanner() {
+        if (draftBanner) {
+            draftBanner.classList.remove('d-flex');
+            draftBanner.classList.add('d-none');
+        }
+    }
+
+    function checkAndShowDraftBanner() {
+        if (editingBookingId !== null) {
+            hideDraftBanner();
+            return;
+        }
+        const draft = safeGetDraft();
+        if (!draft || !draft.savedAt) {
+            hideDraftBanner();
+            return;
+        }
+        const age = Date.now() - draft.savedAt;
+        if (age >= DRAFT_MAX_AGE_MS || !draftHasDetails(draft)) {
+            safeRemoveDraft();
+            hideDraftBanner();
+            return;
+        }
+
+        if (draftBanner && draftBannerText) {
+            draftBannerText.textContent = `Unsaved booking from ${formatDraftRelativeTime(draft.savedAt)}`;
+            draftBanner.classList.remove('d-none');
+            draftBanner.classList.add('d-flex');
+        }
+    }
+
+    function getCurrentDraftData() {
+        let customerData = null;
+        if (selectedCustomer) {
+            customerData = {
+                id: selectedCustomer.id,
+                name: selectedCustomer.name || '',
+                customer_no: selectedCustomer.customer_no || '',
+                mobile: selectedCustomer.mobile || '',
+            };
+        }
+        const currentMode = hiddenTradeType ? hiddenTradeType.value || 'SELL' : 'SELL';
+        const entryTypeVal = typeSelect ? typeSelect.value : 'ONLY_ENTRY';
+        const currentRateVal = inputRate ? inputRate.value : '';
+        const currentWeightVal = inputWeight ? inputWeight.value : '';
+        const currentPaymentAmountVal = inputPaymentAmount ? inputPaymentAmount.value : '';
+        const currentPaymentMethodVal = paymentOnlineMethod ? paymentOnlineMethod.value : 'UPI';
+        const currentNarrationVal = inputNarration ? inputNarration.value : '';
+        const isWhatsApp = Boolean(whatsappSwitch && whatsappSwitch.checked);
+
+        const items = (Array.isArray(bookingItems) ? bookingItems : []).map((item) => ({
+            id: item.id,
+            metal: item.metal || currentMetal,
+            weight: item.weight,
+            rate: item.rate,
+            amount: item.amount,
+        }));
+
+        const payments = (Array.isArray(bookingPayments) ? bookingPayments : []).map((p) => ({
+            id: p.id,
+            mode: p.mode,
+            online_method: p.online_method || 'UPI',
+            amount: p.amount,
+        }));
+
+        return {
+            customer: customerData,
+            trade_mode: currentMode,
+            entry_type: entryTypeVal,
+            metal: categorySelect ? categorySelect.value : currentMetal || 'GOLD',
+            current_rate: currentRateVal,
+            current_weight: currentWeightVal,
+            entry_rows: items,
+            payment_entries: payments,
+            payment_input: currentPaymentAmountVal,
+            payment_mode: currentPaymentMode || 'CASH',
+            payment_online_method: currentPaymentMethodVal,
+            narration: currentNarrationVal,
+            send_whatsapp: isWhatsApp,
+            savedAt: Date.now(),
+        };
+    }
+
+    function saveDraftToLocalStorage() {
+        if (editingBookingId !== null) return;
+        const draft = getCurrentDraftData();
+        if (!draftHasDetails(draft)) {
+            safeRemoveDraft();
+            hideDraftBanner();
+            return;
+        }
+        safeSetDraft(draft);
+    }
+
+    function triggerDraftSave() {
+        updateFormPrintButtonState();
+        if (editingBookingId !== null) return;
+        clearTimeout(draftDebounceTimer);
+        draftDebounceTimer = setTimeout(saveDraftToLocalStorage, 500);
+    }
+
+    function restoreDraft() {
+        const draft = safeGetDraft();
+        if (!draft) {
+            hideDraftBanner();
+            return;
+        }
+        hideDraftBanner();
+
+        editingBookingId = null;
+        editingBookingNo = null;
+        if (btnSave) {
+            btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
+        }
+        if (categorySelect) {
+            categorySelect.disabled = false;
+        }
+
+        // 1. Trade mode
+        if (draft.trade_mode) {
+            setTradeMode(draft.trade_mode);
+        }
+
+        // 2. Entry type
+        if (typeSelect && draft.entry_type) {
+            typeSelect.value = draft.entry_type;
+        }
+
+        // 3. Metal
+        if (draft.metal) {
+            currentMetal = draft.metal;
+            if (categorySelect) {
+                categorySelect.value = draft.metal;
+            }
+        }
+
+        // 4. Rate
+        if (inputRate && draft.current_rate !== undefined && draft.current_rate !== '') {
+            inputRate.value = draft.current_rate;
+        } else if (inputRate) {
+            const def = getDefaultRateForMetal(currentMetal);
+            inputRate.value = def.rate;
+        }
+
+        // 5. Customer
+        if (draft.customer && draft.customer.id) {
+            selectCustomer(draft.customer);
+        } else {
+            clearCustomerSelection();
+        }
+        unlockCustomerField();
+
+        // 6. Weight input
+        if (inputWeight) {
+            inputWeight.value = draft.current_weight || '';
+        }
+
+        // 7. Entry rows
+        bookingItems = [];
+        if (Array.isArray(draft.entry_rows)) {
+            draft.entry_rows.forEach((it) => {
+                bookingItems.push({
+                    id: nextItemId++,
+                    metal: it.metal || currentMetal,
+                    weight: parseFloat(it.weight) || 0,
+                    rate: parseFloat(it.rate) || 0,
+                    amount: parseFloat(it.amount) || calculateRowAmount(it.weight, it.rate),
+                });
+            });
+        }
+        renderEntriesTable();
+
+        // 8. Payment entries
+        bookingPayments = [];
+        nextPaymentId = 1;
+        if (Array.isArray(draft.payment_entries)) {
+            draft.payment_entries.forEach((p) => {
+                bookingPayments.push({
+                    id: nextPaymentId++,
+                    mode: (p.mode || 'CASH').toUpperCase(),
+                    online_method: p.online_method || 'UPI',
+                    amount: parseFloat(p.amount) || 0,
+                });
+            });
+        }
+        renderPaymentEntriesTable();
+        if (draft.payment_mode) {
+            setPaymentMode(draft.payment_mode);
+        }
+        if (paymentOnlineMethod && draft.payment_online_method) {
+            paymentOnlineMethod.value = draft.payment_online_method;
+        }
+        if (inputPaymentAmount) {
+            inputPaymentAmount.value = draft.payment_input || '';
+        }
+
+        // 9. Narration
+        if (inputNarration) {
+            inputNarration.value = draft.narration || '';
+        }
+        if (narrationCounter) {
+            narrationCounter.textContent = `${(draft.narration || '').length}/255`;
+        }
+
+        // 10. WhatsApp switch
+        if (whatsappSwitch) {
+            whatsappSwitch.checked = Boolean(draft.send_whatsapp);
+        }
+
+        // 11. Request token
+        currentRequestToken = generateRequestToken();
+
+        // 12. Recalculate totals
+        updateAllTotals();
+
+        showToast('Draft restored', 'info');
+        updateFormPrintButtonState();
+
+        if (inputWeight) {
+            inputWeight.focus();
+        }
+    }
+
+    function discardDraft() {
+        safeRemoveDraft();
+        hideDraftBanner();
+        updateFormPrintButtonState();
+        showToast('Draft discarded', 'info');
+    }
+
     /**
      * Check if user has unsaved work in the left form:
      * - Rows added
      * - Weight typed
      * - Customer selected
      * - Payment entries added or payment typed
+     * - Narration typed
      */
     function hasUnsavedEntries() {
         const hasRows = Array.isArray(bookingItems) && bookingItems.length > 0;
@@ -4653,14 +5277,161 @@ document.addEventListener('DOMContentLoaded', function () {
         const hasPaymentAmount = Boolean(
             inputPaymentAmount && inputPaymentAmount.value && parseFloat(inputPaymentAmount.value) > 0
         );
-        return hasRows || hasWeight || hasCustomer || hasPayments || hasPaymentAmount;
+        const hasNarration = Boolean(inputNarration && inputNarration.value && inputNarration.value.trim() !== '');
+        return hasRows || hasWeight || hasCustomer || hasPayments || hasPaymentAmount || hasNarration;
+    }
+
+    /**
+     * Repeat an existing booking as a NEW booking (fills form with same customer, mode, type, metal, weights)
+     * Rates are set to today's rate (or default rate if not set), row amounts recalculated.
+     * Payments, narration and WhatsApp are NOT copied. New request_token. Not edit mode (customer not locked).
+     */
+    async function repeatBooking(bookingId, knownBookingNo = null) {
+        let bNo = knownBookingNo || `BB-${String(bookingId).padStart(6, '0')}`;
+
+        // If form has details, confirm before replacing
+        if (hasUnsavedEntries()) {
+            const res = await showConfirmDialog({
+                title: 'Replace form details?',
+                message: `Replace the current form with a copy of ${bNo}?`,
+                confirmText: 'Replace',
+                confirmClass: 'btn-warning text-dark',
+                icon: 'fa-solid fa-copy text-warning',
+            });
+            if (!res.confirmed) {
+                return;
+            }
+        }
+
+        const showUrl = getRoute('bhavBookingShow', bookingId);
+        try {
+            if (todayRatesPromise) {
+                await todayRatesPromise;
+            }
+
+            const booking = await apiFetch(showUrl);
+            bNo = booking.booking_no || bNo || `BB-${String(booking.id).padStart(6, '0')}`;
+
+            // Ensure not in edit mode
+            editingBookingId = null;
+            editingBookingNo = null;
+            if (btnSave) {
+                btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SAVE';
+            }
+            if (categorySelect) {
+                categorySelect.disabled = false;
+            }
+            unlockCustomerField();
+            resetValidationErrors();
+
+            // 1. Same customer
+            if (booking.customer) {
+                selectCustomer(booking.customer);
+            } else {
+                clearCustomerSelection();
+            }
+
+            // 2. Same trade mode (BUY / SELL)
+            const bookingTrade = (booking.trade_type || 'SELL').toUpperCase();
+            setTradeMode(bookingTrade);
+            if (filterTradeSelect) {
+                filterTradeSelect.value = bookingTrade;
+            }
+            applyTradeColumnVisibility(bookingTrade);
+            updateTradeViewBadge(bookingTrade);
+            fetchBookingList(currentListPage);
+
+            // 3. Same entry type
+            if (typeSelect) {
+                typeSelect.value = booking.entry_type || 'ONLY_ENTRY';
+            }
+
+            // 4. Same metal
+            const bookingMetal = (booking.metal || 'GOLD').toUpperCase();
+            currentMetal = bookingMetal;
+            if (categorySelect) {
+                categorySelect.value = bookingMetal;
+                categorySelect.disabled = false;
+            }
+
+            // 5. Rates set to today's rate (or default rate if not set), row amounts recalculated
+            const targetRateDef = getDefaultRateForMetal(bookingMetal);
+            const targetRate = parseFloat(targetRateDef.rate) || 0;
+            if (inputRate) {
+                inputRate.value = targetRateDef.rate;
+            }
+
+            // 6. Entry weights copied with target rate and recalculated amounts
+            bookingItems = [];
+            if (Array.isArray(booking.items) && booking.items.length > 0) {
+                booking.items.forEach((it) => {
+                    const w = parseFloat(it.weight) || 0;
+                    const a = calculateRowAmount(w, targetRate);
+                    bookingItems.push({
+                        id: nextItemId++,
+                        metal: bookingMetal,
+                        weight: w,
+                        rate: targetRate,
+                        amount: a,
+                    });
+                });
+            } else if (parseFloat(booking.total_weight) > 0) {
+                const w = parseFloat(booking.total_weight);
+                const a = calculateRowAmount(w, targetRate);
+                bookingItems.push({
+                    id: nextItemId++,
+                    metal: bookingMetal,
+                    weight: w,
+                    rate: targetRate,
+                    amount: a,
+                });
+            }
+            renderEntriesTable();
+
+            // 7. Payments, narration, WhatsApp NOT copied
+            bookingPayments = [];
+            nextPaymentId = 1;
+            renderPaymentEntriesTable();
+            setPaymentMode('CASH');
+            if (inputPaymentAmount) inputPaymentAmount.value = '';
+            if (paymentOnlineMethod) paymentOnlineMethod.value = 'UPI';
+
+            if (inputNarration) inputNarration.value = '';
+            if (narrationCounter) narrationCounter.textContent = '0/255';
+            if (whatsappSwitch) whatsappSwitch.checked = false;
+
+            if (inputWeight) inputWeight.value = '';
+
+            // 8. New request token
+            currentRequestToken = generateRequestToken();
+
+            // 9. Update totals
+            updateAllTotals();
+
+            // Hide draft banner and save draft
+            hideDraftBanner();
+            triggerDraftSave();
+
+            // 10. Toast
+            showToast(`Copied ${bNo} — check rates and save`, 'info');
+
+            // Switch to Booking tab on mobile
+            switchMobileTab('booking');
+
+            // 11. Focus weight input
+            if (inputWeight) {
+                inputWeight.focus();
+            }
+        } catch (err) {
+            showToast(err.message || 'Failed to repeat booking', 'danger');
+        }
     }
 
     /**
      * Load an existing booking into the left form for editing (Task C4)
      * Fetches booking with customer + items from GET /bhav-bookings/{bhavBooking}
      */
-    function loadBookingForEdit(bookingId, knownBookingNo = null) {
+    async function loadBookingForEdit(bookingId, knownBookingNo = null) {
         // If clicking Edit on the booking that is already being edited, do nothing
         if (editingBookingId === bookingId) {
             return;
@@ -4668,8 +5439,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // If target booking number is already known and user has unsaved entries, confirm before fetching
         if (knownBookingNo && hasUnsavedEntries()) {
-            const confirmed = window.confirm(`You have unsaved entries. Discard them and edit ${knownBookingNo}?`);
-            if (!confirmed) {
+            const res = await showConfirmDialog({
+                title: 'Discard unsaved entries?',
+                message: `You have unsaved entries. Discard them and edit ${knownBookingNo}?`,
+                confirmText: 'Discard & Edit',
+                confirmClass: 'btn-warning text-dark',
+                icon: 'fa-solid fa-triangle-exclamation text-warning',
+            });
+            if (!res.confirmed) {
                 return;
             }
         }
@@ -4677,12 +5454,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const showUrl = getRoute('bhavBookingShow', bookingId);
 
         apiFetch(showUrl)
-            .then((booking) => {
+            .then(async (booking) => {
                 // If target booking number was not known upfront (e.g. from ?edit=) and user has unsaved entries, confirm now
                 if (!knownBookingNo && hasUnsavedEntries()) {
                     const bNo = booking.booking_no || `BB-${String(booking.id).padStart(6, '0')}`;
-                    const confirmed = window.confirm(`You have unsaved entries. Discard them and edit ${bNo}?`);
-                    if (!confirmed) {
+                    const res = await showConfirmDialog({
+                        title: 'Discard unsaved entries?',
+                        message: `You have unsaved entries. Discard them and edit ${bNo}?`,
+                        confirmText: 'Discard & Edit',
+                        confirmClass: 'btn-warning text-dark',
+                        icon: 'fa-solid fa-triangle-exclamation text-warning',
+                    });
+                    if (!res.confirmed) {
                         return;
                     }
                 }
@@ -4795,6 +5578,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // 10. Switch UI to Edit Mode
                 enterEditMode(booking);
 
+                // Switch to Booking tab on mobile
+                switchMobileTab('booking');
+
                 // Smoothly scroll to the form and focus weight input
                 const formEl = document.getElementById('bhavBookingForm');
                 if (formEl) {
@@ -4856,10 +5642,11 @@ document.addEventListener('DOMContentLoaded', function () {
         trendEl.style.display = 'inline-block';
     }
 
+    let todayRatesPromise = null;
     function fetchTodayRates() {
-        if (!window.APP_ROUTES || !window.APP_ROUTES.dailyRatesToday) return;
+        if (!window.APP_ROUTES || !window.APP_ROUTES.dailyRatesToday) return Promise.resolve(null);
 
-        apiFetch(window.APP_ROUTES.dailyRatesToday)
+        todayRatesPromise = apiFetch(window.APP_ROUTES.dailyRatesToday)
             .then((rates) => {
                 window.TODAY_RATES = rates;
 
@@ -4895,8 +5682,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     updateAllTotals();
                 }
+                return rates;
             })
-            .catch((err) => console.warn('Could not fetch daily rates:', err));
+            .catch((err) => {
+                console.warn('Could not fetch daily rates:', err);
+                return null;
+            });
+        return todayRatesPromise;
     }
 
     function initDailyRateModal() {
@@ -4982,6 +5774,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (data.rates) {
                             window.TODAY_RATES = data.rates;
                             fetchTodayRates();
+                            fetchBookingList();
                         }
                         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                             bootstrap.Modal.getInstance(modalEl)?.hide();
@@ -5019,8 +5812,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 onEdit: function (booking) {
                     loadBookingForEdit(booking.id, booking.booking_no);
                 },
+                onRepeat: function (booking) {
+                    repeatBooking(booking.id, booking.booking_no);
+                },
                 onDeleted: function (bookingId) {
                     if (editingBookingId === bookingId) {
+                        exitEditMode();
+                    }
+                    invalidateCustomerInsightCache();
+                    if (selectedCustomer) {
+                        fetchCustomerInsight(selectedCustomer.id, true);
+                    }
+                    fetchBookingList(currentListPage);
+                },
+                onCancelled: function (res) {
+                    const cancelledId = res && res.booking ? res.booking.id : null;
+                    if (cancelledId && editingBookingId === cancelledId) {
                         exitEditMode();
                     }
                     invalidateCustomerInsightCache();
@@ -5040,6 +5847,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Unsaved Draft banner button events
+    if (btnRestoreDraft) {
+        btnRestoreDraft.addEventListener('click', function (e) {
+            e.preventDefault();
+            restoreDraft();
+        });
+    }
+
+    if (btnDiscardDraft) {
+        btnDiscardDraft.addEventListener('click', function (e) {
+            e.preventDefault();
+            discardDraft();
+        });
+    }
+
     // =========================================================================
     // INITIALIZATION: Load Booking List & Auto-open Customer Field on Page Load
     // =========================================================================
@@ -5054,16 +5876,26 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     applyTradeColumnVisibility(initialTradeMode);
     updateTradeViewBadge(initialTradeMode);
+    switchMobileTab(getSavedMobileTab());
+    updatePrintButtonLabels();
+    updateFormPrintButtonState();
     fetchBookingList(1);
 
-    // Auto-load booking for edit if ?edit={id} query parameter is present in URL
+    // Auto-load booking for edit if ?edit={id} or repeat if ?repeat={id}
     const urlParams = new URLSearchParams(window.location.search);
     const editIdParam = urlParams.get('edit');
+    const repeatIdParam = urlParams.get('repeat');
     if (editIdParam) {
         const editId = parseInt(editIdParam, 10);
         if (editId) {
             window.history.replaceState({}, '', window.location.pathname);
             loadBookingForEdit(editId);
+        }
+    } else if (repeatIdParam) {
+        const repeatId = parseInt(repeatIdParam, 10);
+        if (repeatId) {
+            window.history.replaceState({}, '', window.location.pathname);
+            repeatBooking(repeatId);
         }
     } else {
         // Focus customer input ready to type, without opening dropdown
@@ -5071,5 +5903,6 @@ document.addEventListener('DOMContentLoaded', function () {
             suppressNextFocusDropdown = true;
             customerSearchInput.focus();
         }
+        checkAndShowDraftBanner();
     }
 });

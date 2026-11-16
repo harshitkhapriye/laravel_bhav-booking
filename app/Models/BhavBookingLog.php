@@ -105,6 +105,10 @@ class BhavBookingLog extends Model
             case 'RESTORED':
                 return 'Restored booking';
 
+            case 'CANCELLED':
+                $reason = $this->new_values['reason'] ?? $this->new_values['cancel_reason'] ?? '';
+                return $reason ? "Cancelled booking: {$reason}" : 'Cancelled booking';
+
             case 'PRINTED':
                 return 'Voucher printed';
 

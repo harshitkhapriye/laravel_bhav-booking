@@ -196,6 +196,7 @@
 
 <!-- Shared View Booking Modal Partial -->
 @include('partials.bhav-view-modal')
+@include('partials.confirm-action-modal')
 
 <!-- Pass dynamic application route URLs & Bhav config to JavaScript -->
 <script>
@@ -211,6 +212,7 @@
         bhavBookingShow: "{{ route('bhav-bookings.show', ['bhavBooking' => '__ID__']) }}",
         bhavBookingUpdate: "{{ route('bhav-bookings.update', ['bhavBooking' => '__ID__']) }}",
         bhavBookingDelete: "{{ route('bhav-bookings.destroy', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingCancel: "{{ route('bhav-bookings.cancel', ['bhavBooking' => '__ID__']) }}",
         bhavBookingRestore: "{{ route('bhav-bookings.restore', ['id' => '__ID__']) }}",
         bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}",
         bhavBookingExport: "{{ route('bhav-bookings.export') }}",

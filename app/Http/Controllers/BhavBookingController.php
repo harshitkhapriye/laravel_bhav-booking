@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateBhavBookingRequest;
 use App\Models\BhavBooking;
 use App\Models\BhavBookingLog;
 use App\Models\Customer;
+use App\Models\DailyRate;
 use App\Services\BhavBookingService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -127,6 +128,31 @@ class BhavBookingController extends Controller
             COALESCE(SUM(received_amount), 0) as received_total
         ")->first();
 
+        // Get today's bullion rates once per request (zero N+1)
+        $todayRates = DailyRate::getTodayRates();
+        $view = strtolower($request->input('view', 'current') ?: 'current');
+
+        // Compute rate_diff_total over the entire filtered result for current bookings
+        $rateDiffTotal = null;
+        if ($view !== 'old') {
+            $filteredForTotals = (clone $query)->select([
+                'id', 'trade_type', 'metal', 'total_weight', 'total_amount', 'delivered_weight', 'status',
+            ])->get();
+
+            $hasAnyDiff = false;
+            $sumDiff = 0.0;
+            foreach ($filteredForTotals as $b) {
+                $calc = BhavBookingService::rateDifference($b, $todayRates);
+                if ($calc !== null && $calc['rate_diff'] !== null) {
+                    $hasAnyDiff = true;
+                    $sumDiff += (float) $calc['rate_diff'];
+                }
+            }
+            if ($hasAnyDiff) {
+                $rateDiffTotal = round($sumDiff, 2);
+            }
+        }
+
         $totals = [
             'buy_weight_gold' => (float) ($aggregates->buy_weight_gold ?? 0),
             'buy_weight_silver' => (float) ($aggregates->buy_weight_silver ?? 0),
@@ -136,6 +162,7 @@ class BhavBookingController extends Controller
             'sell_amount' => (float) ($aggregates->sell_amount ?? 0),
             'given_total' => (float) ($aggregates->given_total ?? 0),
             'received_total' => (float) ($aggregates->received_total ?? 0),
+            'rate_diff_total' => $rateDiffTotal,
         ];
 
         // 6. Eager load customer and items, sort newest booked_at first
@@ -154,6 +181,8 @@ class BhavBookingController extends Controller
             'given_amount',
             'received_amount',
             'status',
+            'cancel_reason',
+            'cancelled_at',
             'narration',
             'booked_at',
         ])
@@ -167,7 +196,9 @@ class BhavBookingController extends Controller
             ->paginate($perPage);
 
         // Format rows according to frontend expectations
-        $rows = collect($paginator->items())->map(function (BhavBooking $booking) {
+        $rows = collect($paginator->items())->map(function (BhavBooking $booking) use ($todayRates, $view) {
+            $rateDiffInfo = ($view !== 'old') ? BhavBookingService::rateDifference($booking, $todayRates) : null;
+
             return [
                 'id' => $booking->id,
                 'booking_no' => $booking->booking_no,
@@ -188,7 +219,12 @@ class BhavBookingController extends Controller
                 'pending_weight' => (float) max(0, $booking->total_weight - $booking->delivered_weight),
                 'given_amount' => (float) $booking->given_amount,
                 'received_amount' => (float) $booking->received_amount,
+                'rate_diff' => $rateDiffInfo['rate_diff'] ?? null,
+                'booked_avg_rate' => $rateDiffInfo['booked_avg_rate'] ?? null,
+                'today_rate_used' => $rateDiffInfo['today_rate_used'] ?? null,
                 'status' => $booking->status,
+                'cancel_reason' => $booking->cancel_reason,
+                'cancelled_at' => $booking->cancelled_at ? $booking->cancelled_at->toIso8601String() : null,
                 'narration' => $booking->narration,
                 'send_whatsapp' => (bool) $booking->send_whatsapp,
                 'has_external_payments' => $booking->payments->contains('source', 'BUY_SELL'),
@@ -266,6 +302,11 @@ class BhavBookingController extends Controller
             'logs',
         ]);
         $bhavBooking->has_external_payments = $bhavBooking->payments->contains('source', 'BUY_SELL');
+
+        $rateDiffInfo = BhavBookingService::rateDifference($bhavBooking);
+        $bhavBooking->setAttribute('rate_diff', $rateDiffInfo['rate_diff'] ?? null);
+        $bhavBooking->setAttribute('booked_avg_rate', $rateDiffInfo['booked_avg_rate'] ?? null);
+        $bhavBooking->setAttribute('today_rate_used', $rateDiffInfo['today_rate_used'] ?? null);
 
         return response()->json($bhavBooking);
     }
@@ -453,19 +494,47 @@ class BhavBookingController extends Controller
     }
 
     /**
-     * Print voucher view for a single booking.
+     * Cancel an existing Bhav Booking with a reason.
      */
-    public function print(BhavBooking $bhavBooking)
+    public function cancel(Request $request, BhavBooking $bhavBooking): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|min:3|max:255',
+        ]);
+
+        $this->bhavBookingService->cancel($bhavBooking, $validated['reason']);
+
+        return response()->json([
+            'message' => 'Booking cancelled successfully.',
+            'booking' => $bhavBooking->fresh(['customer', 'items', 'payments', 'logs']),
+        ]);
+    }
+
+    /**
+     * Print voucher view for a single booking.
+     * Supports ?format=thermal (default A4).
+     */
+    public function print(Request $request, BhavBooking $bhavBooking)
     {
         $booking = $bhavBooking->load(['customer', 'items', 'payments']);
+        $format = strtolower($request->query('format', 'a4'));
+
+        if ($format === 'thermal') {
+            return view('buy-sell.bhav-booking-thermal-print', [
+                'booking' => $booking,
+                'bookings' => collect([$booking]),
+                'isGroup' => false,
+            ]);
+        }
 
         return view('buy-sell.bhav-booking-print', compact('booking'));
     }
 
     /**
      * Print voucher view for all bookings in a group on one page.
+     * Supports ?format=thermal (default A4).
      */
-    public function printGroup(string $groupId)
+    public function printGroup(Request $request, string $groupId)
     {
         $bookings = BhavBooking::where('booking_group_id', $groupId)
             ->orWhere('request_token', $groupId)
@@ -475,6 +544,17 @@ class BhavBookingController extends Controller
 
         if ($bookings->isEmpty()) {
             abort(404, 'Booking group not found');
+        }
+
+        $format = strtolower($request->query('format', 'a4'));
+
+        if ($format === 'thermal') {
+            return view('buy-sell.bhav-booking-thermal-print', [
+                'bookings' => $bookings,
+                'booking' => $bookings->first(),
+                'groupId' => $groupId,
+                'isGroup' => true,
+            ]);
         }
 
         return view('buy-sell.bhav-booking-group-print', compact('bookings', 'groupId'));

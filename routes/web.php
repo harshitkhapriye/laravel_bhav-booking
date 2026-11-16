@@ -112,6 +112,11 @@ Route::post('/bhav-bookings/{bhavBooking}/log-action', [BhavBookingController::c
     ->name('bhav-bookings.log-action')
     ->missing($missingBookingCallback);
 
+Route::post('/bhav-bookings/{bhavBooking}/cancel', [BhavBookingController::class, 'cancel'])
+    ->middleware('throttle:30,1')
+    ->name('bhav-bookings.cancel')
+    ->missing($missingBookingCallback);
+
 Route::post('/bhav-bookings/{id}/restore', [BhavBookingController::class, 'restore'])
     ->middleware('throttle:30,1')
     ->name('bhav-bookings.restore');

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BhavBooking;
 use App\Models\BhavBookingLog;
+use App\Models\DailyRate;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -487,5 +488,137 @@ class BhavBookingService
             'user_agent' => request()->userAgent(),
             'created_at' => now(),
         ]);
+    }
+
+    /**
+     * Cancel an existing Bhav Booking.
+     * Allowed only if status is PENDING or PARTIAL and delivered_weight = 0.
+     * Reason is required (min 3, max 255 chars).
+     *
+     * @throws ValidationException
+     */
+    public function cancel(BhavBooking $booking, string $reason): BhavBooking
+    {
+        $trimmedReason = trim($reason);
+        if (mb_strlen($trimmedReason) < 3 || mb_strlen($trimmedReason) > 255) {
+            throw ValidationException::withMessages([
+                'reason' => ['The reason must be between 3 and 255 characters.'],
+            ]);
+        }
+
+        $status = strtoupper((string) $booking->status);
+        $delivered = round((float) $booking->delivered_weight, 3);
+
+        if ($delivered > 0) {
+            throw ValidationException::withMessages([
+                'booking' => ['This booking has delivery and cannot be cancelled'],
+            ]);
+        }
+
+        if (! in_array($status, ['PENDING', 'PARTIAL'], true)) {
+            if ($status === 'CANCELLED') {
+                throw ValidationException::withMessages([
+                    'booking' => ['This booking is already cancelled'],
+                ]);
+            }
+            throw ValidationException::withMessages([
+                'booking' => ['This booking has delivery and cannot be cancelled'],
+            ]);
+        }
+
+        $oldStatus = $booking->status;
+
+        $booking->update([
+            'status' => 'CANCELLED',
+            'cancel_reason' => $trimmedReason,
+            'cancelled_at' => now(),
+        ]);
+
+        BhavBookingLog::create([
+            'bhav_booking_id' => $booking->id,
+            'action' => 'CANCELLED',
+            'old_values' => [
+                'status' => $oldStatus,
+            ],
+            'new_values' => [
+                'reason' => $trimmedReason,
+                'cancel_reason' => $trimmedReason,
+                'cancelled_at' => $booking->cancelled_at ? $booking->cancelled_at->toIso8601String() : null,
+            ],
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
+        ]);
+
+        return $booking;
+    }
+
+    /**
+     * Calculate gain/loss compared with today's rate ("vs Today") from the shop's point of view.
+     *
+     * Only for bookings with status PENDING or PARTIAL, and only if today's rate for that metal is set (DailyRate is_set = true).
+     * booked_rate = total_amount * rate_unit_grams / total_weight
+     * pending_weight = total_weight - delivered_weight
+     * SELL: diff = (booked_rate - today_rate) * pending_weight / rate_unit_grams
+     * BUY:  diff = (today_rate - booked_rate) * pending_weight / rate_unit_grams
+     * Positive = shop's favour, negative = against shop. Round to 2 decimals.
+     *
+     * @param  \App\Models\BhavBooking|array|object  $booking
+     * @param  array|null  $todayRates
+     * @return array{rate_diff: float, booked_avg_rate: float, today_rate_used: float}|null
+     */
+    public static function rateDifference($booking, ?array $todayRates = null): ?array
+    {
+        $status = is_array($booking) ? ($booking['status'] ?? null) : ($booking->status ?? null);
+        $status = strtoupper((string) $status);
+        if (! in_array($status, ['PENDING', 'PARTIAL'], true)) {
+            return null;
+        }
+
+        $metal = is_array($booking) ? ($booking['metal'] ?? null) : ($booking->metal ?? null);
+        $metal = strtoupper((string) $metal);
+
+        if ($todayRates === null) {
+            $todayRates = DailyRate::getTodayRates();
+        }
+
+        if (empty($todayRates[$metal]) || empty($todayRates[$metal]['is_set'])) {
+            return null;
+        }
+
+        $todayRate = (float) $todayRates[$metal]['rate'];
+
+        $totalWeight = (float) (is_array($booking) ? ($booking['total_weight'] ?? 0) : ($booking->total_weight ?? 0));
+        if ($totalWeight <= 0) {
+            return null;
+        }
+
+        $totalAmount = (float) (is_array($booking) ? ($booking['total_amount'] ?? 0) : ($booking->total_amount ?? 0));
+        $deliveredWeight = (float) (is_array($booking) ? ($booking['delivered_weight'] ?? 0) : ($booking->delivered_weight ?? 0));
+
+        $rateUnitGrams = (float) config('bhav.rate_unit_grams', 10);
+        if ($rateUnitGrams <= 0) {
+            $rateUnitGrams = 10.0;
+        }
+
+        $bookedRate = ($totalAmount * $rateUnitGrams) / $totalWeight;
+        $pendingWeight = max(0.0, $totalWeight - $deliveredWeight);
+
+        $tradeType = is_array($booking) ? ($booking['trade_type'] ?? null) : ($booking->trade_type ?? null);
+        $tradeType = strtoupper((string) $tradeType);
+
+        if ($tradeType === 'SELL') {
+            $diff = ($bookedRate - $todayRate) * $pendingWeight / $rateUnitGrams;
+        } elseif ($tradeType === 'BUY') {
+            $diff = ($todayRate - $bookedRate) * $pendingWeight / $rateUnitGrams;
+        } else {
+            return null;
+        }
+
+        return [
+            'rate_diff' => round($diff, 2),
+            'booked_avg_rate' => round($bookedRate, 2),
+            'today_rate_used' => round($todayRate, 2),
+        ];
     }
 }

@@ -72,8 +72,20 @@
         </div>
     </div>
 
+    <!-- Mobile Tabs Bar (screens < 992px only) -->
+    <div class="bhav-mobile-tabs-container d-lg-none" id="bhavMobileTabsContainer">
+        <div class="bhav-mobile-tabs-bar d-flex p-1 rounded-pill bg-white border shadow-sm mx-auto" style="max-width: 440px;">
+            <button type="button" class="btn btn-sm bhav-mobile-tab-btn flex-fill rounded-pill fw-bold active" id="tabBtnBooking" data-tab="booking">
+                <i class="fa-solid fa-file-pen me-1"></i> Booking
+            </button>
+            <button type="button" class="btn btn-sm bhav-mobile-tab-btn flex-fill rounded-pill fw-bold text-muted" id="tabBtnList" data-tab="list">
+                <i class="fa-solid fa-list-check me-1"></i> List (<span id="mobileListCountText">0</span>)
+            </button>
+        </div>
+    </div>
+
     <!-- Main Content Grid (Two Cards: Left Form & Right List) -->
-    <div class="row g-2 g-xl-2 bhav-main-row">
+    <div class="row g-2 g-xl-2 bhav-main-row bhav-active-tab-booking" id="bhavMainRow">
 
         <!-- B) Left Card: Form -->
         <div class="col-12 bhav-col-form">
@@ -92,6 +104,19 @@
                         <a href="#" id="linkCancelEditTop" class="text-danger fw-bold small text-decoration-none">
                             <i class="fa-solid fa-xmark me-1"></i> Cancel
                         </a>
+                    </div>
+
+                    <!-- Unsaved Draft Banner -->
+                    <div class="draft-indicator alert alert-success align-items-center justify-content-between py-1 px-3 mb-2 rounded-pill shadow-sm d-none" id="draftBanner" style="font-size: 12.5px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;">
+                        <div class="d-flex align-items-center gap-2 text-truncate">
+                            <i class="fa-solid fa-clock-rotate-left text-success"></i>
+                            <span id="draftBannerText" class="fw-semibold">Unsaved booking from 10 min ago</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 ms-2 flex-shrink-0">
+                            <span class="text-muted">—</span>
+                            <button type="button" class="btn btn-sm btn-success rounded-pill py-0 px-2 fw-bold" id="btnRestoreDraft" style="font-size: 11px;">Restore</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-0 px-2 fw-bold" id="btnDiscardDraft" style="font-size: 11px;">Discard</button>
+                        </div>
                     </div>
 
                     <!-- BUY / SELL Toggle Switch -->
@@ -394,9 +419,18 @@
                         <!-- Sticky Summary Bar -->
                         <div class="bhav-sticky-summary-bar d-flex align-items-center justify-content-end gap-2" id="bhavStickySummaryBar">
                             <div class="sticky-summary-actions d-flex align-items-center gap-1 gap-sm-2 flex-shrink-0">
-                                <button type="button" class="btn btn-outline-print btn-sm rounded-pill px-2 px-sm-3 py-1 fw-bold" id="btnPrint" style="height: 32px; font-size: 11.5px;">
-                                    <i class="fa-solid fa-print me-1"></i> PRINT
-                                </button>
+                                <div class="btn-group btn-group-sm rounded-pill" id="formPrintGroup" style="height: 32px;">
+                                    <button type="button" class="btn btn-outline-print btn-sm rounded-start-pill px-2 px-sm-3 py-1 fw-bold" id="btnPrint" style="font-size: 11.5px;" disabled title="Fill booking details to Save & Print">
+                                        <i class="fa-solid fa-print me-1"></i> <span id="formPrintLabel">PRINT</span>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-print btn-sm rounded-end-pill dropdown-toggle dropdown-toggle-split px-2" data-bs-toggle="dropdown" aria-expanded="false" title="Print Format">
+                                        <span class="visually-hidden">Toggle print format</span>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm py-1" style="min-width: 150px; font-size: 12px;">
+                                        <li><a class="dropdown-item py-1 px-3 d-flex align-items-center justify-content-between print-option-a4" href="#" data-format="a4"><span>A4</span></a></li>
+                                        <li><a class="dropdown-item py-1 px-3 d-flex align-items-center justify-content-between print-option-thermal" href="#" data-format="thermal"><span>Thermal (80mm)</span></a></li>
+                                    </ul>
+                                </div>
                                 <div class="d-flex align-items-center gap-1">
                                     <button type="button" class="btn btn-gradient-save btn-sm rounded-pill px-2 px-sm-3 py-1 fw-bold d-inline-flex align-items-center gap-1" id="btnSave" style="height: 32px; font-size: 11.5px;">
                                         <i class="fa-solid fa-floppy-disk me-1"></i> SAVE
@@ -418,32 +452,28 @@
             <div class="card custom-content-card bhav-list-card h-100 shadow-sm border-0">
                 <div class="card-body p-2 p-md-3 d-flex flex-column">
 
-                    <!-- List Header & View Badge -->
-                    <div class="d-flex align-items-center justify-content-between mb-2 list-header-row" id="listHeaderRow">
-                        <div class="d-flex align-items-center gap-2">
+                    <!-- Row 1: [Current Bookings pill] [Sell/Buy/All badge] [Search input — flex: 1] [Export button] -->
+                    <div class="d-flex align-items-center gap-2 mb-2 list-header-row" id="listHeaderRow">
+                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
                             <span class="badge rounded-pill text-white d-inline-flex align-items-center gap-2 list-heading-badge" id="listHeadingBadge">
                                 <i class="fa-solid fa-list-ul text-warning" id="listHeadingIcon"></i>
                                 <span id="listHeadingText">Current Bookings</span>
                             </span>
                             <span class="badge rounded-pill trade-view-badge badge-trade-sell" id="tradeViewBadge">Sell</span>
                         </div>
-                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill fw-bold d-flex align-items-center gap-1 shadow-sm btn-export-bookings" id="btnExportBookings" title="Export filtered bookings to CSV">
+                        <div class="input-with-icon filter-input-with-icon flex-grow-1" style="flex: 1;">
+                            <i class="fa-solid fa-magnifying-glass field-icon filter-field-icon text-muted"></i>
+                            <input type="text" class="form-control form-input-pill filter-input-sm" id="filterPartyInput" placeholder="Search Party, Mobile, Booking No..." aria-label="Filter bookings by party or booking number">
+                        </div>
+                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill fw-bold d-flex align-items-center gap-1 shadow-sm btn-export-bookings flex-shrink-0" id="btnExportBookings" title="Export filtered bookings to CSV">
                             <i class="fa-solid fa-file-csv"></i> Export
                         </button>
                     </div>
 
-                    <!-- Filter Bar: 1 row on >=1600px, 2 rows below -->
-                    <div class="row g-1 align-items-center mb-1 list-filters-wrapper">
-                        <!-- Search Party -->
-                        <div class="col-12 col-md-6 filter-col-search">
-                            <div class="input-with-icon filter-input-with-icon">
-                                <i class="fa-solid fa-magnifying-glass field-icon filter-field-icon text-muted"></i>
-                                <input type="text" class="form-control form-input-pill filter-input-sm" id="filterPartyInput" placeholder="Search Party, Mobile, Booking No..." aria-label="Filter bookings by party or booking number">
-                            </div>
-                        </div>
-
+                    <!-- Row 2: [Date range — flex: 1.4] [Trade select] [Metal select] [Type select] [Page size select] (all flex: 1) -->
+                    <div class="d-flex align-items-center gap-2 mb-2 list-filters-row" id="listFiltersRow">
                         <!-- Date Range -->
-                        <div class="col-12 col-md-6 position-relative filter-col-date" id="dateRangePickerWrapper">
+                        <div class="position-relative filter-col-date" id="dateRangePickerWrapper" style="flex: 1.4;">
                             <input type="hidden" name="date_from" id="dateFilterFrom" value="{{ date('Y-m-d') }}">
                             <input type="hidden" name="date_to" id="dateFilterTo" value="{{ date('Y-m-d') }}">
                             <div class="input-with-suffix filter-input-with-suffix cursor-pointer">
@@ -483,7 +513,7 @@
                         </div>
 
                         <!-- Trade Filter -->
-                        <div class="col-3 filter-col-select filter-col-trade">
+                        <div class="filter-col-select filter-col-trade" style="flex: 1;">
                             <select class="form-select form-input-pill filter-select-sm text-center" id="filterTradeSelect" aria-label="Filter by trade type">
                                 <option value="ALL">Trade: All</option>
                                 <option value="BUY">Buy</option>
@@ -492,7 +522,7 @@
                         </div>
 
                         <!-- Metal Filter -->
-                        <div class="col-3 filter-col-select filter-col-metal">
+                        <div class="filter-col-select filter-col-metal" style="flex: 1;">
                             <select class="form-select form-input-pill filter-select-sm text-center" id="filterMetalSelect" aria-label="Filter by metal">
                                 <option value="ALL" selected>Metal: All</option>
                                 <option value="GOLD">Gold</option>
@@ -501,7 +531,7 @@
                         </div>
 
                         <!-- Type Filter -->
-                        <div class="col-3 filter-col-select filter-col-type">
+                        <div class="filter-col-select filter-col-type" style="flex: 1;">
                             <select class="form-select form-input-pill filter-select-sm text-center" id="filterTypeSelect" aria-label="Filter by entry type">
                                 <option value="ALL" selected>Type: All</option>
                                 <option value="ONLY_ENTRY">Only Entry</option>
@@ -510,7 +540,7 @@
                         </div>
 
                         <!-- Page Size Selector -->
-                        <div class="col-3 filter-col-select filter-col-pagesize">
+                        <div class="filter-col-select filter-col-pagesize" style="flex: 1;">
                             <select class="form-select form-input-pill filter-select-sm text-center" id="pageSizeSelect" aria-label="Bookings per page">
                                 <option value="10" selected>10 / page</option>
                                 <option value="50">50 / page</option>
@@ -533,17 +563,17 @@
                                     <th rowspan="2" class="col-customer">CUSTOMER</th>
                                     <th colspan="3" class="col-group-buy border-bottom-0 col-buy">BUY DETAILS</th>
                                     <th colspan="3" class="col-group-sell border-bottom-0 col-sell">SELL DETAILS</th>
-                                    <th rowspan="2" class="col-given-received">GIVEN / RECEIVED</th>
+                                    <th rowspan="2" class="col-given-received" style="font-size: 11.5px;">GIVEN / RECEIVED</th>
                                     <th rowspan="2" class="col-action">ACTION</th>
                                 </tr>
                                 <!-- Header Row 2 -->
                                 <tr class="header-row-sub">
-                                    <th class="sub-col col-buy">WT</th>
-                                    <th class="sub-col col-buy">RATE</th>
-                                    <th class="sub-col col-buy group-end">AMT</th>
-                                    <th class="sub-col col-sell">WT</th>
-                                    <th class="sub-col col-sell">RATE</th>
-                                    <th class="sub-col col-sell group-end">AMT</th>
+                                    <th class="sub-col col-buy col-buy-wt text-end">WT</th>
+                                    <th class="sub-col col-buy col-buy-rate text-end">RATE</th>
+                                    <th class="sub-col col-buy col-buy-amt group-end text-end">AMT</th>
+                                    <th class="sub-col col-sell col-sell-wt text-end">WT</th>
+                                    <th class="sub-col col-sell col-sell-rate text-end">RATE</th>
+                                    <th class="sub-col col-sell col-sell-amt group-end text-end">AMT</th>
                                 </tr>
                             </thead>
                             <tbody id="bhavTableBody">
@@ -560,15 +590,15 @@
                             <tfoot>
                                 <tr class="table-total-row">
                                     <td colspan="3" class="text-end fw-bold pe-3">TOTAL :-</td>
-                                    <td class="text-success fw-bold col-buy" id="totalBuyWt">0.000 gm</td>
-                                    <td class="col-buy"></td>
-                                    <td class="text-success fw-bold col-buy group-end" id="totalBuyAmt">₹0.00</td>
-                                    <td class="text-danger fw-bold col-sell" id="totalSellWt">0.000 gm</td>
-                                    <td class="col-sell"></td>
-                                    <td class="text-danger fw-bold col-sell group-end" id="totalSellAmt">₹0.00</td>
-                                    <td class="col-given-received">
-                                        <div class="text-danger fw-bold" id="totalGiven">G: ₹0.00</div>
-                                        <div class="text-success fw-bold" id="totalReceived">R: ₹0.00</div>
+                                    <td class="text-success fw-bold col-buy col-buy-wt text-end" id="totalBuyWt">0.000<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></td>
+                                    <td class="col-buy col-buy-rate"></td>
+                                    <td class="text-success fw-bold col-buy col-buy-amt group-end text-end" id="totalBuyAmt">₹0.00</td>
+                                    <td class="text-danger fw-bold col-sell col-sell-wt text-end" id="totalSellWt">0.000<span class="unit-text text-muted" style="font-size: 10.5px; font-weight: 500; margin-left: 2px;">gm</span></td>
+                                    <td class="col-sell col-sell-rate"></td>
+                                    <td class="text-danger fw-bold col-sell col-sell-amt group-end text-end" id="totalSellAmt">₹0.00</td>
+                                    <td class="col-given-received text-center">
+                                        <div class="text-danger fw-bold text-nowrap" id="totalGiven" style="font-size: 14px; font-weight: 700; line-height: 1.25;"><span class="text-muted" style="font-size: 12px; font-weight: 600;">G:</span> ₹0.00</div>
+                                        <div class="text-success fw-bold text-nowrap" id="totalReceived" style="font-size: 14px; font-weight: 700; line-height: 1.25;"><span class="text-muted" style="font-size: 12px; font-weight: 600;">R:</span> ₹0.00</div>
                                     </td>
                                     <td class="col-action"></td>
                                 </tr>
@@ -606,6 +636,7 @@
 @include('partials.daily-rate-modal')
 @include('partials.shortcuts-modal')
 @include('partials.confirm-remove-customer-modal')
+@include('partials.confirm-action-modal')
 
 <!-- Pass dynamic application route URLs & Bhav config to JavaScript -->
 <script>
@@ -624,6 +655,7 @@
         bhavBookingShow: "{{ route('bhav-bookings.show', ['bhavBooking' => '__ID__']) }}",
         bhavBookingUpdate: "{{ route('bhav-bookings.update', ['bhavBooking' => '__ID__']) }}",
         bhavBookingDelete: "{{ route('bhav-bookings.destroy', ['bhavBooking' => '__ID__']) }}",
+        bhavBookingCancel: "{{ route('bhav-bookings.cancel', ['bhavBooking' => '__ID__']) }}",
         bhavBookingRestore: "{{ route('bhav-bookings.restore', ['id' => '__ID__']) }}",
         bhavBookingPrint: "{{ route('bhav-bookings.print', ['bhavBooking' => '__ID__']) }}",
         bhavBookingGroupPrint: "{{ route('bhav-bookings.group.print', ['groupId' => '__GROUP_ID__']) }}",

@@ -1,4 +1,4 @@
-/* exported escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateTimeDisplay, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, formatBookingDateTime, refreshRelativeTimeLabels, pad2, metalIconSvg, renderMultipleRatesBadge, buildItemsPopoverContent, openItemsPopover, closeActiveItemsPopover, disposeAllItemsPopovers, initItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getCsrfToken, getRoute, showToast, showDeleteUndoToast, isBookingModifiable, generateBookingSummary, shareBooking, copySummaryToClipboard, fallbackClipboardCopy, whatsappBooking, deleteBookingWithConfirm, viewBookingDetails, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, initExportHandler, initKeyboardShortcuts */
+/* exported escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateTimeDisplay, formatDateISO, formatDateDisplay, formatDateTimeTwoLines, formatBookingDateTime, pad2, metalIconSvg, renderMultipleRatesBadge, buildItemsPopoverContent, openItemsPopover, closeActiveItemsPopover, disposeAllItemsPopovers, initItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getCsrfToken, getRoute, showToast, showDeleteUndoToast, isBookingModifiable, generateBookingSummary, shareBooking, copySummaryToClipboard, fallbackClipboardCopy, whatsappBooking, deleteBookingWithConfirm, viewBookingDetails, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, initExportHandler, initKeyboardShortcuts, getBhavPrintFormat, setBhavPrintFormat, updatePrintButtonLabels, setTableSpotlight, clearTableSpotlight */
 /**
  * Bhav Booking - Shared JavaScript Utilities & Handlers
  * Application: Just Udhari - Buy-Sell Module
@@ -216,7 +216,7 @@ function formatDateDisplay(d) {
     return String(d);
 }
 
-// Global helper: Format server ISO/SQL datetime string into two compact lines with relative time for today
+// Global helper: Format server ISO/SQL datetime string into two compact lines: Date on line 1, Time on line 2
 function formatBookingDateTime(dateString) {
     if (!dateString) return '<span class="text-muted opacity-50">–</span>';
     const d = new Date(dateString);
@@ -231,36 +231,14 @@ function formatBookingDateTime(dateString) {
     hours = hours % 12;
     hours = hours ? hours : 12;
     const minutes = pad2(d.getMinutes());
-    const fullDateTime = `${day}-${month}-${year} ${pad2(hours)}:${minutes} ${ampm}`;
-
-    const now = new Date();
-    const isToday = d.getDate() === now.getDate() &&
-                    d.getMonth() === now.getMonth() &&
-                    d.getFullYear() === now.getFullYear();
-
-    let topText = `${day}-${month}-${year}`;
-    let isRelative = false;
-
-    if (isToday) {
-        isRelative = true;
-        const diffSec = Math.max(0, Math.floor((now.getTime() - d.getTime()) / 1000));
-        if (diffSec < 60) {
-            topText = 'Just now';
-        } else if (diffSec < 3600) {
-            const m = Math.floor(diffSec / 60);
-            topText = `${m} min ago`;
-        } else {
-            const h = Math.floor(diffSec / 3600);
-            topText = `${h} ${h === 1 ? 'hr' : 'hrs'} ago`;
-        }
-    }
-
-    const topClass = isRelative ? 'fw-bold text-primary text-nowrap relative-time-label' : 'fw-semibold text-dark text-nowrap';
+    const dateFormatted = `${day}-${month}-${year}`;
+    const timeFormatted = `${pad2(hours)}:${minutes} ${ampm}`;
+    const fullDateTime = `${dateFormatted} ${timeFormatted}`;
 
     return (
-        `<div class="booking-datetime-cell cursor-help" data-booked-at="${escapeHtml(dateString)}" title="${escapeHtml(fullDateTime)}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${escapeHtml(fullDateTime)}">` +
-        `<div class="${topClass} booking-date-line" style="font-size: 12px; font-weight: 600; line-height: 1.25;">${escapeHtml(topText)}</div>` +
-        `<div class="text-muted text-nowrap booking-time-line" style="font-size: 11px; font-weight: 500; line-height: 1.25;">${pad2(hours)}:${minutes} ${ampm}</div>` +
+        `<div class="booking-datetime-cell" title="${escapeHtml(fullDateTime)}" data-bs-toggle="tooltip" data-bs-placement="top">` +
+        `<div class="fw-bold text-dark text-nowrap booking-date-line" style="font-size: 12px; font-weight: 700; line-height: 1.25;">${escapeHtml(dateFormatted)}</div>` +
+        `<div class="text-muted text-nowrap booking-time-line" style="font-size: 11px; font-weight: 500; line-height: 1.25;">${timeFormatted}</div>` +
         `</div>`
     );
 }
@@ -269,41 +247,7 @@ function formatBookingDateTime(dateString) {
 function formatDateTimeTwoLines(dateString) {
     return formatBookingDateTime(dateString);
 }
-
-// Refresh relative time labels every minute without re-rendering tables
-function refreshRelativeTimeLabels() {
-    const cells = document.querySelectorAll('.booking-datetime-cell[data-booked-at]');
-    const now = new Date();
-    cells.forEach((cell) => {
-        const dateStr = cell.getAttribute('data-booked-at');
-        if (!dateStr) return;
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return;
-
-        const isToday = d.getDate() === now.getDate() &&
-                        d.getMonth() === now.getMonth() &&
-                        d.getFullYear() === now.getFullYear();
-        if (!isToday) return;
-
-        const label = cell.querySelector('.relative-time-label');
-        if (!label) return;
-
-        const diffSec = Math.max(0, Math.floor((now.getTime() - d.getTime()) / 1000));
-        let topText = 'Just now';
-        if (diffSec < 60) {
-            topText = 'Just now';
-        } else if (diffSec < 3600) {
-            const m = Math.floor(diffSec / 60);
-            topText = `${m} min ago`;
-        } else {
-            const h = Math.floor(diffSec / 3600);
-            topText = `${h} ${h === 1 ? 'hr' : 'hrs'} ago`;
-        }
-        label.textContent = topText;
-    });
-}
 window.formatBookingDateTime = formatBookingDateTime;
-window.refreshRelativeTimeLabels = refreshRelativeTimeLabels;
 
 // Global helper: Ledger / Box SVG illustration for list empty state
 function getLedgerEmptyStateSvg() {
@@ -581,8 +525,8 @@ function generateBookingSummary(input) {
     const bookings = Array.isArray(input)
         ? input
         : Array.isArray(input.bookings) && input.bookings.length > 0
-          ? input.bookings
-          : [input];
+            ? input.bookings
+            : [input];
     if (bookings.length === 0) return '';
 
     if (bookings.length === 1) {
@@ -702,8 +646,8 @@ function whatsappBooking(input) {
     const bookings = Array.isArray(input)
         ? input
         : Array.isArray(input.bookings) && input.bookings.length > 0
-          ? input.bookings
-          : [input];
+            ? input.bookings
+            : [input];
     const first = bookings[0] || {};
     const customer = first.customer || {};
     const rawMobile = String(customer.mobile || '').replace(/\D/g, '');
@@ -780,29 +724,319 @@ function showDeleteUndoToast(bookingId, bookingNo, isSilent, onRestoredCallback)
     }, 50);
 }
 
+// Global helpers: Thermal vs A4 Print Format Management
+const PRINT_FORMAT_STORAGE_KEY = 'bhavPrintFormat';
+
+function getBhavPrintFormat() {
+    try {
+        const val = localStorage.getItem(PRINT_FORMAT_STORAGE_KEY);
+        return val === 'thermal' ? 'thermal' : 'a4';
+    } catch (e) {
+        return 'a4';
+    }
+}
+
+function setBhavPrintFormat(format) {
+    try {
+        const fmt = format === 'thermal' ? 'thermal' : 'a4';
+        localStorage.setItem(PRINT_FORMAT_STORAGE_KEY, fmt);
+        updatePrintButtonLabels();
+        return fmt;
+    } catch (e) {
+        return 'a4';
+    }
+}
+
+function updatePrintButtonLabels() {
+    const fmt = getBhavPrintFormat();
+    const label = fmt === 'thermal' ? 'Thermal' : 'A4';
+
+    const viewModalPrintLabel = document.getElementById('viewModalPrintLabel');
+    if (viewModalPrintLabel) {
+        viewModalPrintLabel.textContent = `Print Voucher (${label})`;
+    }
+
+    const successPrintLabel = document.getElementById('successPrintLabel');
+    if (successPrintLabel) {
+        successPrintLabel.textContent = `Print (${label})`;
+    }
+}
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', function () {
+        updatePrintButtonLabels();
+    });
+}
+
+/**
+ * Global helper: Reusable Confirm Action Modal
+ * Returns a Promise<{ confirmed: boolean, value?: any }>
+ */
+function showConfirmDialog(options = {}) {
+    const {
+        title = 'Confirm Action',
+        message = '',
+        details = null,
+        confirmText = 'Confirm',
+        confirmClass = 'btn-danger',
+        icon = '',
+        warning = '',
+        input = null,
+    } = options;
+
+    return new Promise((resolve) => {
+        const modalEl = document.getElementById('confirmActionModal');
+        if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            console.warn('Confirm action modal element (#confirmActionModal) not found in DOM.');
+            resolve({ confirmed: false, value: null });
+            return;
+        }
+
+        const titleEl = document.getElementById('confirmActionModalLabel');
+        const iconEl = document.getElementById('confirmModalIcon');
+        const messageEl = document.getElementById('confirmModalMessage');
+        const warningEl = document.getElementById('confirmModalWarning');
+        const warningTextEl = document.getElementById('confirmModalWarningText');
+        const detailsEl = document.getElementById('confirmModalDetails');
+        const inputWrapperEl = document.getElementById('confirmModalInputWrapper');
+        const inputLabelEl = document.getElementById('confirmModalInputLabel');
+        const inputContainerEl = document.getElementById('confirmModalInputContainer');
+        const inputErrorEl = document.getElementById('confirmModalInputError');
+        const cancelBtn = document.getElementById('confirmModalCancelBtn');
+        const confirmBtn = document.getElementById('confirmModalConfirmBtn');
+
+        if (titleEl) titleEl.textContent = title;
+        if (messageEl) messageEl.textContent = message;
+
+        if (iconEl) {
+            if (icon) {
+                iconEl.className = icon + ' me-1';
+                iconEl.style.display = 'inline-block';
+            } else {
+                iconEl.style.display = 'none';
+            }
+        }
+
+        if (warningEl && warningTextEl) {
+            if (warning) {
+                warningTextEl.textContent = warning;
+                warningEl.style.display = 'flex';
+            } else {
+                warningEl.style.display = 'none';
+            }
+        }
+
+        if (detailsEl) {
+            detailsEl.innerHTML = '';
+            let detailItems = [];
+            if (Array.isArray(details)) {
+                detailItems = details;
+            } else if (details && typeof details === 'object') {
+                detailItems = Object.entries(details).map(([k, v]) => ({ label: k, value: v }));
+            }
+
+            if (detailItems.length > 0) {
+                detailsEl.style.display = 'block';
+                detailItems.forEach((d) => {
+                    const row = document.createElement('div');
+                    row.className = 'd-flex justify-content-between py-1 border-bottom border-light-subtle';
+                    const lbl = document.createElement('span');
+                    lbl.className = 'text-muted';
+                    lbl.textContent = d.label + ':';
+                    const val = document.createElement('strong');
+                    val.className = 'text-dark';
+                    val.textContent = d.value;
+                    row.appendChild(lbl);
+                    row.appendChild(val);
+                    detailsEl.appendChild(row);
+                });
+            } else {
+                detailsEl.style.display = 'none';
+            }
+        }
+
+        let selectReasonEl = null;
+        let textReasonEl = null;
+        let genericInputEl = null;
+
+        if (inputWrapperEl && inputContainerEl) {
+            inputContainerEl.innerHTML = '';
+            if (inputErrorEl) {
+                inputErrorEl.style.display = 'none';
+                inputErrorEl.textContent = '';
+            }
+
+            if (input) {
+                inputWrapperEl.style.display = 'block';
+                if (inputLabelEl) {
+                    inputLabelEl.textContent = input.label || (input.type === 'cancel_reason' ? 'Reason for Cancellation:' : 'Input:');
+                }
+
+                if (input.type === 'cancel_reason') {
+                    selectReasonEl = document.createElement('select');
+                    selectReasonEl.className = 'form-select form-select-sm mb-2';
+                    selectReasonEl.id = 'confirmInputSelectReason';
+
+                    const opts = Array.isArray(input.options) ? input.options : [
+                        'Customer changed mind',
+                        'Rate dispute',
+                        'Wrong entry',
+                        'Other',
+                    ];
+
+                    opts.forEach((opt) => {
+                        const optEl = document.createElement('option');
+                        optEl.value = opt;
+                        optEl.textContent = opt;
+                        selectReasonEl.appendChild(optEl);
+                    });
+
+                    textReasonEl = document.createElement('textarea');
+                    textReasonEl.className = 'form-control form-control-sm';
+                    textReasonEl.id = 'confirmInputTextReason';
+                    textReasonEl.rows = 2;
+                    textReasonEl.placeholder = 'Optional additional notes...';
+
+                    selectReasonEl.addEventListener('change', function () {
+                        if (selectReasonEl.value === 'Other') {
+                            textReasonEl.placeholder = 'Please enter reason (minimum 3 characters)...';
+                            textReasonEl.focus();
+                        } else {
+                            textReasonEl.placeholder = 'Optional additional notes...';
+                            if (inputErrorEl) inputErrorEl.style.display = 'none';
+                        }
+                    });
+
+                    inputContainerEl.appendChild(selectReasonEl);
+                    inputContainerEl.appendChild(textReasonEl);
+                } else if (input.type === 'select') {
+                    genericInputEl = document.createElement('select');
+                    genericInputEl.className = 'form-select form-select-sm';
+                    (input.options || []).forEach((opt) => {
+                        const optEl = document.createElement('option');
+                        optEl.value = typeof opt === 'object' ? opt.value : opt;
+                        optEl.textContent = typeof opt === 'object' ? opt.label : opt;
+                        genericInputEl.appendChild(optEl);
+                    });
+                    inputContainerEl.appendChild(genericInputEl);
+                } else if (input.type === 'textarea') {
+                    genericInputEl = document.createElement('textarea');
+                    genericInputEl.className = 'form-control form-control-sm';
+                    genericInputEl.rows = input.rows || 3;
+                    genericInputEl.placeholder = input.placeholder || '';
+                    inputContainerEl.appendChild(genericInputEl);
+                } else {
+                    genericInputEl = document.createElement('input');
+                    genericInputEl.type = input.type || 'text';
+                    genericInputEl.className = 'form-control form-control-sm';
+                    genericInputEl.placeholder = input.placeholder || '';
+                    inputContainerEl.appendChild(genericInputEl);
+                }
+            } else {
+                inputWrapperEl.style.display = 'none';
+            }
+        }
+
+        if (confirmBtn) {
+            confirmBtn.textContent = confirmText;
+            confirmBtn.className = 'btn rounded-pill px-4 py-2 fw-bold ' + confirmClass;
+        }
+
+        let isConfirmed = false;
+        let confirmedValue = null;
+
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        function cleanup() {
+            modalEl.removeEventListener('hidden.bs.modal', onHidden);
+            modalEl.removeEventListener('shown.bs.modal', onShown);
+            if (confirmBtn) confirmBtn.removeEventListener('click', onConfirm);
+        }
+
+        function onShown() {
+            if (cancelBtn) cancelBtn.focus();
+        }
+
+        function onHidden() {
+            cleanup();
+            resolve({
+                confirmed: isConfirmed,
+                value: confirmedValue,
+            });
+        }
+
+        function onConfirm() {
+            if (input && input.type === 'cancel_reason') {
+                const sel = selectReasonEl ? selectReasonEl.value : '';
+                const txt = textReasonEl ? textReasonEl.value.trim() : '';
+
+                if (sel === 'Other' && txt.length < 3) {
+                    if (inputErrorEl) {
+                        inputErrorEl.textContent = 'Please enter a reason (minimum 3 characters).';
+                        inputErrorEl.style.display = 'block';
+                    }
+                    if (textReasonEl) textReasonEl.focus();
+                    return;
+                }
+
+                confirmedValue = sel === 'Other' ? txt : (txt ? `${sel} - ${txt}` : sel);
+            } else if (genericInputEl) {
+                const val = genericInputEl.value.trim();
+                if (input && input.required && !val) {
+                    if (inputErrorEl) {
+                        inputErrorEl.textContent = 'This field is required.';
+                        inputErrorEl.style.display = 'block';
+                    }
+                    genericInputEl.focus();
+                    return;
+                }
+                confirmedValue = val;
+            }
+
+            isConfirmed = true;
+            modalInstance.hide();
+        }
+
+        modalEl.addEventListener('shown.bs.modal', onShown);
+        modalEl.addEventListener('hidden.bs.modal', onHidden);
+        if (confirmBtn) confirmBtn.addEventListener('click', onConfirm);
+
+        modalInstance.show();
+    });
+}
+
 // Global helper: Confirm and execute normal or silent soft delete
 function deleteBookingWithConfirm(bookingId, bookingNo, amount, isSilent, onDeletedCallback, onRestoredCallback) {
     const formattedAmt = formatIndianCurrency(amount || 0);
-    const confirmMessage = isSilent
-        ? `Silently delete booking ${bookingNo} (₹${formattedAmt})? No message will be sent.`
-        : `Delete booking ${bookingNo} (₹${formattedAmt})? Customer will be informed.`;
 
-    if (!window.confirm(confirmMessage)) return;
+    showConfirmDialog({
+        title: isSilent ? 'Silent Delete Booking?' : 'Delete Booking?',
+        message: isSilent
+            ? `Silently delete booking ${bookingNo} (₹${formattedAmt})? No message will be sent.`
+            : `Delete booking ${bookingNo} (₹${formattedAmt})? Customer will be informed.`,
+        details: [
+            { label: 'Booking No', value: bookingNo },
+            ...(amount ? [{ label: 'Amount', value: `₹${formattedAmt}` }] : []),
+        ],
+        confirmText: isSilent ? 'Silent Delete' : 'Delete',
+        confirmClass: 'btn-danger',
+        icon: 'fa-solid fa-trash-can text-danger',
+    }).then(({ confirmed }) => {
+        if (!confirmed) return;
 
-    // Note: Future customer notification webhook / SMS would be triggered for normal Delete,
-    // but bypassed for Silent Delete.
-    const deleteUrl = getRoute('bhavBookingDelete', bookingId);
-
-    apiFetch(deleteUrl, { method: 'DELETE' })
-        .then(() => {
-            if (typeof onDeletedCallback === 'function') {
-                onDeletedCallback(bookingId, bookingNo);
-            }
-            showDeleteUndoToast(bookingId, bookingNo, isSilent, onRestoredCallback);
-        })
-        .catch((err) => {
-            console.warn('Booking delete error:', err);
-        });
+        const deleteUrl = getRoute('bhavBookingDelete', bookingId);
+        apiFetch(deleteUrl, { method: 'DELETE' })
+            .then(() => {
+                if (typeof onDeletedCallback === 'function') {
+                    onDeletedCallback(bookingId, bookingNo);
+                }
+                showDeleteUndoToast(bookingId, bookingNo, isSilent, onRestoredCallback);
+            })
+            .catch((err) => {
+                console.warn('Booking delete error:', err);
+                showToast(err.message || 'Failed to delete booking', 'danger');
+            });
+    });
 }
 
 // Global helper: Fetch booking details and display the shared View Booking modal
@@ -852,14 +1086,32 @@ function viewBookingDetails(bookingId) {
                 viewTypeBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${isEntry ? 'badge-type-entry' : 'badge-type-ledger'}`;
             }
 
+            const viewCancelledAlert = document.getElementById('viewCancelledAlert');
+            const viewCancelledAt = document.getElementById('viewCancelledAt');
+            const viewCancelReason = document.getElementById('viewCancelReason');
+
             if (viewStatusBadge) {
                 const st = (booking.status || 'PENDING').toUpperCase();
                 viewStatusBadge.textContent = st;
                 let stClass = 'badge-status-pending';
                 if (st === 'PARTIAL') stClass = 'badge-status-partial';
                 else if (st === 'DELIVERED') stClass = 'badge-status-delivered';
-                else if (st === 'CANCELLED') stClass = 'badge-status-cancelled';
+                else if (st === 'CANCELLED') stClass = 'badge-status-cancelled bg-danger text-white';
                 viewStatusBadge.className = `badge rounded-pill px-3 py-1 fw-bold ${stClass}`;
+            }
+
+            if ((booking.status || '').toUpperCase() === 'CANCELLED') {
+                if (viewCancelledAlert) viewCancelledAlert.style.display = 'block';
+                if (viewCancelledAt) {
+                    viewCancelledAt.textContent = booking.cancelled_at
+                        ? formatDateTimeDisplay(booking.cancelled_at)
+                        : '-';
+                }
+                if (viewCancelReason) {
+                    viewCancelReason.textContent = booking.cancel_reason || 'No reason provided';
+                }
+            } else {
+                if (viewCancelledAlert) viewCancelledAlert.style.display = 'none';
             }
 
             const customer = booking.customer || {};
@@ -945,6 +1197,38 @@ function viewBookingDetails(bookingId) {
                 }
             }
 
+            // VS TODAY Stat Chip in View Modal
+            const viewVsToday = document.getElementById('viewVsToday');
+            if (viewVsToday) {
+                const diff = booking.rate_diff;
+                if (diff === null || diff === undefined) {
+                    viewVsToday.textContent = '—';
+                    viewVsToday.className = 'fw-bold text-muted';
+                    viewVsToday.removeAttribute('title');
+                } else if (diff > 0) {
+                    viewVsToday.textContent = `▲ ₹${formatIndianCurrency(diff)}`;
+                    viewVsToday.className = 'fw-bold text-success';
+                } else if (diff < 0) {
+                    viewVsToday.textContent = `▼ ₹${formatIndianCurrency(Math.abs(diff))}`;
+                    viewVsToday.className = 'fw-bold text-danger';
+                } else {
+                    viewVsToday.textContent = '₹0.00';
+                    viewVsToday.className = 'fw-bold text-muted';
+                }
+
+                if (diff !== null && diff !== undefined) {
+                    const unitGrams = window.BHAV_CONFIG?.rate_unit_grams || 10;
+                    const bookedAvg = booking.booked_avg_rate !== null && booking.booked_avg_rate !== undefined
+                        ? `₹${formatIndianCurrency(booking.booked_avg_rate).replace(/\.00$/, '')}`
+                        : '-';
+                    const todayRate = booking.today_rate_used !== null && booking.today_rate_used !== undefined
+                        ? `₹${formatIndianCurrency(booking.today_rate_used).replace(/\.00$/, '')}`
+                        : '-';
+                    const pendingWt = (parseFloat(booking.pending_weight) || 0).toFixed(3);
+                    viewVsToday.title = `Booked avg ${bookedAvg} /${unitGrams}gm • Today ${todayRate} /${unitGrams}gm • Pending ${pendingWt} gm`;
+                }
+            }
+
             if (viewPaymentsTableBody) {
                 if (payments.length === 0) {
                     viewPaymentsTableBody.innerHTML =
@@ -1004,9 +1288,6 @@ function viewBookingDetails(bookingId) {
                 }
             }
 
-            // Track last saved/viewed booking ID for shortcuts
-            window.lastSavedBookingId = booking.id;
-
             // Populate History Section (Collapsible card under payments)
             const viewHistoryCount = document.getElementById('viewHistoryCount');
             const viewHistoryEmpty = document.getElementById('viewHistoryEmpty');
@@ -1043,6 +1324,10 @@ function viewBookingDetails(bookingId) {
                                 badgeClass = 'bg-danger';
                                 actionText = 'Deleted';
                                 break;
+                            case 'RESTORED':
+                                badgeClass = 'bg-success';
+                                actionText = 'Restored';
+                                break;
                             case 'PRINTED':
                                 badgeClass = 'bg-info text-dark';
                                 actionText = 'Printed';
@@ -1051,17 +1336,21 @@ function viewBookingDetails(bookingId) {
                                 badgeClass = 'bg-primary';
                                 actionText = 'Shared';
                                 break;
+                            case 'CANCELLED':
+                                badgeClass = 'bg-danger text-white';
+                                actionText = 'Cancelled';
+                                break;
                         }
 
                         const dt = log.created_at
                             ? new Date(log.created_at).toLocaleString('en-IN', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: true,
-                              })
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                            })
                             : '-';
 
                         const summary = escapeHtml(log.summary || log.action);
@@ -1117,15 +1406,37 @@ function viewBookingDetails(bookingId) {
 
             if (btnViewModalPrint) {
                 btnViewModalPrint.onclick = function () {
+                    const fmt = getBhavPrintFormat();
                     if (window.APP_ROUTES && window.APP_ROUTES.bhavBookingLogAction) {
                         apiFetch(getRoute('bhavBookingLogAction', booking.id), {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action: 'PRINTED' }),
-                        }).catch(() => {});
+                        }).catch(() => { });
                     }
-                    window.open(getRoute('bhavBookingPrint', booking.id), '_blank');
+                    const printUrl = getRoute('bhavBookingPrint', booking.id) + (fmt === 'thermal' ? '?format=thermal' : '');
+                    window.open(printUrl, '_blank');
                 };
+            }
+
+            const viewModalPrintGroup = document.getElementById('viewModalPrintGroup');
+            if (viewModalPrintGroup) {
+                const optA4 = viewModalPrintGroup.querySelector('.print-option-a4');
+                const optThermal = viewModalPrintGroup.querySelector('.print-option-thermal');
+                if (optA4) {
+                    optA4.onclick = function (ev) {
+                        ev.preventDefault();
+                        setBhavPrintFormat('a4');
+                        if (btnViewModalPrint) btnViewModalPrint.click();
+                    };
+                }
+                if (optThermal) {
+                    optThermal.onclick = function (ev) {
+                        ev.preventDefault();
+                        setBhavPrintFormat('thermal');
+                        if (btnViewModalPrint) btnViewModalPrint.click();
+                    };
+                }
             }
 
             const modalEl = document.getElementById('viewBookingModal');
@@ -1141,14 +1452,96 @@ function viewBookingDetails(bookingId) {
 
 // Global helper: Generate HTML for the 3-dot kebab action dropdown menu
 function renderActionKebabMenu(booking) {
+    const statusUpper = (booking.status || 'PENDING').toUpperCase();
+    const isCancelled = statusUpper === 'CANCELLED';
+    const deliveredWeight = parseFloat(booking.delivered_weight) || 0;
+    const canCancel = !isCancelled && (statusUpper === 'PENDING' || statusUpper === 'PARTIAL') && deliveredWeight === 0;
+
+    const bookingId = booking.id;
+    const bookingNo = escapeHtml(booking.booking_no || '');
+    const amount = escapeHtml(booking.total_amount || 0);
+
+    const customerName = escapeHtml(
+        (booking.customer && (booking.customer.name || booking.customer.party_name)) ||
+        booking.party_name ||
+        'Customer'
+    );
+    let dateStr = '';
+    if (booking.booking_date) {
+        dateStr = escapeHtml(formatDateDisplay(booking.booking_date));
+    } else if (booking.booked_at) {
+        dateStr = escapeHtml(formatDateDisplay(booking.booked_at));
+    }
+    const headerStripHtml = `
+        <li class="action-kebab-header px-3 py-1.5 border-bottom mb-1 text-truncate" style="background-color: #f8fafc; cursor: default;">
+            <div class="fw-bold text-dark text-truncate" style="font-size: 11.5px; line-height: 1.25;">${customerName}</div>
+            <div class="text-muted text-truncate" style="font-size: 10px; line-height: 1.25; margin-top: 1px;">${dateStr ? dateStr + ' • ' : ''}${bookingNo}</div>
+        </li>
+    `;
+
+    // Cancelled bookings cannot be edited or deleted; menu shows only View, Print, Share
+    if (isCancelled) {
+        return `
+        <div class="dropdown action-dropdown-wrapper d-inline-block">
+            <button type="button"
+                    class="btn btn-action-kebab"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                    aria-label="Actions"
+                    title="Actions">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow action-kebab-menu py-1" style="min-width: 175px;">
+                ${headerStripHtml}
+                <li>
+                    <a class="dropdown-item py-1 px-3 d-flex align-items-center action-menu-view" href="#" data-id="${bookingId}">
+                        <i class="fa-solid fa-eye text-success me-2" style="width: 16px;"></i> View
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item py-1 px-3 d-flex align-items-center action-menu-repeat" href="#" data-id="${bookingId}" data-booking-no="${bookingNo}">
+                        <i class="fa-solid fa-copy text-info me-2" style="width: 16px;"></i> Repeat
+                    </a>
+                </li>
+                <li class="px-2 py-0.5">
+                    <div class="btn-group btn-group-sm w-100" style="height: 28px;">
+                        <button type="button" class="btn btn-sm btn-outline-secondary text-start d-flex align-items-center action-menu-print flex-grow-1 border-end-0 py-0 px-2 fw-semibold" data-id="${bookingId}" style="font-size: 12px;">
+                            <i class="fa-solid fa-print text-warning me-1.5" style="width: 14px;"></i> Print
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split px-2 py-0 action-menu-print-split-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Print Format">
+                            <span class="visually-hidden">Format</span>
+                        </button>
+                        <ul class="dropdown-menu shadow-sm py-1" style="min-width: 140px; font-size: 12px;">
+                            <li><a class="dropdown-item py-1 px-3 action-menu-print" href="#" data-id="${bookingId}" data-format="a4">A4</a></li>
+                            <li><a class="dropdown-item py-1 px-3 action-menu-print" href="#" data-id="${bookingId}" data-format="thermal">Thermal (80mm)</a></li>
+                        </ul>
+                    </div>
+                </li>
+                <li>
+                    <a class="dropdown-item py-1 px-3 d-flex align-items-center action-menu-share" href="#" data-id="${bookingId}">
+                        <i class="fa-solid fa-share-nodes text-primary me-2" style="width: 16px;"></i> Share
+                    </a>
+                </li>
+            </ul>
+        </div>
+        `;
+    }
+
     const isModifiable = isBookingModifiable(booking);
     const disabledAttr = isModifiable ? '' : 'disabled';
     const disabledClass = isModifiable ? '' : 'disabled text-muted';
     const disabledTooltip = isModifiable ? '' : 'This booking has delivery/payment and cannot be edited';
 
-    const bookingId = booking.id;
-    const bookingNo = escapeHtml(booking.booking_no || '');
-    const amount = escapeHtml(booking.total_amount || 0);
+    const cancelItemHtml = canCancel
+        ? `
+        <li>
+            <a class="dropdown-item py-1 px-3 d-flex align-items-center action-menu-cancel" href="#" data-id="${bookingId}" data-booking-no="${bookingNo}" style="color: #ea580c;">
+                <i class="fa-solid fa-ban me-2" style="width: 16px; color: #ea580c;"></i> Cancel booking
+            </a>
+        </li>
+    `
+        : '';
 
     return `
         <div class="dropdown action-dropdown-wrapper d-inline-block">
@@ -1161,10 +1554,16 @@ function renderActionKebabMenu(booking) {
                     title="Actions">
                 <i class="fa-solid fa-ellipsis-vertical"></i>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow-sm action-kebab-menu py-1" style="min-width: 175px;">
+            <ul class="dropdown-menu dropdown-menu-end shadow action-kebab-menu py-1" style="min-width: 175px;">
+                ${headerStripHtml}
                 <li>
                     <a class="dropdown-item py-1 px-3 d-flex align-items-center action-menu-view" href="#" data-id="${bookingId}">
                         <i class="fa-solid fa-eye text-success me-2" style="width: 16px;"></i> View
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item py-1 px-3 d-flex align-items-center action-menu-repeat" href="#" data-id="${bookingId}" data-booking-no="${bookingNo}">
+                        <i class="fa-solid fa-copy text-info me-2" style="width: 16px;"></i> Repeat
                     </a>
                 </li>
                 <li>
@@ -1172,10 +1571,19 @@ function renderActionKebabMenu(booking) {
                         <i class="fa-solid fa-pen-to-square text-warning me-2" style="width: 16px;"></i> Edit
                     </a>
                 </li>
-                <li>
-                    <a class="dropdown-item py-1 px-3 d-flex align-items-center action-menu-print" href="#" data-id="${bookingId}">
-                        <i class="fa-solid fa-print text-warning me-2" style="width: 16px;"></i> Print
-                    </a>
+                <li class="px-2 py-0.5">
+                    <div class="btn-group btn-group-sm w-100" style="height: 28px;">
+                        <button type="button" class="btn btn-sm btn-outline-secondary text-start d-flex align-items-center action-menu-print flex-grow-1 border-end-0 py-0 px-2 fw-semibold" data-id="${bookingId}" style="font-size: 12px;">
+                            <i class="fa-solid fa-print text-warning me-1.5" style="width: 14px;"></i> Print
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split px-2 py-0 action-menu-print-split-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Print Format">
+                            <span class="visually-hidden">Format</span>
+                        </button>
+                        <ul class="dropdown-menu shadow-sm py-1" style="min-width: 140px; font-size: 12px;">
+                            <li><a class="dropdown-item py-1 px-3 action-menu-print" href="#" data-id="${bookingId}" data-format="a4">A4</a></li>
+                            <li><a class="dropdown-item py-1 px-3 action-menu-print" href="#" data-id="${bookingId}" data-format="thermal">Thermal (80mm)</a></li>
+                        </ul>
+                    </div>
                 </li>
                 <li>
                     <a class="dropdown-item py-1 px-3 d-flex align-items-center action-menu-share" href="#" data-id="${bookingId}">
@@ -1187,6 +1595,7 @@ function renderActionKebabMenu(booking) {
                         <i class="fa-brands fa-whatsapp text-success me-2" style="width: 16px;"></i> WhatsApp
                     </a>
                 </li>
+                ${cancelItemHtml}
                 <li><hr class="dropdown-divider my-1"></li>
                 <li>
                     <a class="dropdown-item py-1 px-3 d-flex align-items-center action-menu-delete text-danger ${disabledClass}" href="#" data-id="${bookingId}" data-booking-no="${bookingNo}" data-amount="${amount}" ${disabledAttr} title="${escapeHtml(disabledTooltip)}">
@@ -1203,6 +1612,64 @@ function renderActionKebabMenu(booking) {
     `;
 }
 
+// Global helper: Cancel a booking with reason using the shared confirm modal
+function cancelBookingWithConfirm(bookingId, bookingNo, booking, onCancelledCallback) {
+    const isSell = (booking && booking.trade_type ? booking.trade_type : '').toUpperCase() === 'SELL';
+    const payments = booking && Array.isArray(booking.payments) ? booking.payments : [];
+    const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+        || (booking ? (isSell ? parseFloat(booking.received_amount) : parseFloat(booking.given_amount)) : 0) || 0;
+
+    let warningText = null;
+    if (totalPaid > 0) {
+        const term = isSell ? 'received' : 'given';
+        warningText = `₹${formatIndianCurrency(totalPaid)} already ${term} — settle the refund separately.`;
+    }
+
+    showConfirmDialog({
+        title: 'Cancel Booking?',
+        message: `Are you sure you want to cancel booking ${bookingNo}?`,
+        details: [
+            { label: 'Booking No', value: bookingNo },
+            ...(booking && booking.customer && booking.customer.name ? [{ label: 'Customer', value: booking.customer.name }] : []),
+            ...(booking && booking.total_amount ? [{ label: 'Amount', value: `₹${formatIndianCurrency(booking.total_amount)}` }] : []),
+        ],
+        warning: warningText,
+        confirmText: 'Cancel Booking',
+        confirmClass: 'btn-danger',
+        icon: 'fa-solid fa-ban text-danger',
+        input: {
+            type: 'cancel_reason',
+            options: [
+                'Customer changed mind',
+                'Rate dispute',
+                'Wrong entry',
+                'Other',
+            ],
+        },
+    }).then(({ confirmed, value }) => {
+        if (!confirmed) return;
+        const reason = (value || '').trim();
+        if (!reason) {
+            showToast('Please provide a reason to cancel the booking.', 'danger');
+            return;
+        }
+
+        const cancelUrl = getRoute('bhavBookingCancel', bookingId);
+        apiFetch(cancelUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason }),
+        }).then((res) => {
+            showToast('Booking cancelled', 'success');
+            if (typeof onCancelledCallback === 'function') {
+                onCancelledCallback(res);
+            }
+        }).catch((err) => {
+            showToast(err.message || 'Failed to cancel booking', 'danger');
+        });
+    });
+}
+
 // Global helper: Event delegation dispatcher for action kebab menu items
 function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
     // 1. View Clicked
@@ -1214,13 +1681,39 @@ function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
         return;
     }
 
+    // 1.5. Repeat Clicked
+    const repeatItem = e.target.closest('.action-menu-repeat');
+    if (repeatItem) {
+        e.preventDefault();
+        const id = parseInt(repeatItem.getAttribute('data-id'), 10);
+        const bNo = repeatItem.getAttribute('data-booking-no') || '';
+        if (id && typeof callbacks.onRepeat === 'function') {
+            const booking = bookingsMap ? bookingsMap[id] : { id: id, booking_no: bNo };
+            callbacks.onRepeat(booking || { id: id, booking_no: bNo });
+        }
+        return;
+    }
+
+    // Stop split toggle caret inside kebab menu from prematurely dismissing parent
+    const printToggle = e.target.closest('.action-menu-print-split-toggle');
+    if (printToggle) {
+        e.stopPropagation();
+    }
+
     // 2. Print Clicked
     const printItem = e.target.closest('.action-menu-print');
     if (printItem) {
         e.preventDefault();
         const id = parseInt(printItem.getAttribute('data-id'), 10);
         if (id) {
-            window.open(getRoute('bhavBookingPrint', id), '_blank');
+            let fmt = printItem.getAttribute('data-format');
+            if (fmt) {
+                setBhavPrintFormat(fmt);
+            } else {
+                fmt = getBhavPrintFormat();
+            }
+            const printUrl = getRoute('bhavBookingPrint', id) + (fmt === 'thermal' ? '?format=thermal' : '');
+            window.open(printUrl, '_blank');
         }
         return;
     }
@@ -1287,6 +1780,17 @@ function handleActionKebabMenuClick(e, bookingsMap, callbacks = {}) {
         return;
     }
 
+    // 5.5 Cancel Booking Clicked
+    const cancelItem = e.target.closest('.action-menu-cancel');
+    if (cancelItem) {
+        e.preventDefault();
+        const id = parseInt(cancelItem.getAttribute('data-id'), 10);
+        const bNo = cancelItem.getAttribute('data-booking-no') || 'Booking';
+        const booking = bookingsMap ? bookingsMap[id] : null;
+        cancelBookingWithConfirm(id, bNo, booking, callbacks.onCancelled);
+        return;
+    }
+
     // 6. Delete Clicked
     const deleteItem = e.target.closest('.action-menu-delete');
     if (deleteItem) {
@@ -1336,10 +1840,10 @@ function showGlobalToast(message, type = 'info') {
         type === 'warning'
             ? 'bg-warning text-dark'
             : type === 'danger'
-              ? 'bg-danger text-white'
-              : type === 'success'
-                ? 'bg-success text-white'
-                : 'bg-primary text-white';
+                ? 'bg-danger text-white'
+                : type === 'success'
+                    ? 'bg-success text-white'
+                    : 'bg-primary text-white';
     toastEl.className = `toast align-items-center ${bgClass} border-0 shadow show mb-2`;
     toastEl.setAttribute('role', 'alert');
     toastEl.style.borderRadius = '12px';
@@ -1379,12 +1883,45 @@ function buildItemsPopoverContent(booking, isPinned, onClose) {
     const container = document.createElement('div');
     container.className = 'bhav-items-popover-box';
 
-    // 1. Header
+    // 1. Navy Header (#0f172a, title "Entries • BB-000xxx" + ×)
     const header = document.createElement('div');
-    header.className = 'bhav-popover-header d-flex align-items-center justify-content-between';
+    header.className = 'bhav-popover-header d-flex align-items-center justify-content-between text-white';
+    header.style.backgroundColor = '#0f172a';
+    header.style.padding = '8px 12px';
+    header.style.margin = '-10px -12px 8px -12px';
+    header.style.borderTopLeftRadius = '11px';
+    header.style.borderTopRightRadius = '11px';
 
-    const headerLeft = document.createElement('div');
-    headerLeft.className = 'd-flex align-items-center gap-1 flex-wrap';
+    const bookingNo = booking && booking.booking_no ? booking.booking_no : '';
+    const headerTitle = document.createElement('div');
+    headerTitle.className = 'fw-bold d-flex align-items-center gap-1.5';
+    headerTitle.style.fontSize = '12px';
+    headerTitle.style.letterSpacing = '0.3px';
+    headerTitle.textContent = bookingNo ? `Entries • ${bookingNo}` : 'Entries';
+    header.appendChild(headerTitle);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close btn-close-white btn-close-sm';
+    closeBtn.setAttribute('aria-label', 'Close popover');
+    closeBtn.style.fontSize = '10px';
+    closeBtn.style.cursor = 'pointer';
+    if (typeof onClose === 'function') {
+        closeBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+        });
+    }
+    header.appendChild(closeBtn);
+    container.appendChild(header);
+
+    // Sub-bar with Metal badge, entries count, trade badge
+    const subBar = document.createElement('div');
+    subBar.className = 'd-flex align-items-center justify-content-between mb-2 px-1';
+
+    const subLeft = document.createElement('div');
+    subLeft.className = 'd-flex align-items-center gap-1 flex-wrap';
 
     const bookingMetal = (booking.metal || 'GOLD').toUpperCase();
     const isGold = bookingMetal === 'GOLD';
@@ -1397,56 +1934,25 @@ function buildItemsPopoverContent(booking, isPinned, onClose) {
     const metalText = document.createElement('span');
     metalText.textContent = isGold ? 'Gold' : 'Silver';
     metalBadge.appendChild(metalText);
-    headerLeft.appendChild(metalBadge);
+    subLeft.appendChild(metalBadge);
 
     const items = Array.isArray(booking.items) ? booking.items : [];
     const countSpan = document.createElement('span');
     countSpan.className = 'text-muted fw-semibold';
     countSpan.style.fontSize = '11px';
     countSpan.textContent = `${items.length} ${items.length === 1 ? 'entry' : 'entries'}`;
-    headerLeft.appendChild(countSpan);
+    subLeft.appendChild(countSpan);
+
+    subBar.appendChild(subLeft);
 
     const isBuy = (booking.trade_type || '').toUpperCase() === 'BUY';
     const tradeBadge = document.createElement('span');
     tradeBadge.className = `badge rounded-pill px-2 py-0.5 fw-bold ${isBuy ? 'bg-success text-white' : 'bg-danger text-white'}`;
     tradeBadge.style.fontSize = '10px';
     tradeBadge.textContent = isBuy ? 'BUY' : 'SELL';
-    headerLeft.appendChild(tradeBadge);
+    subBar.appendChild(tradeBadge);
 
-    header.appendChild(headerLeft);
-
-    // Header Right (Pin indicator & close button when pinned)
-    if (isPinned) {
-        const headerRight = document.createElement('div');
-        headerRight.className = 'd-flex align-items-center gap-1 ms-auto';
-
-        const pinIndicator = document.createElement('span');
-        pinIndicator.className = 'badge bg-light text-secondary border p-1 d-inline-flex align-items-center';
-        pinIndicator.title = 'Pinned';
-        const pinIcon = document.createElement('i');
-        pinIcon.className = 'fa-solid fa-thumbtack text-primary';
-        pinIcon.style.fontSize = '9px';
-        pinIndicator.appendChild(pinIcon);
-        headerRight.appendChild(pinIndicator);
-
-        const closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.className = 'btn-close btn-close-sm p-1';
-        closeBtn.setAttribute('aria-label', 'Close popover');
-        closeBtn.style.fontSize = '9px';
-        closeBtn.style.cursor = 'pointer';
-        if (typeof onClose === 'function') {
-            closeBtn.addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-            });
-        }
-        headerRight.appendChild(closeBtn);
-        header.appendChild(headerRight);
-    }
-
-    container.appendChild(header);
+    container.appendChild(subBar);
 
     // 2. Body Grid
     const gridWrapper = document.createElement('div');
@@ -1604,6 +2110,7 @@ function buildItemsPopoverContent(booking, isPinned, onClose) {
  * Close active items breakdown popover if open
  */
 function closeActiveItemsPopover() {
+    clearTableSpotlight();
     if (activeItemsPopover) {
         if (activeItemsPopover.hoverTimeout) {
             clearTimeout(activeItemsPopover.hoverTimeout);
@@ -1629,6 +2136,11 @@ function openItemsPopover(btn, booking, pinned) {
 
     if (activeItemsPopover && activeItemsPopover.badgeEl !== btn) {
         closeActiveItemsPopover();
+    }
+
+    const tr = btn.closest('tr');
+    if (tr) {
+        setTableSpotlight(tr);
     }
 
     let popover = bootstrap.Popover.getInstance(btn);
@@ -1811,12 +2323,37 @@ function initItemsPopovers(tableBody, getBookingSource) {
     });
 }
 
+/**
+ * Spotlight helpers: blur and dim other table rows when a popup is open
+ */
+function setTableSpotlight(tr) {
+    if (!tr) return;
+    const table = tr.closest('table');
+    if (!table) return;
+
+    clearTableSpotlight();
+
+    table.classList.add('has-active-row');
+    tr.classList.add('row-active');
+}
+
+function clearTableSpotlight() {
+    document.querySelectorAll('.bhav-table.has-active-row, .old-bhav-table.has-active-row, .bhav-old-table.has-active-row').forEach((tbl) => {
+        tbl.classList.remove('has-active-row');
+    });
+    document.querySelectorAll('tr.row-active').forEach((r) => {
+        r.classList.remove('row-active');
+    });
+}
+
 window.renderMultipleRatesBadge = renderMultipleRatesBadge;
 window.buildItemsPopoverContent = buildItemsPopoverContent;
 window.openItemsPopover = openItemsPopover;
 window.closeActiveItemsPopover = closeActiveItemsPopover;
 window.disposeAllItemsPopovers = disposeAllItemsPopovers;
 window.initItemsPopovers = initItemsPopovers;
+window.setTableSpotlight = setTableSpotlight;
+window.clearTableSpotlight = clearTableSpotlight;
 
 // =========================================================================
 // CSV EXPORT HANDLER (Streamed chunked download)
@@ -1894,6 +2431,8 @@ function initKeyboardShortcuts() {
 
         // 1. ESC: cancel edit / close dropdowns / close modals (Allowed even while typing inside modal)
         if (e.key === 'Escape' || e.keyCode === 27) {
+            clearTableSpotlight();
+            closeActiveItemsPopover();
             if (isModalOpen) {
                 const openModalEl = document.querySelector('.modal.show');
                 if (openModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
@@ -1995,16 +2534,20 @@ function initKeyboardShortcuts() {
             return;
         }
 
-        // 7. Alt + P: Print last saved/viewed booking
+        // 7. Alt + P: Print (or Save & Print on booking form)
         if (e.altKey && (e.key === 'p' || e.key === 'P')) {
             e.preventDefault();
-            if (window.lastSavedBookingId) {
-                window.open(getRoute('bhavBookingPrint', window.lastSavedBookingId), '_blank');
-            } else {
-                const printBtn = document.getElementById('btnViewModalPrint');
-                if (printBtn && printBtn.offsetParent !== null) {
-                    printBtn.click();
+            const viewModalPrintBtn = document.getElementById('btnViewModalPrint');
+            if (viewModalPrintBtn && viewModalPrintBtn.offsetParent !== null) {
+                viewModalPrintBtn.click();
+                return;
+            }
+            const formPrintBtn = document.getElementById('btnPrint');
+            if (formPrintBtn) {
+                if (!formPrintBtn.disabled) {
+                    formPrintBtn.click();
                 }
+                return;
             }
             return;
         }
@@ -2017,5 +2560,23 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.modal').forEach((modalEl) => {
         setupModalAccessibility(modalEl);
     });
-    setInterval(refreshRelativeTimeLabels, 60000);
+
+    document.addEventListener('show.bs.dropdown', function (e) {
+        const target = e.target;
+        if (target && target.closest && (target.closest('.action-dropdown-wrapper') || (target.classList && target.classList.contains('btn-action-kebab')))) {
+            const tr = target.closest('tr');
+            if (tr) {
+                setTableSpotlight(tr);
+            }
+        }
+    });
+
+    document.addEventListener('hidden.bs.dropdown', function (e) {
+        const target = e.target;
+        if (target && target.closest && (target.closest('.action-dropdown-wrapper') || (target.classList && target.classList.contains('btn-action-kebab')))) {
+            if (!activeItemsPopover) {
+                clearTableSpotlight();
+            }
+        }
+    });
 });

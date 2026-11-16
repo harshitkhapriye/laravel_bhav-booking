@@ -150,6 +150,7 @@
 
 <!-- Dedicated Party View Modal Partial -->
 @include('partials.party-view-modal')
+@include('partials.confirm-action-modal')
 
 <!-- Dynamic Application Route URLs & Location Data for Party Master -->
 <script>

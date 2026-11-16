@@ -199,6 +199,7 @@ class CustomerController extends Controller
         $stats = DB::table('bhav_bookings')
             ->where('customer_id', $customer->id)
             ->whereNull('deleted_at')
+            ->where('status', '!=', 'CANCELLED')
             ->selectRaw("
                 MAX(booked_at) as last_booking_at,
                 COUNT(*) as total_bookings,

@@ -30,6 +30,8 @@ class BhavBooking extends Model
         'given_amount',
         'received_amount',
         'status',
+        'cancel_reason',
+        'cancelled_at',
         'narration',
         'send_whatsapp',
         'request_token',
@@ -49,6 +51,7 @@ class BhavBooking extends Model
         'received_amount' => 'decimal:2',
         'send_whatsapp' => 'boolean',
         'booked_at' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     /**

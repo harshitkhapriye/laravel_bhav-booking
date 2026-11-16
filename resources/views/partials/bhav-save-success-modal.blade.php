@@ -39,9 +39,18 @@
 
                 <!-- Action Buttons -->
                 <div class="d-flex align-items-center justify-content-center gap-2 pt-2">
-                    <button type="button" class="btn btn-outline-print rounded-pill px-4 py-2" id="btnSuccessPrint">
-                        <i class="fa-solid fa-print me-2"></i> Print
-                    </button>
+                    <div class="btn-group rounded-pill" id="successPrintGroup">
+                        <button type="button" class="btn btn-outline-print rounded-start-pill px-4 py-2" id="btnSuccessPrint">
+                            <i class="fa-solid fa-print me-2"></i> <span id="successPrintLabel">Print</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-print rounded-end-pill dropdown-toggle dropdown-toggle-split px-2" data-bs-toggle="dropdown" aria-expanded="false" title="Print Format">
+                            <span class="visually-hidden">Toggle print format</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm py-1" style="min-width: 150px; font-size: 12px;">
+                            <li><a class="dropdown-item py-1 px-3 d-flex align-items-center justify-content-between print-option-a4" href="#" data-format="a4"><span>A4</span></a></li>
+                            <li><a class="dropdown-item py-1 px-3 d-flex align-items-center justify-content-between print-option-thermal" href="#" data-format="thermal"><span>Thermal (80mm)</span></a></li>
+                        </ul>
+                    </div>
                     <button type="button" class="btn btn-navy-list rounded-pill px-5 py-2 fw-bold" id="btnSuccessOk" data-bs-dismiss="modal">
                         OK
                     </button>
