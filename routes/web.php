@@ -123,13 +123,18 @@ Route::post('/bhav-bookings/{id}/restore', [BhavBookingController::class, 'resto
 
 // Party Master Routes
 Route::get('/parties', [PartyController::class, 'index'])->name('parties.index');
-Route::get('/parties/list', [PartyController::class, 'list'])->name('parties.list');
+Route::get('/parties/list', [PartyController::class, 'list'])
+    ->middleware('throttle:120,1')
+    ->name('parties.list');
 Route::get('/parties/{customer}', [PartyController::class, 'show'])
+    ->middleware('throttle:120,1')
     ->name('parties.show')
     ->missing($missingPartyCallback);
 Route::put('/parties/{customer}', [PartyController::class, 'update'])
+    ->middleware('throttle:30,1')
     ->name('parties.update')
     ->missing($missingPartyCallback);
 Route::delete('/parties/{customer}', [PartyController::class, 'destroy'])
+    ->middleware('throttle:30,1')
     ->name('parties.destroy')
     ->missing($missingPartyCallback);

@@ -1193,6 +1193,11 @@ textarea::placeholder,
     min-width: 680px !important;
 }
 
+/* ALL View Table Min-Width (Horizontal scroll allowed) */
+.bhav-table:not(.show-buy-only):not(.show-sell-only) {
+    min-width: 1120px !important;
+}
+
 /* Trade Column Filter Visibility (Buy only / Sell only) */
 .bhav-table.show-buy-only .col-sell {
     display: none !important;
@@ -1222,6 +1227,50 @@ textarea::placeholder,
 .bhav-table .customer-name-text {
     font-size: 13.5px !important;
     font-weight: 700 !important;
+}
+
+/* ALL View Customer Cell & Badges Vertical Stacking */
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .col-customer,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-customer {
+    width: 170px !important;
+    min-width: 170px !important;
+    text-align: left !important;
+    overflow: hidden !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+}
+
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .customer-name-wrapper {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: 100% !important;
+    display: block !important;
+}
+
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .customer-name-text {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+}
+
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .customer-badges-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    margin-top: 3px !important;
+    white-space: normal !important;
+    max-width: 100% !important;
+}
+
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .customer-badges-wrapper > span {
+    display: inline-flex !important;
+    align-items: center !important;
+    max-width: 100% !important;
+    margin-right: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
 }
 
 /* Table Header Styles */
@@ -1355,13 +1404,17 @@ textarea::placeholder,
     }
 
     .table-responsive-container {
+        overflow-x: auto !important;
+    }
+
+    .table-responsive-container:has(.bhav-table.show-buy-only),
+    .table-responsive-container:has(.bhav-table.show-sell-only) {
         overflow-x: hidden !important;
     }
 
     .bhav-table {
         table-layout: fixed !important;
         width: 100% !important;
-        min-width: 0 !important;
     }
 
     .bhav-table.show-buy-only,
@@ -1369,79 +1422,114 @@ textarea::placeholder,
         min-width: 0 !important;
     }
 
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) {
+        min-width: 1120px !important;
+    }
+
     .bhav-table th,
     .bhav-table td {
         padding: 9px 8px !important;
     }
 
-    .bhav-table .col-sn,
-    .bhav-table .bhav-col-sn {
+    /* Single Trade View (Buy only or Sell only) base columns */
+    .bhav-table.show-buy-only .col-sn,
+    .bhav-table.show-buy-only .bhav-col-sn,
+    .bhav-table.show-sell-only .col-sn,
+    .bhav-table.show-sell-only .bhav-col-sn {
         width: 38px !important;
         min-width: 38px !important;
         max-width: 38px !important;
     }
 
-    .bhav-table .col-datetime,
-    .bhav-table .bhav-col-datetime {
+    .bhav-table.show-buy-only .col-datetime,
+    .bhav-table.show-buy-only .bhav-col-datetime,
+    .bhav-table.show-sell-only .col-datetime,
+    .bhav-table.show-sell-only .bhav-col-datetime {
         width: 95px !important;
         min-width: 95px !important;
         max-width: 95px !important;
     }
 
-    .bhav-table .col-customer,
-    .bhav-table .bhav-col-customer {
+    .bhav-table.show-buy-only .col-customer,
+    .bhav-table.show-buy-only .bhav-col-customer,
+    .bhav-table.show-sell-only .col-customer,
+    .bhav-table.show-sell-only .bhav-col-customer {
         width: auto !important;
         min-width: 110px !important;
         max-width: none !important;
     }
 
     /* ALL View (both Buy and Sell visible): 11 columns */
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-sn,
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-sn {
+        width: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        text-align: center !important;
+    }
+
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-datetime,
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-datetime {
+        width: 95px !important;
+        min-width: 95px !important;
+        max-width: 95px !important;
+        text-align: center !important;
+    }
+
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-customer,
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-customer {
+        width: 170px !important;
+        min-width: 170px !important;
+        text-align: left !important;
+        overflow: hidden !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+
     .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-buy-wt,
     .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-buy-wt,
-    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-buy:nth-child(1) {
-        width: 80px !important;
-        min-width: 80px !important;
-        max-width: 80px !important;
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-buy:nth-child(1),
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-sell-wt,
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-sell-wt,
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-sell:nth-child(4) {
+        width: 75px !important;
+        min-width: 75px !important;
     }
 
     .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-buy-rate,
     .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-buy-rate,
-    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-buy:nth-child(2) {
-        width: 92px !important;
-        min-width: 92px !important;
-        max-width: 92px !important;
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-buy:nth-child(2),
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-sell-rate,
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-sell-rate,
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-sell:nth-child(5) {
+        width: 95px !important;
+        min-width: 95px !important;
     }
 
     .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-buy-amt,
     .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-buy-amt,
-    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-buy:nth-child(3) {
-        width: 92px !important;
-        min-width: 92px !important;
-        max-width: 92px !important;
-    }
-
-    .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-sell-wt,
-    .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-sell-wt,
-    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-sell:nth-child(4) {
-        width: 80px !important;
-        min-width: 80px !important;
-        max-width: 80px !important;
-    }
-
-    .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-sell-rate,
-    .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-sell-rate,
-    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-sell:nth-child(5) {
-        width: 92px !important;
-        min-width: 92px !important;
-        max-width: 92px !important;
-    }
-
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-buy:nth-child(3),
     .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-sell-amt,
     .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-sell-amt,
     .bhav-table:not(.show-buy-only):not(.show-sell-only) thead tr.header-row-sub th.col-sell:nth-child(6) {
-        width: 92px !important;
-        min-width: 92px !important;
-        max-width: 92px !important;
+        width: 100px !important;
+        min-width: 100px !important;
+    }
+
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-given-received,
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-given-received {
+        width: 130px !important;
+        min-width: 130px !important;
+        max-width: 130px !important;
+        text-align: center !important;
+    }
+
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .col-action,
+    .bhav-table:not(.show-buy-only):not(.show-sell-only) .bhav-col-action {
+        width: 55px !important;
+        min-width: 55px !important;
+        max-width: 55px !important;
+        text-align: center !important;
     }
 
     /* Single Trade View (Buy only or Sell only): 8 columns */
@@ -1478,15 +1566,19 @@ textarea::placeholder,
         max-width: 105px !important;
     }
 
-    .bhav-table .col-given-received,
-    .bhav-table .bhav-col-given-received {
+    .bhav-table.show-buy-only .col-given-received,
+    .bhav-table.show-buy-only .bhav-col-given-received,
+    .bhav-table.show-sell-only .col-given-received,
+    .bhav-table.show-sell-only .bhav-col-given-received {
         width: 130px !important;
         min-width: 130px !important;
         max-width: 130px !important;
     }
 
-    .bhav-table .col-action,
-    .bhav-table .bhav-col-action {
+    .bhav-table.show-buy-only .col-action,
+    .bhav-table.show-buy-only .bhav-col-action,
+    .bhav-table.show-sell-only .col-action,
+    .bhav-table.show-sell-only .bhav-col-action {
         width: 48px !important;
         min-width: 48px !important;
         max-width: 48px !important;
@@ -1515,6 +1607,89 @@ textarea::placeholder,
     text-align: right !important;
     padding-left: 6px !important;
     padding-right: 6px !important;
+}
+
+/* ALL View: Group Headers Padding */
+.bhav-table:not(.show-buy-only):not(.show-sell-only) thead th.col-group-buy,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) thead th.col-group-sell {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+}
+
+/* ALL View: 6 Number Columns Cell & Sub-Header Padding ~4px left/right */
+.bhav-table:not(.show-buy-only):not(.show-sell-only) th.col-buy-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) th.col-buy-rate,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) th.col-buy-amt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) th.col-sell-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) th.col-sell-rate,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) th.col-sell-amt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) td.bhav-col-buy-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) td.bhav-col-buy-rate,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) td.bhav-col-buy-amt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) td.bhav-col-sell-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) td.bhav-col-sell-rate,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) td.bhav-col-sell-amt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-buy-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-buy-rate,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-buy-amt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-sell-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-sell-rate,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-sell-amt {
+    text-align: right !important;
+    white-space: nowrap !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+}
+
+/* ALL View: Number Values Font 12.5px weight 700 */
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-buy-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-buy-rate,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-buy-amt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-sell-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-sell-rate,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-sell-amt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-buy-wt span,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-buy-rate span,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-buy-amt span,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-sell-wt span,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-sell-rate span,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tbody td.bhav-col-sell-amt span,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-buy-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-buy-amt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-sell-wt,
+.bhav-table:not(.show-buy-only):not(.show-sell-only) tfoot td.col-sell-amt {
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+}
+
+/* ALL View: "gm" Unit 10px with No Extra Space */
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .unit-text {
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+}
+
+/* ALL View: "Multiple" Rates Button Badge inside RATE cell */
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .btn-multiple-rates {
+    font-size: 9.5px !important;
+    padding: 1px 4px !important;
+    gap: 2px !important;
+    max-width: 100% !important;
+    white-space: nowrap !important;
+    line-height: 1.15 !important;
+}
+
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .btn-multiple-rates i {
+    font-size: 8px !important;
+}
+
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .btn-multiple-rates i.me-1 {
+    margin-right: 1px !important;
+}
+
+.bhav-table:not(.show-buy-only):not(.show-sell-only) .btn-multiple-rates i.ms-1 {
+    margin-left: 1px !important;
 }
 
 .bhav-table thead th.col-given-received {

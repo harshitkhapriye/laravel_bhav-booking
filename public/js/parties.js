@@ -196,11 +196,22 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!partiesTableBody) return;
         partiesTableBody.innerHTML = `
             <tr>
-                <td colspan="8" class="py-4 text-center text-danger">
-                    <i class="fa-solid fa-circle-exclamation me-1"></i> ${escapeHtml(message)}
+                <td colspan="8" class="py-4 text-center">
+                    <div class="d-flex flex-column align-items-center justify-content-center gap-2">
+                        <span class="text-danger fw-semibold"><i class="fa-solid fa-circle-exclamation me-1"></i> ${escapeHtml(message)}</span>
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" id="btnRetryPartiesList">
+                            <i class="fa-solid fa-rotate-right me-1"></i> Retry
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
+        const btnRetry = document.getElementById('btnRetryPartiesList');
+        if (btnRetry) {
+            btnRetry.addEventListener('click', function () {
+                fetchParties(currentPage);
+            });
+        }
     }
 
     /**

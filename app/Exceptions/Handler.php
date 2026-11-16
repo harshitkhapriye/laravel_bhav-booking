@@ -4,8 +4,10 @@ namespace App\Exceptions;
 
 use App\Models\BhavBooking;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use PDOException;
 use Psr\Log\LogLevel;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
@@ -76,6 +78,24 @@ class Handler extends ExceptionHandler
                 return response()->json([
                     'message' => 'Too many requests. Please slow down and try again shortly.',
                 ], 429);
+            }
+        });
+
+        // Why: Never expose raw SQL or database exceptions to users when APP_DEBUG=false.
+        // Returns clean 500 {"message":"Server error. Please try again."} while still logging to storage/logs/laravel.log.
+        $this->renderable(function (QueryException $e, $request) {
+            if (!config('app.debug')) {
+                if ($request->expectsJson() || $request->isJson() || $request->wantsJson() || $request->is('customers*') || $request->is('bhav-bookings*') || $request->is('daily-rates*') || $request->is('parties*')) {
+                    return response()->json(['message' => 'Server error. Please try again.'], 500);
+                }
+            }
+        });
+
+        $this->renderable(function (PDOException $e, $request) {
+            if (!config('app.debug')) {
+                if ($request->expectsJson() || $request->isJson() || $request->wantsJson() || $request->is('customers*') || $request->is('bhav-bookings*') || $request->is('daily-rates*') || $request->is('parties*')) {
+                    return response()->json(['message' => 'Server error. Please try again.'], 500);
+                }
             }
         });
     }

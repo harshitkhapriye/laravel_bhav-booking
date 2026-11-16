@@ -1,4 +1,4 @@
-/* global escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateISO, formatDateDisplay, formatBookingDateTime, pad2, metalIconSvg, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, showToast, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, viewBookingDetails, showConfirmDialog, getBhavPrintFormat, setBhavPrintFormat, updatePrintButtonLabels */
+/* global escapeHtml, formatIndianCurrency, amountToIndianWords, formatDateISO, formatDateDisplay, formatBookingDateTime, pad2, metalIconSvg, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, showToast, renderActionKebabMenu, handleActionKebabMenuClick, showGlobalToast, apiFetch, setupModalAccessibility, viewBookingDetails, showConfirmDialog, getBhavPrintFormat, setBhavPrintFormat, updatePrintButtonLabels, clearTableSpotlight */
 
 /**
  * Bhav Booking UI Logic & Interactivity

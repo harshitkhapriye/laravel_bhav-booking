@@ -1,4 +1,4 @@
-/* global escapeHtml, formatIndianCurrency, formatDateISO, formatDateDisplay, formatBookingDateTime, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, renderActionKebabMenu, handleActionKebabMenuClick, apiFetch */
+/* global escapeHtml, formatIndianCurrency, formatDateISO, formatDateDisplay, formatBookingDateTime, renderMultipleRatesBadge, initItemsPopovers, closeActiveItemsPopover, disposeAllItemsPopovers, getLedgerEmptyStateSvg, renderSkeletonTableRows, getRoute, renderActionKebabMenu, handleActionKebabMenuClick, apiFetch, clearTableSpotlight */
 /**
  * Old Bhav Booking List - Page JavaScript Logic
  * Application: Just Udhari - Buy-Sell Module
