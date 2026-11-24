@@ -338,10 +338,14 @@
             }
         }
     </style>
+    @include('vendors.orders.board.css')
 @endsection
 
 @section('content')
-    @php 
+    @php
+         // Design mein nahi hai (comment out): "New" button + lists menu. Ab ek hi pipeline page hai -
+         // New order board ke header mein hai, Karigar / Billing lists board ke columns hain.
+         /* 
         $anchor = [
             header_btn_generate('New', route('vendor.orders.create')),
             list_menu_generate([
@@ -350,161 +354,18 @@
                 ['title' => 'Ready to Deliver List', 'route' => 'vendor.orders.billing'],
             ])
         ];
+         */
+         $anchor = [];
         $path = ["Orders" => route('vendor.orders.list')];
         $data = new_component_array('newbreadcrumb', "All Orders", $path);
     @endphp
     <x-new-bread-crumb :data=$data :anchor=$anchor />
 
-    <div class="order-module pb-5 mt-3 px-3">
-        <div class="list-header">
-            <div class="filter-section">
-                <div class="filter-item">
-                    <span class="filter-label">Search</span>
-                    <div class="premium-input-group search-group"
-                        style="border: 1px solid #ced4da; background: #fff; border-radius: 20px; height: 36px; padding: 0 15px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fa fa-search" style="color: #a0aec0;"></i>
-                        <input type="text" id="keyword" placeholder="Customer or Order ID..." oninput="changeEntries()"
-                            autocomplete="off"
-                            style="border: none; background: transparent; width: 100%; font-size: 0.85rem; font-weight: 600; outline: none; padding: 0;">
-                    </div>
-                </div>
-                <div class="filter-item">
-                    <span class="filter-label">Status</span>
-                    <div class="input-group">
-                        <select id="status_filter" class="form-control" onchange="changeEntries()"
-                            style="border-radius: 20px; height: 36px; background: white; border: 1px solid #ced4da; font-size: 0.85rem; font-weight: 600; padding: 0 15px; outline: none; width: 175px; cursor: pointer;">
-                            <option value="all" selected>All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="in_process">In Process</option>
-                            <option value="completed">Completed / Ready</option>
-                            <option value="delivered">Delivered</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="filter-item">
-                    <span class="filter-label">Date Range</span>
-                    <div class="input-group">
-                        <button type="button" class="form-control" id="daterange-btn"
-                            style="width: 220px; border-radius: 20px; height: 36px; background: white; border: 1px solid #ced4da; font-size: 0.85rem; font-weight: 600; text-align: left; padding: 0 15px; display: flex; align-items: center; justify-content: space-between;">
-                            <span id="daterange-text">All Time</span>
-                            <i class="fa fa-calendar-alt text-muted"></i>
-                        </button>
-                    </div>
-                    <input type="hidden" id="reportrange" value="">
-                </div>
-                <div class="filter-item">
-                    <span class="filter-label">Show</span>
-                    <div style="width: 80px;">
-                        @include('layouts.theme.datatable.entry', ['default_entries' => 10])
-                    </div>
-                </div>
-            </div>
-
-            <a href="{{ route('vendor.orders.create') }}" class="back-btn">
-                <i class="fa fa-chevron-left"></i>
-            </a>
-        </div>
-
-        <div class="bulk-actions-bar shadow-2xl" id="bulk_actions_bar"
-            style="display: none; background: rgba(26, 32, 44, 0.95); backdrop-filter: blur(10px); color: white; padding: 10px 20px; border-radius: 100px; position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 1000; align-items: center; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);">
-            <div class="selected-count fw-800 d-flex align-items-center"
-                style="font-size: 0.9rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 20px; margin-right: 15px;">
-                <div class="count-badge mr-2"
-                    style="background: #3182ce; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem;"
-                    id="selected_count">0</div>
-                <span style="letter-spacing: 0.5px;">Selected</span>
-            </div>
-            <div class="action-buttons d-flex align-items-center gap-2">
-                <button class="btn btn-sm btn-primary rounded-pill px-3 fw-800 mx-1" id="bulk_assign_btn" onclick="bulkAssign()"
-                    style="background: #3182ce; border: none; font-size: 0.75rem; height: 34px; transition: all 0.2s;">
-                    <i class="fa fa-user-plus mr-1"></i> Bulk Assign
-                </button>
-                <button class="btn btn-sm btn-danger rounded-pill px-3 fw-800 mx-1" id="bulk_delete_btn" onclick="bulkDelete()"
-                    style="background: #e53e3e; border: none; font-size: 0.75rem; height: 34px; transition: all 0.2s;">
-                    <i class="fa fa-trash mr-1"></i> Bulk Delete
-                </button>
-                <button class="btn btn-sm btn-info rounded-pill px-3 fw-800 mx-1" id="bulk_print_btn" onclick="bulkPrint()"
-                    style="background: #38b2ac; border: none; font-size: 0.75rem; height: 34px; transition: all 0.2s;">
-                    <i class="fa fa-print mr-1"></i> Bulk Print
-                </button>
-            </div>
-            <button class="btn btn-icon btn-link p-0 ml-3 text-white opacity-50 hover-opacity-100" onclick="deselectAll()"
-                style="text-decoration: none; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.2s;">
-                <i class="fa fa-times" style="font-size: 1rem;"></i>
-            </button>
-        </div>
-
-        <div class="table-wrapper">
-            <div class="table-responsive p-1">
-                <table class="table smart_dt table_theme w-100 mb-0" id="order_table">
-                    <thead>
-                        <tr>
-                            <th width="120">
-                                <div class="d-flex align-items-center justify-content-center">
-                                    <input type="checkbox" id="select_all"
-                                        style="width: 16px; height: 16px; cursor: pointer; margin-right: 8px;">
-                                    <span>S.No / ID</span>
-                                </div>
-                            </th>
-                            <th width="160" class="text-left">Customer Details</th>
-                            <th width="200" class="text-left">Product & Details</th>
-                            <th width="155">Weight (Gross/Fine)</th>
-                            <th width="130">Amount Details</th>
-                            <th width="115">Karigar Status</th>
-                            <th width="140">Dates </th>
-                            <th width="80">Action</th>
-                        </tr>
-                    </thead>
-                        @if(isset($orders) && $orders->count() > 0)
-                            @include('vendors.orders.receive.listbody')
-                        @else
-                            <tbody id="data_area">
-                                <!-- <tr>
-                                    <td colspan="13" class="text-center py-5">
-                                        <div class="d-flex flex-column align-items-center py-4 bg-white border"
-                                            style="border-radius: 12px;">
-                                            <i class="fa fa-spinner fa-spin mb-3 text-primary" style="font-size: 2rem;"></i>
-                                            <p class="text-muted fw-800 mb-0">Loading Orders...</p>
-                                        </div>
-                                    </td>
-                                </tr> -->
-                            </tbody>
-                        @endif
-                </table>
-            </div>
-            <div id="paging_area" class="mt-3">
-                @if(isset($orders) && $orders)
-                    @include('layouts.theme.datatable.pagination', ['paginator' => $orders, 'type' => 1])
-                @endif
-            </div>
-        </div>
-    </div>
-
-    @include('vendors.orders.modals.assign_karigar')
-    @include('vendors.orders.modals.issue_material')
-
-  
-    <div class="modal fade" id="orderDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-            <div class="modal-content" style="border-radius: 20px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
-                <div class=" border-0 pb-0">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="background: #f1f5f9; width: 32px; height: 32px; border-radius: 50%; opacity: 1; outline: none;">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body pt-0" id="order_detail_area">
-                    <div class="text-center py-5">
-                        <i class="fa fa-spinner fa-spin text-primary mb-3" style="font-size: 2rem;"></i>
-                        <p class="text-muted fw-800">Loading Order Details ...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    @include('vendors.orders.board.board', ['activeStage' => 'order'])
 @endsection
 
 @section('javascript')
     @include('layouts.vendors.js.passwork-popup')
     @include('vendors.orders.receive.js.list_scripts')
+    @include('vendors.orders.board.js')
 @endsection

@@ -116,205 +116,98 @@
             
             $assignedProductNames = $assignedItems->pluck('product_name')->implode(', ');
         @endphp
-        <tr>
-            <!-- Merged Column 1: S.No & Order ID -->
-            <td class="text-center">
-                <div class="d-flex flex-column align-items-center justify-content-center">
-                    <div class="d-flex align-items-center justify-content-center rounded-circle fw-800 text-muted mb-2"
-                        style="width: 25px; height: 25px; background: #ebf4ff; border: 1.2px solid #cbd5e0; font-size: 0.65rem;">
-                        {{ ($orders->currentPage() - 1) * $orders->perPage() + $renderedCount }}
-                    </div>
-                    <div class="fw-800 text-dark" style="font-size: 0.65rem; white-space: nowrap; letter-spacing: 0.2px;">
-                        #{{ $parentOrder->order_unique }}
-                    </div>
-                </div>
-            </td>
-            <td class="text-center">
-                @if($issue)
-                    <div class="d-flex flex-column align-items-center justify-content-center">
-                        <div class="fw-900 text-info mb-1" style="font-size: 0.8rem;">
-                            {{ $issue->created_at->format('d-M-Y') }}
-                        </div>
-                        <div style="font-size: 0.7rem; line-height: 1.2;">
-                            <span class="text-muted fw-700" style="font-size: 0.55rem; text-transform: uppercase;">Ordered:</span>
-                            <span class="fw-800 text-dark">{{ date('d-M-Y', strtotime($parentOrder->order_date)) }}</span>
-                        </div>
-                        <div style="font-size: 0.7rem; line-height: 1.2; margin-top: 3px;">
-                            <span class="text-muted fw-700" style="font-size: 0.55rem; text-transform: uppercase;">Delivery:</span>
-                            <span class="fw-800 text-dark">{{ date('d-M-Y', strtotime($issue->delivery_date ?? $parentOrder->delivery_date)) }}</span>
-                        </div>
-                    </div>
-                @else
-                    <div class="fw-900 text-dark" style="font-size: 0.8rem;">{{ date('d-M-Y', strtotime($parentOrder->order_date)) }}</div>
-                @endif
-            </td>
-            <td class="text-left" style="padding-left: 15px !important;">
-                <div class="fw-900 text-primary" style="font-size: 0.8rem; line-height: 1.15;">{{ $partyName }}</div>
-                <div class="small text-muted fw-700" style="font-size: 0.7rem; margin-top: 3px;">
-                    <i class="fa fa-phone-alt mr-1" style="font-size: 0.55rem;"></i> {{ $partyPhone }}
-                </div>
-            </td>
-            <td class="text-left" style="padding-left: 12px !important; max-width: 200px; word-break: break-word;">
-                <div class="d-flex align-items-center">
-                    @if($parentOrder->design_image)
-                        <div class="mr-2"
-                            style="width: 30px; height: 30px; border-radius: 6px; overflow: hidden; border: 1.5px solid #eef2ff; box-shadow: 0 2px 4px rgba(0,0,0,0.08); flex-shrink: 0;">
-                            <img src="{{ asset($parentOrder->design_image) }}" style="width: 100%; height: 100%; object-fit: cover;">
-                        </div>
-                    @endif
-                    <div>
-                        @if($isMulti)
-                            @php
-                                $receivedCount = $assignedItems->where('status', 'received')->count();
-                                $inProcessCount = $assignedItems->where('status', 'in_process')->count();
-                            @endphp
-                            <div class="custom-tooltip-wrapper" style="margin-bottom: 2px;">
-                                <div class="badge bg-soft-primary text-primary border-primary fw-900"
-                                    style="font-size: 0.55rem; padding: 1px 6px; background: #e6fffa; border: 1px solid #b2f5ea; color: #319795; cursor: pointer;">
-                                    {{ $itemCount }} ITEMS <i class="fa fa-info-circle ml-1" style="font-size: 0.55rem;"></i>
-                                </div>
-                                <div class="tooltip-content">
-                                    <div class="fw-800 text-warning mb-1" style="font-size: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px;">Assigned Items:</div>
-                                    @foreach($assignedItems as $item)
-                                        <div class="tooltip-item-line">
-                                            <span style="font-weight: 700;">{{ $item->product_name }}</span>
-                                            <span style="font-weight: 800; color: #a3b8cc;">(Gross: {{ number_format($item->gross_wt, 3) }}g)</span>
-                                            @if($item->status === 'received')
-                                                <span class="badge badge-success ml-1" style="font-size:0.55rem; padding:1px 4px;">Received</span>
-                                            @elseif($item->status === 'in_process')
-                                                <span class="badge badge-warning ml-1" style="font-size:0.55rem; padding:1px 4px;">In Process</span>
-                                            @else
-                                                <span class="badge badge-secondary ml-1" style="font-size:0.55rem; padding:1px 4px;">{{ ucfirst($item->status) }}</span>
-                                            @endif
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                            <div class="fw-800 text-dark" style="font-size: 0.8rem; line-height: 1.15; margin-bottom: 2px;">{{ $firstItem->product_name ?? 'Item' }}...</div>
-                        @else
-                            <div class="fw-800 text-dark" style="font-size: 0.8rem; line-height: 1.15; margin-bottom: 2px;">
-                                {{ $firstItem->product_name ?? 'N/A' }}
-                                @if($firstItem)
-                                    @if($firstItem->status === 'received')
-                                        <span class="badge badge-success ml-1" style="font-size: 0.6rem; padding: 1px 4px;">Received</span>
-                                    @elseif($firstItem->status === 'in_process')
-                                        <span class="badge badge-warning ml-1" style="font-size: 0.6rem; padding: 1px 4px;">In Process</span>
-                                    @else
-                                        <span class="badge badge-secondary ml-1" style="font-size: 0.6rem; padding: 1px 4px;">{{ ucfirst($firstItem->status) }}</span>
-                                    @endif
-                                @endif
-                            </div>
-                        @endif
-                        <div style="font-size: 0.7rem; color: #4a5568; line-height: 1.2;">
-                           <span class="fw-700 text-muted">Qty:</span> <span class="fw-800">{{ $assignedItems->sum('qty') }}</span>
-                           @if($isMulti)
-                               <span class="fw-700 text-muted ml-2">Recv:</span> <span class="fw-800 text-success">{{ $receivedCount }}</span>
-                               <span class="fw-700 text-muted ml-2">Pend:</span> <span class="fw-800 text-warning">{{ $inProcessCount }}</span>
-                           @endif
-                        </div>
-                    </div>
-                </div>
-            </td>
-            <td class="text-left" style="padding-left: 15px !important;">
-                <div class="fw-900 text-primary" style="font-size: 0.8rem; line-height: 1.15;">
-                    {{ $karigarName }}
-                </div>
-            </td>
-            <td class="text-center">
-                <div class="fw-900 text-danger" style="font-size: 0.85rem; line-height: 1.15;">{{ number_format($totalApproxWeight, 3) }} <small style="font-size: 0.65rem;">gm</small></div>
-                <div class="small text-success fw-900" style="font-size: 0.65rem; background: #f0fff4; border-radius: 3px; padding: 0.5px 4px; display: inline-block; margin-top: 3px;">Fine: {{ number_format($totalApproxFine, 3) }}g</div>
-            </td>
-            <td class="text-center">
-                <div class="fw-900 text-muted" style="font-size: 0.85rem; line-height: 1.15;">{{ number_format($avgWastagePer, 1) }}%</div>
-                <div class="small text-danger fw-900" style="font-size: 0.65rem; background: #fff5f5; border-radius: 3px; padding: 0.5px 4px; display: inline-block; margin-top: 3px;">
-                    {{ number_format($totalWastageGm, 3) }} gm
-                </div>
-            </td>
-            <td class="text-center" style="line-height: 1.25;">
-                @php
-                    $cash = (float)$totalCashIssued;
-                    $online = (float)$totalOnlineIssued;
-                    $total = $cash + $online;
-                @endphp
-                @if($total > 0)
-                    <div class="fw-900 text-dark" style="font-size: 0.85rem; white-space: nowrap;">
-                        ₹{{ number_format($total, 0) }}<span class="text-muted fw-700 ml-1" style="font-size: 0.62rem; letter-spacing: 0.2px;">/advance</span>
-                    </div>
-                    <div class="small fw-800 text-muted d-flex flex-column align-items-center" style="font-size: 0.68rem; margin-top: 1px;">
-                        @if($cash > 0 && $online > 0)
-                            <div>
-                                <span class="text-success">Csh: ₹{{ number_format($cash, 0) }}</span>
-                                <span class="text-muted mx-0.5">|</span>
-                                <span class="text-indigo">Onl: ₹{{ number_format($online, 0) }}</span>
-                            </div>
-                        @elseif($cash > 0)
-                            <span class="text-success">Csh: ₹{{ number_format($cash, 0) }}</span>
-                        @else
-                            <span class="text-indigo">Onl: ₹{{ number_format($online, 0) }}</span>
-                        @endif
-                    </div>
-                @else
-                    <div class="text-muted fw-700" style="font-size: 0.8rem;">-</div>
-                @endif
-            </td>
-            <td class="text-center">
-                @php
-                    $pendingCount = $assignedItems->where('status', 'in_process')->count();
-                    $itemIdsStr = !empty($assignedItemIds) ? implode(',', $assignedItemIds) : '';
-                @endphp
-                <div class="dropdown d-inline-block">
-                    <button class="btn btn-sm btn-icon btn-white shadow-sm rounded-circle d-flex align-items-center justify-content-center" type="button"
-                        data-toggle="dropdown"
-                        style="border: 1.2px solid #cbd5e0; width: 26px; height: 26px; background: #fff; border-radius: 50% !important; margin: 0 auto; outline: none; transition: all 0.2s;">
-                        <i class="fa fa-ellipsis-v text-muted" style="font-size: 0.75rem;"></i>
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-right shadow-lg border-0"
-                        style="border-radius: 12px; min-width: 160px; z-index: 1050;">
+        @php
+            // ---- new UI: display helpers only ----
+            $jpIni = collect(preg_split('/\s+/', trim($partyName)))->filter()->take(2)->map(fn($w) => mb_strtoupper(mb_substr($w, 0, 1)))->implode('');
+            $pendingCount = $assignedItems->where('status', 'in_process')->count();
+            $receivedCount = $assignedItems->where('status', 'received')->count();
+            $jpCharges = (float) $totalCashIssued + (float) $totalOnlineIssued;
+            $sumCharges = ($sumCharges ?? 0) + $jpCharges;
+            $sumAmount = ($sumAmount ?? 0) + (float) $parentOrder->total_payable;
+            $firstMetal = strtolower($firstItem->metal_type ?? '');
+            // NEW ADDITION (pipeline design): values for search results + Order summary popup
+            $jpCanEdit = $parentOrder->status != 3 && !$parentOrder->items->where('status', 'delivered')->isNotEmpty();
+            $jpRow = [
+                'id' => $parentOrder->id, 'u' => $parentOrder->order_unique, 'cust' => $partyName, 'mob' => $partyPhone,
+                'prod' => $firstItem->product_name ?? '', 'more' => max(0, $itemCount - 1), 'metal' => $firstItem->metal_type ?? '',
+                'total' => (float) $parentOrder->total_payable, 'ddate' => $deliveryDate->format('d M Y'), 'urgent' => (bool) $parentOrder->is_urgent,
+                'st' => 'karigar', 'kar' => $karigarName, 'kid' => $issue->karigar_id, 'pend' => $pendingCount, 'recv' => $receivedCount,
+                'fine' => round((float) $totalApproxFine, 3), 'days' => $daysLeft,
+            ];
+        @endphp
+        <tr class="jp-row" data-id="{{ $parentOrder->id }}" data-row='@json($jpRow)'>
+            <td class="jp-cell">
+                <article class="jp-card" data-stage="karigar" data-metal="{{ ucfirst($firstMetal) }}">
+                    <div class="jp-card-top">
+                        <span class="jp-av">{{ $jpIni }}</span>
+                        <div class="jp-cust">{{ $partyName }}<small>{{ $partyPhone }}</small></div>
                         @if($pendingCount > 0)
-                            <form action="{{ route('billing', ['type' => 'purchase']) }}" method="POST" style="display: inline;">
+                            <form action="{{ route('billing', ['type' => 'purchase']) }}" method="POST" class="jp-act-form">
                                 @csrf
                                 <input type="hidden" name="order_id" value="{{ $parentOrder->id }}">
                                 <input type="hidden" name="karigar_id" value="{{ $issue->karigar_id }}">
-                                <button type="submit" class="dropdown-item py-2 fw-800 small text-success border-0 bg-transparent w-100 text-left" style="outline: none;">
-                                    <i class="fa fa-reply text-success mr-2"></i> Purchase
-                                </button>
+                                <button type="submit" class="jp-act jp-green">Purchase order</button>
                             </form>
                         @else
-                            <span class="dropdown-item py-2 fw-800 small text-muted" style="cursor: not-allowed; opacity: 0.6;">
-                                <i class="fa fa-check text-muted mr-2"></i> Completed
-                            </span>
+                            <span class="jp-act jp-green jp-act-done">Completed</span>
                         @endif
-                        <a class="dropdown-item py-2 fw-800 small text-dark" href="{{ route('vendor.orders.assign.print', $issue->id) }}" target="_blank">
-                            <i class="fa fa-print text-primary mr-2"></i> Print Receipt
-                        </a>
+                        <button type="button" class="jp-dots" aria-label="More actions">⋮</button>
                     </div>
-                </div>
+                    <div class="jp-menu">
+                        <a class="btn-view-order" href="javascript:void(0);" data-id="{{ $parentOrder->id }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-eye"></use></svg></span>View detail</a>
+                        <a href="{{ route('vendor.orders.assign.print', $issue->id) }}" target="_blank"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-print"></use></svg></span>Print receipt</a>
+                        {{-- NEW ADDITION (pipeline design): same menu as the design (old Edit / Delete routes, Change status popup) --}}
+                        @if($jpCanEdit)
+                            <a class="jp-open-order" href="{{ route('vendor.orders.edit', $parentOrder->id) }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-pencil"></use></svg></span>Edit order</a>
+                        @endif
+                        <button type="button" class="jp-cs-open" data-id="{{ $parentOrder->id }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-refresh"></use></svg></span>Change status</button>
+                        @if($jpCanEdit)
+                            <a class="jp-del btn-delete-order" href="javascript:void(0);" data-toggle="modal" data-target="#confirmDeleteModal"
+                                data-delete-url="{{ route('vendor.orders.destroy', $parentOrder->id) }}"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span>Delete</a>
+                        @endif
+                    </div>
+                    <div class="jp-mid">
+                        <div class="jp-ml">
+                            <div class="jp-prod">{{ $firstItem->product_name }} @if($isMulti)<span class="jp-more">+{{ $itemCount - 1 }} more</span>@endif</div>
+                            <div class="jp-subrow">
+                                <span class="jp-sid">#{{ $parentOrder->order_unique }}</span>
+                                @if($isMulti)<span class="jp-sit"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-box"></use></svg></span>{{ $itemCount }} items</span>@endif
+                                @if($parentOrder->is_urgent)<span class="jp-metal jp-urg jp-sm"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-bolt"></use></svg></span>Urgent</span>@endif
+                            </div>
+                        </div>
+                        <div class="jp-tags">
+                            @if($isMulti)
+                                <span class="jp-pc jp-p">Received {{ $receivedCount }}/{{ $itemCount }}</span>
+                            @endif
+                            @if($daysLeft < 0)
+                                <span class="jp-due-c jp-late">{{ abs($daysLeft) }} din overdue</span>
+                            @elseif($daysLeft <= 3)
+                                <span class="jp-due-c jp-soon">{{ $daysLeft == 0 ? 'Aaj delivery' : $daysLeft . ' din baaki' }}</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="jp-grid">
+                        <div class="jp-f"><span>Assigned karigar</span><b>{{ $karigarName }}</b></div>
+                        <div class="jp-f jp-ftot"><span>Issued material</span><b>{{ $totalApproxWeight > 0 ? number_format($totalApproxWeight, 3) . ' g' : '—' }}</b><button type="button" class="jp-dtg" aria-label="Details show/hide">▾</button></div>
+                        {{-- Design mein nahi hai: Fine (comment out)
+                        <div class="jp-f"><span>Fine</span><b>{{ $totalApproxFine > 0 ? number_format($totalApproxFine, 3) . ' g' : '—' }}</b></div>
+                        --}}
+                        <div class="jp-f"><span>Ghat allowance</span><b>{{ number_format($avgWastagePer, 1) }}% · {{ number_format($totalWastageGm, 3) }} g</b></div>
+                        <div class="jp-f"><span>Charges</span><b>{{ $jpCharges > 0 ? '₹' . number_format($jpCharges, 0) : '—' }}@if($totalCashIssued > 0 && $totalOnlineIssued > 0) <small>Cash ₹{{ number_format($totalCashIssued, 0) }} · Online ₹{{ number_format($totalOnlineIssued, 0) }}</small>@endif</b></div>
+                        <div class="jp-f"><span>Assigned / Due</span><b>{{ $issue->created_at ? $issue->created_at->format('d M') : '—' }} → {{ $deliveryDate->format('d M') }}</b></div>
+                    </div>
+                </article>
             </td>
         </tr>
     @endforeach
 @else
-    <tr>
-        <td colspan="10" class="text-center py-5">
-            <div class="d-flex flex-column align-items-center py-4">
-                <i class="fa fa-info-circle mb-3 text-muted" style="font-size: 2rem;"></i>
-                <p class="text-muted fw-800 mb-0">No orders currently in process.</p>
-            </div>
-        </td>
-    </tr>
+    <tr class="jp-empty"><td colspan="10"><div class="jp-empty-in">Abhi karigar ke paas koi order nahi</div></td></tr>
 @endif
 </tbody>
-
 @if(count($processOrders) > 0)
     <tfoot>
         <tr>
-            <td colspan="5" class="text-right py-2">
-                <span class="fw-800 text-muted uppercase" style="font-size: 0.75rem;">Process Totals :-</span>
-            </td>
-            <td class="text-center py-1">
-                <div class="fw-900 text-danger" style="font-size: 0.85rem;">{{ number_format($totalGross, 3) }} <small style="font-size: 0.65rem;">gm</small></div>
-                <div class="small text-success fw-800" style="font-size: 0.65rem;">Fine: {{ number_format($totalFine, 3) }}</div>
-            </td>
-            <td colspan="3"></td>
+            <td colspan="10" class="jp-sum" data-issued="{{ $totalGross }}" data-fine="{{ $totalFine }}" data-charges="{{ $sumCharges ?? 0 }}" data-amount="{{ $sumAmount ?? 0 }}" data-rendered="{{ $renderedCount }}"></td>
         </tr>
     </tfoot>
 @endif
