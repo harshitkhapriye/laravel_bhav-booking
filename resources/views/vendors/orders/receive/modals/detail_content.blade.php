@@ -35,9 +35,9 @@
                 @if($order->is_urgent)<span class="jp-metal jp-urg jp-sm"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-bolt"></use></svg></span>Urgent</span>@endif
                 @if($order->status != 3 && $dDays !== null)
                     @if($dDays < 0)
-                        <span class="jp-due-c jp-late">{{ abs($dDays) }} din overdue</span>
+                        <span class="jp-due-c jp-late">{{ abs($dDays) }} days overdue</span>
                     @elseif($dDays <= 3)
-                        <span class="jp-due-c jp-soon">{{ $dDays == 0 ? 'Aaj delivery' : $dDays . ' din baaki' }}</span>
+                        <span class="jp-due-c jp-soon">{{ $dDays == 0 ? 'Due today' : $dDays . ' days left' }}</span>
                     @endif
                 @endif
             </div>

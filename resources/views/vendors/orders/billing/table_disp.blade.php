@@ -166,6 +166,39 @@
                     <div class="jp-menu">
                         <a class="btn-view-order" href="javascript:void(0);" data-id="{{ $order->id }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-eye"></use></svg></span>View detail</a>
                         <a href="{{ route('vendor.orders.print', $order->id) }}" target="_blank"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-print"></use></svg></span>Print receipt</a>
+                        {{-- ===== NEW ADDITION (v9): "Assign remaining" + "Purchase remaining" for partly done orders =====
+                             Assign remaining   -> items still pending (not given to any karigar) -> same old openAssignModal().
+                             Purchase remaining -> items still with a karigar (in_process) -> same old purchase form
+                                                   (route billing type=purchase, order_id + karigar_id), one entry per karigar. --}}
+                        @php
+                            $jpBLeft = $jpDone ? collect() : $items->where('status', 'pending');
+                            $jpBLeftNet = (float) $jpBLeft->sum(fn($it) => (float) $it->net_wt * ($it->qty ?: 1));
+                            $jpBLeftWg = (float) $jpBLeft->sum(fn($it) => (float) ($it->wastage_per ?? 0) * ($it->qty ?: 1));
+                            $jpBWithIds = $jpDone ? [] : $items->where('status', 'in_process')->pluck('id')->all();
+                            $jpBPur = [];
+                            if ($jpBWithIds) {
+                                foreach (($order->karigarIssues ?? collect()) as $jpBIs) {
+                                    $jpBIds = is_array($jpBIs->order_item_id) ? $jpBIs->order_item_id : [];
+                                    $jpBMine = $jpBIds ? array_intersect($jpBIds, $jpBWithIds) : $jpBWithIds;
+                                    if (!$jpBMine) continue;
+                                    $jpBK = $jpBIs->karigar_id;
+                                    $jpBPur[$jpBK]['name'] = $jpBIs->karigar->name ?? 'Karigar';
+                                    $jpBPur[$jpBK]['ids'] = array_unique(array_merge($jpBPur[$jpBK]['ids'] ?? [], $jpBMine));
+                                }
+                            }
+                        @endphp
+                        @if($jpBLeft->count() > 0)
+                            <a href="javascript:void(0);" class="jp-assign-left"
+                                onclick="openAssignModal({{ $order->id }}, '{{ $order->order_unique }}', '{{ addslashes($jpBLeft->first()->product_name ?? '') }}', {{ (float) $jpBLeft->sum(fn($it) => (float) $it->gross_wt * ($it->qty ?: 1)) }}, {{ (float) $jpBLeft->sum(fn($it) => (float) $it->less_wt * ($it->qty ?: 1)) }}, {{ $jpBLeftNet }}, {{ $jpBLeftNet > 0 ? round($jpBLeftWg / $jpBLeftNet * 100, 2) : 0 }}, {{ $jpBLeftWg }}, {{ (float) $jpBLeft->sum(fn($it) => (float) $it->fine_wt * ($it->qty ?: 1)) }}, '{{ $jpBLeft->first()->touch ?? '' }}')"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-tool"></use></svg></span>Assign remaining ({{ $jpBLeft->count() }})</a>
+                        @endif
+                        @foreach($jpBPur as $jpBKid => $jpBP)
+                            <form action="{{ route('billing', ['type' => 'purchase']) }}" method="POST" class="jp-menu-form jp-purchase-left">
+                                @csrf
+                                <input type="hidden" name="order_id" value="{{ $order->id }}">
+                                <input type="hidden" name="karigar_id" value="{{ $jpBKid }}">
+                                <button type="submit"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-box"></use></svg></span>Purchase remaining ({{ count($jpBP['ids']) }}){{ count($jpBPur) > 1 ? ' · ' . $jpBP['name'] : '' }}</button>
+                            </form>
+                        @endforeach
                         {{-- NEW ADDITION (pipeline design): same menu as the design (old Edit / Delete routes, Change status popup) --}}
                         @if($jpCanEdit)
                             <a class="jp-open-order" href="{{ route('vendor.orders.edit', $order->id) }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-pencil"></use></svg></span>Edit order</a>
@@ -173,7 +206,9 @@
                         <button type="button" class="jp-cs-open" data-id="{{ $order->id }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-refresh"></use></svg></span>Change status</button>
                         @if($jpCanEdit)
                             <a class="jp-del btn-delete-order" href="javascript:void(0);" data-toggle="modal" data-target="#confirmDeleteModal"
-                                data-delete-url="{{ route('vendor.orders.destroy', $order->id) }}"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span>Delete</a>
+                                data-delete-url="{{ route('vendor.orders.destroy', $order->id) }}"
+                                {{-- NEW ADDITION (v9): delete impact data for the "Delete order?" popup --}}
+                                @include('vendors.orders.board.del_info', ['jpDelOrder' => $order])><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span>Delete</a>
                         @endif
                     </div>
                     <div class="jp-mid">
@@ -213,7 +248,7 @@
         </tr>
     @endforeach
 @else
-    <tr class="jp-empty"><td colspan="10"><div class="jp-empty-in">Billing ke liye koi order ready nahi</div></td></tr>
+    <tr class="jp-empty"><td colspan="10"><div class="jp-empty-in">No orders ready for billing</div></td></tr>
 @endif
 </tbody>
 @if(count($processOrders) > 0)

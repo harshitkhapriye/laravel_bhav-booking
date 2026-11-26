@@ -52,7 +52,7 @@
                     <a href="{{ route('vendor.orders.create') }}" class="jp-btn-new jp-open-order">＋ New order</a>
                     <button type="button" class="jp-os-fab" aria-label="Order search"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-search"></use></svg></span></button>
                     <div class="jp-osrch" id="jp-osrch">
-                        <input type="text" id="keyword" class="jp-srch-in" placeholder="Order ID, naam, mobile, item, karigar" oninput="changeEntries()" autocomplete="off">
+                        <input type="text" id="keyword" class="jp-srch-in" placeholder="Order ID, name, mobile, item, karigar" oninput="changeEntries()" autocomplete="off">
                         {{-- NEW ADDITION (pipeline design): search results list with "Change status" --}}
                         <div class="jp-os-res" id="jp-os-res" hidden></div>
                     </div>
@@ -63,32 +63,33 @@
                         <button type="button" class="jp-btn-del jp-dr-btn2"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-file"></use></svg></span>Drafts <span class="jp-count" id="jp-dr-c">0</span></button>
                         <div class="jp-menu jp-dr-menu" id="jp-dr-menu"></div>
                     </div>
-                    <button type="button" class="jp-btn-del jp-dr-btn" id="daterange-btn" title="Date range">
+                    {{-- "All Time" date button hidden (design). It stays in the page because the old list_scripts
+                         binds the date picker to #daterange-btn and sends #reportrange (empty = all time). --}}
+                    <button type="button" class="jp-btn-del jp-dr-btn" id="daterange-btn" title="Date range" hidden style="display:none">
                         <span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-cal"></use></svg></span><span id="daterange-text">All Time</span>
                     </button>
                     <input type="hidden" id="reportrange" value="">
                     <div class="jp-ad-wrap">
-                        <button type="button" class="jp-btn-del jp-ad-dots" aria-label="All orders details" title="All orders details">⋮</button>
+                        <button type="button" class="jp-btn-del jp-ad-dots" aria-label="All orders details" title="All orders details">⋮<span class="jp-count" id="jp-dcount" hidden>0</span></button>
                         <div class="jp-menu jp-ad-menu">
-                            <div class="jp-adm-h">All orders details</div>
+                            <div class="jp-adm-h"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-clip"></use></svg></span>All orders details</div>
                             {{-- NEW ADDITION (pipeline design): Order summary popup --}}
                             <button type="button" class="jp-adm-it jp-sum" data-open="summary">
                                 <span class="jp-adm-ic"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-chart"></use></svg></span></span>
-                                <span class="jp-adm-tx"><b>Order summary</b><small>Saare orders ka hisaab</small></span>
+                                <span class="jp-adm-tx"><b>Order summary</b><small>Overview of all orders</small></span><em class="jp-cnt-sum" hidden></em>
                             </button>
-                            @if($jpHasDeleted)
-                                {{-- NEW ADDITION (pipeline design): Deleted orders (shows only when the backend route exists) --}}
-                                <button type="button" class="jp-adm-it jp-del" data-open="deleted">
-                                    <span class="jp-adm-ic"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span></span>
-                                    <span class="jp-adm-tx"><b>Deleted orders</b><small>Hataye gaye orders, restore karo</small></span>
-                                </button>
-                            @endif
+                            {{-- NEW ADDITION (pipeline design): Deleted orders. Always in the menu like the design;
+                                 the list fills only when the backend route vendor.orders.deleted exists (see top comment). --}}
+                            <button type="button" class="jp-adm-it jp-del" data-open="deleted">
+                                <span class="jp-adm-ic"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span></span>
+                                <span class="jp-adm-tx"><b>Deleted orders</b><small>Removed orders, restore here</small></span><em class="jp-cnt-del" hidden></em>
+                            </button>
                             <button type="button" class="jp-adm-it jp-dlv" data-open="delivered">
                                 <span class="jp-adm-ic"><span class="jp-ic jp-t-g"><svg viewBox="0 0 24 24"><use href="#ji-checkc"></use></svg></span></span>
-                                <span class="jp-adm-tx"><b>Delivered orders</b><small>Customer ko diye gaye</small></span>
+                                <span class="jp-adm-tx"><b>Delivered orders</b><small>Handed over to customers</small></span><em class="jp-cnt-dlv" hidden></em>
                             </button>
                             <div class="jp-adm-show">
-                                <span>Har stage mein dikhao</span>
+                                <span>Show per stage</span>
                                 @include('layouts.theme.datatable.entry', ['default_entries' => 10])
                             </div>
                         </div>
@@ -115,7 +116,7 @@
                                 </select>
                                 --}}
                                 <input type="hidden" id="status_filter" value="pending">
-                                <label class="jp-all" title="Is stage ke saare order select karo"><input type="checkbox" id="select_all"> All</label>
+                                <label class="jp-all" title="Select all orders in this stage"><input type="checkbox" id="select_all"> All</label>
                             </div>
                         </div>
                         <div class="jp-col-sum"></div>
@@ -130,7 +131,7 @@
                 <section class="jp-col" data-stage="karigar">
                     <div class="jp-col-head">
                         <span class="jp-stg-ic"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-tool"></use></svg></span></span>
-                        <div class="jp-stg-t"><h2>Karigar list <span class="jp-count">0</span></h2><small>Karigar ke paas kaam chal raha</small></div>
+                        <div class="jp-stg-t"><h2>Karigar list <span class="jp-count">0</span></h2><small>Work in progress with karigar</small></div>
                         <div class="jp-col-sum"></div>
                     </div>
                     <div class="jp-col-list">
@@ -142,7 +143,7 @@
                 <section class="jp-col" data-stage="billing">
                     <div class="jp-col-head">
                         <span class="jp-stg-ic"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-receipt"></use></svg></span></span>
-                        <div class="jp-stg-t"><h2>Billing list <span class="jp-count">0</span></h2><small>Item purchase ho gaya, bill ke liye ready</small></div>
+                        <div class="jp-stg-t"><h2>Billing list <span class="jp-count">0</span></h2><small>Item purchased, ready for billing</small></div>
                         <div class="jp-col-sum"></div>
                     </div>
                     <div class="jp-col-list">
@@ -160,29 +161,34 @@
             </div>
             <div class="jp-sbar" id="jp-sbar"><i id="jp-sbar-t"></i></div>
         </div>
-        <div class="jp-hint">Card ko drag karke next stage mein chhodo, ya card ka button use karo.</div>
+        <div class="jp-hint">Drag a card to the next stage, or use the button on the card.</div>
     </div>
 
     <!-- ===== All orders details popup: Order summary / Deleted / Delivered ===== -->
     <div class="jp-dov" id="jp-dov">
         <div class="jp-bigm" id="jp-bigm">
             <div class="jp-bm-head">
-                <div><h3 class="jp-dv-title">Order summary</h3><p class="jp-dv-sub">Saare orders ka hisaab: stage, karigar aur metal ke hisaab se</p></div>
+                <div><h3 class="jp-dv-title">Order summary</h3><p class="jp-dv-sub">Overview of all orders by stage, karigar and metal</p></div>
                 <div class="jp-tabs">
                     {{-- NEW ADDITION (pipeline design) --}}
                     <button type="button" data-t="summary" class="jp-on"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-chart"></use></svg></span>Order summary</button>
-                    @if($jpHasDeleted)
-                        {{-- NEW ADDITION (pipeline design) --}}
-                        <button type="button" data-t="deleted"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span>Deleted</button>
-                    @endif
-                    <button type="button" data-t="delivered"><span class="jp-ic jp-t-g"><svg viewBox="0 0 24 24"><use href="#ji-checkc"></use></svg></span>Delivered</button>
+                    {{-- NEW ADDITION (pipeline design): Deleted tab (list needs the backend route vendor.orders.deleted) --}}
+                    <button type="button" data-t="deleted"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span>Deleted <span class="jp-dv-c2"></span></button>
+                    <button type="button" data-t="delivered"><span class="jp-ic jp-t-g"><svg viewBox="0 0 24 24"><use href="#ji-checkc"></use></svg></span>Delivered <span class="jp-dv-c1"></span></button>
                 </div>
                 <button type="button" class="jp-x" aria-label="Close" data-close-dov>✕</button>
             </div>
+            {{-- NEW ADDITION (pipeline design): filters like the design (work on the loaded list in the browser) --}}
             <div class="jp-fbar">
-                <input class="jp-srch jp-dv-q" placeholder="Customer, mobile ya order ID">
-                <label class="jp-flbl jp-dv-showl">Show
-                    <select class="jp-dv-show"><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option></select>
+                <input class="jp-srch jp-dv-q jp-ph-ic" placeholder="Customer, mobile ya order ID" style="--phi: url(&quot;data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23D9620A'%20stroke-width%3D'1.9'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Ccircle%20cx%3D%2211%22%20cy%3D%2211%22%20r%3D%227%22%2F%3E%3Cpath%20d%3D%22m20%2020-3.5-3.5%22%2F%3E%3C%2Fsvg%3E&quot;);">
+                <label class="jp-flbl"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-cal"></use></svg></span>Date range
+                    <select class="jp-dv-rs"><option value="all">All time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="month">This month</option><option value="custom">Custom range</option></select></label>
+                <div class="jp-drange jp-dv-cust" style="display:none">From <input type="date" class="jp-dv-from"> To <input type="date" class="jp-dv-to"></div>
+                <select class="jp-dv-metal"><option value="all">All metal</option><option value="gold">Gold</option><option value="silver">Silver</option></select>
+                <select class="jp-dv-pay"><option value="all">All payment</option><option value="paid">Paid</option><option value="due">Due</option></select>
+                <button type="button" class="jp-chip jp-urg jp-dv-urg"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-bolt"></use></svg></span>Urgent only</button>
+                <label class="jp-flbl jp-dv-showl" style="margin-left:auto">Show
+                    <select class="jp-dv-show"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="0">All</option></select>
                     entries</label>
             </div>
             <div class="jp-dsum jp-dv-sum"></div>
@@ -192,7 +198,8 @@
                     <tbody class="jp-dv-tb"></tbody>
                 </table>
             </div>
-            <div class="jp-paging jp-dv-paging"></div>
+            <div class="jp-dpg jp-dv-pg"></div>
+            <div class="jp-paging jp-dv-paging" hidden></div>
         </div>
     </div>
     <div class="jp-menu jp-dvm" id="jp-dvm"></div>
@@ -209,6 +216,11 @@
     <!-- ===== NEW ADDITION (pipeline design): Change status popup ===== -->
     <div class="jp-overlay" id="jp-ov-cs">
         <div class="jp-modal jp-csm" id="jp-cs-modal"></div>
+    </div>
+
+    <!-- ===== NEW ADDITION (v9): "Delete order?" popup — shows what goes back where before the old M-PIN delete popup ===== -->
+    <div class="jp-overlay" id="jp-ov-dl">
+        <div class="jp-modal jp-dlm" id="jp-dl-modal"></div>
     </div>
 
     <!-- bulk actions (old markup + old functions) -->

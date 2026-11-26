@@ -102,7 +102,7 @@
                 'id' => $order->id, 'u' => $order->order_unique, 'cust' => $custName, 'mob' => $custPhone,
                 'prod' => $firstItem->product_name ?? '', 'more' => max(0, $itemCount - 1),
                 'metal' => $firstItem->metal_type ?? '', 'purity' => $firstItem->purity ?? '',
-                'kar' => $computedStatus === 'delivered' ? ($order->karigar->name ?? '') : '',
+                'kar' => $computedStatus === 'delivered' ? ($order->latestIssue->karigar->name ?? '') : '',
                 'fine' => round($orderFine, 3), 'total' => (float) $order->total_payable, 'paid' => $jpPaid, 'due' => $balDue,
                 'odate' => $order->order_date ? date('d M Y', strtotime($order->order_date)) : '',
                 'ddate' => $order->delivery_date ? date('d M Y', strtotime($order->delivery_date)) : '',
@@ -142,7 +142,9 @@
                         <button type="button" class="jp-cs-open" data-id="{{ $order->id }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-refresh"></use></svg></span>Change status</button>
                         @if(!$hasDeliveredItems)
                             <a class="jp-del btn-delete-order" href="javascript:void(0);" data-toggle="modal" data-target="#confirmDeleteModal"
-                                data-delete-url="{{ route('vendor.orders.destroy', $order->id) }}"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span>Delete</a>
+                                data-delete-url="{{ route('vendor.orders.destroy', $order->id) }}"
+                                {{-- NEW ADDITION (v9): delete impact data for the "Delete order?" popup --}}
+                                @include('vendors.orders.board.del_info', ['jpDelOrder' => $order])><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span>Delete</a>
                         @endif
                     </div>
                     <div class="jp-mid">
@@ -166,9 +168,9 @@
                             @endif
                             @if($computedStatus !== 'delivered' && $order->delivery_date)
                                 @if($daysLeft < 0)
-                                    <span class="jp-due-c jp-late">{{ abs($daysLeft) }} din overdue</span>
+                                    <span class="jp-due-c jp-late">{{ abs($daysLeft) }} days overdue</span>
                                 @elseif($daysLeft <= 3)
-                                    <span class="jp-due-c jp-soon">{{ $daysLeft == 0 ? 'Aaj delivery' : $daysLeft . ' din baaki' }}</span>
+                                    <span class="jp-due-c jp-soon">{{ $daysLeft == 0 ? 'Due today' : $daysLeft . ' days left' }}</span>
                                 @endif
                             @endif
                         </div>
@@ -189,7 +191,7 @@
             </td>
         </tr>
     @empty
-        <tr class="jp-empty"><td colspan="8"><div class="jp-empty-in">Koi order nahi mila</div></td></tr>
+        <tr class="jp-empty"><td colspan="8"><div class="jp-empty-in">No orders found</div></td></tr>
     @endforelse
 </tbody>
 

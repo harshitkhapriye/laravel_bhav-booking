@@ -95,7 +95,7 @@
                                     <div class="input-with-icon-badge w-100 position-relative">
                                         <i class="fa fa-search"></i>
                                         <input type="text" name="name" id="name"
-                                            class="summary-input w-100" placeholder="Customer name / mobile"
+                                            class="summary-input w-100" placeholder="Customer name"{{-- placeholder text as in the design (was "Customer name / mobile"); search still works by name and mobile --}}
                                             oninput="searchCustomerOrder($(this))"
                                             value="{{ $isEdit ? ($order->custo_type === 's' ? ($order->party->supplier_num . '/' . $order->party->supplier_name . ' - ' . $order->party->mobile_no) : ($order->party->custo_num . '/' . $order->party->custo_full_name . ' - ' . $order->party->custo_fone)) : '' }}"
                                             {{ $isEdit ? 'readonly style=background-color:#f8fafc;cursor:not-allowed;' : '' }}
@@ -119,7 +119,7 @@
                                     class="fa fa-comment-dots mr-1 text-warning"></i> Remark</label>
                             <input type="text" name="remarks" class="footer-input"
                                 value="{{ $isEdit ? $order->remarks : '' }}"
-                                placeholder="Any specific design instructions or customer preferences..." autocomplete="off">
+                                placeholder="Design details or customer notes..." autocomplete="off">{{-- placeholder text as in the design --}}
                         </div>
                         {{-- Design mein nahi hai: "Design sketch" upload (comment out)
                         <div class="footer-input-group ju-sketch">
@@ -259,8 +259,9 @@
                     </div>
                     <div class="premium-form-group ju-f">
                         <label><i class="fa fa-ruler mr-1"></i> Size</label>
+                        {{-- placeholder text as in the design (was "S") --}}
                         <input type="text" id="item_size" inputmode="decimal" class="premium-input text-center"
-                            placeholder="S" autocomplete="off">
+                            placeholder="e.g. 12, 2.4" autocomplete="off">
                     </div>
                     <div class="premium-form-group ju-f">
                         <label><i class="fa fa-layer-group mr-1"></i> Qty</label>
@@ -283,20 +284,26 @@
                             <div class="ju-grid">
                     <div class="premium-form-group ju-f">
                         <label class="text-danger fw-800"><i class="fa fa-weight mr-1"></i> Gross (gm)</label>
-                        <input type="text" inputmode="decimal" id="item_gross_wt"
-                            class="premium-input text-danger fw-900 weight-input"
-                            placeholder="0.000" autocomplete="off">
+                        <div class="ju-suf" data-u="gm">{{-- NEW ADDITION (pipeline design): unit shown inside the box --}}
+                            <input type="text" inputmode="decimal" id="item_gross_wt"
+                                class="premium-input text-danger fw-900 weight-input"
+                                placeholder="0.000" autocomplete="off">
+                        </div>
                     </div>
                     <div class="premium-form-group ju-f">
                         <label class="text-muted fw-800"><i class="fa fa-minus-circle mr-1"></i> Less (gm)</label>
-                        <input type="text" id="item_less_wt" inputmode="decimal"
-                            class="premium-input text-muted fw-800 weight-input"
-                            placeholder="0.000" autocomplete="off">
+                        <div class="ju-suf" data-u="gm">{{-- NEW ADDITION (pipeline design): unit shown inside the box --}}
+                            <input type="text" id="item_less_wt" inputmode="decimal"
+                                class="premium-input text-muted fw-800 weight-input"
+                                placeholder="0.000" autocomplete="off">
+                        </div>
                     </div>
                     <div class="premium-form-group ju-f">
                         <label class="fw-800"><i class="fa fa-fire mr-1"></i> Wastage (gm)</label>
-                        <input type="text" id="item_wastage_per" inputmode="decimal"
-                            class="premium-input fw-800 weight-input"  placeholder="0.000" autocomplete="off">
+                        <div class="ju-suf" data-u="gm">{{-- NEW ADDITION (pipeline design): unit shown inside the box --}}
+                            <input type="text" id="item_wastage_per" inputmode="decimal"
+                                class="premium-input fw-800 weight-input"  placeholder="0.000" autocomplete="off">
+                        </div>
                     </div>
                     <div class="premium-form-group ju-f">
                         <label class="fw-800"><i class="fa fa-percent mr-1"></i> Wastage (%)</label>
@@ -305,22 +312,28 @@
                     </div>
                     <div class="premium-form-group ju-f">
                         <label class="text-primary fw-800"><i class="fa fa-balance-scale mr-1"></i> Net (gm)</label>
-                        <input type="text" id="item_net_wt"
-                            class="premium-input text-primary fw-900 bg-soft-indigo weight-input"
-                            readonly placeholder="0.000">
+                        <div class="ju-suf" data-u="gm">{{-- NEW ADDITION (pipeline design): unit shown inside the box --}}
+                            <input type="text" id="item_net_wt"
+                                class="premium-input text-primary fw-900 bg-soft-indigo weight-input"
+                                readonly placeholder="0.000">
+                        </div>
                     </div>
                     <div class="premium-form-group ju-f">
                         <label class="text-success fw-800"><i class="fa fa-check-circle mr-1"></i> Fine (gm)</label>
-                        <input type="text" id="item_fine_wt"
-                            class="premium-input text-success fw-900 weight-input" readonly
-                            placeholder="0.000">
+                        <div class="ju-suf" data-u="gm">{{-- NEW ADDITION (pipeline design): unit shown inside the box --}}
+                            <input type="text" id="item_fine_wt"
+                                class="premium-input text-success fw-900 weight-input" readonly
+                                placeholder="0.000">
+                        </div>
                     </div>
                     <div class="premium-form-group ju-f">
                         <label class="text-indigo fw-800"><i class="fa fa-hammer mr-1"></i> Making (₹)</label>
                         <div class="premium-multi-input d-flex">
-                            <input type="text" id="item_making" inputmode="decimal"
-                                class="premium-input text-indigo fw-800" placeholder="0"
-                                style="flex: 1; min-width: 0;" autocomplete="off">
+                            <div class="ju-suf" data-u="₹">{{-- NEW ADDITION (pipeline design): unit shown inside the box --}}
+                                <input type="text" id="item_making" inputmode="decimal"
+                                    class="premium-input text-indigo fw-800" placeholder="0"
+                                    style="flex: 1; min-width: 0;" autocomplete="off">
+                            </div>
                             <select id="item_making_type"
                                 class="premium-input-select text-indigo fw-800"
                                 style="width: auto; border-left: 1px solid #e2e8f0; padding: 0 5px;">
@@ -331,8 +344,10 @@
                     </div>
                     <div class="premium-form-group ju-f">
                         <label class="text-indigo fw-800"><i class="fa fa-tools mr-1"></i> Labour (₹)</label>
-                        <input type="text" id="item_labor" inputmode="decimal"
-                            class="premium-input text-indigo fw-800" placeholder="0" autocomplete="off">
+                        <div class="ju-suf" data-u="₹">{{-- NEW ADDITION (pipeline design): unit shown inside the box --}}
+                            <input type="text" id="item_labor" inputmode="decimal"
+                                class="premium-input text-indigo fw-800" placeholder="0" autocomplete="off">
+                        </div>
                     </div>
                             </div>
                         </div>
@@ -485,7 +500,11 @@
                                         </div>
 
                                         <!-- Collapsible dropdown details panel -->
+                                        {{-- OLD (floating popup above the field) - kept for reference:
                                         <div id="metal_adv_details_dropdown" class="card shadow-lg position-absolute" style="display: none; z-index: 1060; width: 330px; bottom: 55px; right: 0; border-radius: 16px; border: 1px solid #edf2f7; background: #ffffff; box-shadow: 0 -10px 25px rgba(0,0,0,0.15); padding: 15px !important;">
+                                        --}}
+                                        {{-- ===== NEW ADDITION: same id + classes, opens inline under the Metal adv. row (artifact design). Old JS .show()/.hide() works as before. Styles in css/new_ui (v8 block). ===== --}}
+                                        <div id="metal_adv_details_dropdown" class="card shadow-lg position-absolute ju-mp" style="display: none;">
                                             <div class="d-flex align-items-center justify-content-between mb-2 border-bottom pb-2">
                                                 <span class="fw-900 text-indigo text-uppercase" style="letter-spacing: 0.5px; font-size: 0.8rem;"><i class="fa fa-cube text-warning mr-1"></i> METAL PAY DETAILS</span>
                                                 <button type="button" class="close" id="close_metal_adv_details" style="font-size: 1.2rem; border: none; background: transparent; cursor: pointer; color: #64748b;">&times;</button>
@@ -684,7 +703,7 @@
 
                                             <!-- Summary Footer inside Dropdown -->
                                             <div class="border-top pt-2 mt-2 d-flex align-items-center justify-content-between" style="font-size: 0.78rem;">
-                                                <span class="text-muted fw-700">Total Metal Value:</span>
+                                                {{-- OLD text: Total Metal Value: --}}<span class="text-muted fw-700">Total metal value</span>
                                                 <span class="fw-900 text-indigo" id="total_metal_adv_amount_summary">₹ 0.00</span>
                                             </div>
                                         </div>
@@ -758,12 +777,12 @@
         <div id="jp-drq" class="jp-drq">
             <div class="jp-drq-box" role="dialog" aria-label="Save draft">
                 <div class="jp-drq-ic"><i class="fa fa-file-alt"></i></div>
-                <h4>Draft save karein?</h4>
-                <p>Is order ki details save nahi hui hain. Draft rakhoge to baad mein "Drafts" se khol ke pura kar sakte ho.</p>
+                <h4>Save as draft?</h4>
+                <p>This order has not been saved yet. Save it as a draft and finish it later from "Drafts".</p>
                 <div class="jp-drq-f">
-                    <button type="button" class="jp-b" data-a="back">Wapas form</button>
-                    <button type="button" class="jp-b jp-danger" data-a="discard">Nahi, clear karo</button>
-                    <button type="button" class="jp-b jp-pri" data-a="save">Draft save karo</button>
+                    <button type="button" class="jp-b" data-a="back">Back to form</button>
+                    <button type="button" class="jp-b jp-danger" data-a="discard">No, discard</button>
+                    <button type="button" class="jp-b jp-pri" data-a="save">Save draft</button>
                 </div>
             </div>
         </div>

@@ -954,7 +954,7 @@ body.jp-tdrag { user-select: none; -webkit-user-select: none; }
 .jp-root #jp-dvm.jp-dvm { z-index: 1047 !important; }
 /* create / edit popup = old page inside an iframe */
 .jp-root .jp-ov-order { padding: 12px; }
-.jp-root .jp-ofr { position: relative; width: min(900px, 96vw); height: min(94vh, 1000px); border-radius: 18px; overflow: hidden; background: transparent; animation: jp-mdIn .28s cubic-bezier(.2,.9,.3,1.2); }
+.jp-root .jp-ofr { position: relative; width: min(800px, 96vw); height: min(94vh, 1000px); border-radius: 18px; overflow: hidden; background: transparent; animation: jp-mdIn .28s cubic-bezier(.2,.9,.3,1.2); }
 .jp-root .jp-ofr iframe { width: 100%; height: 100%; border: 0; background: transparent; display: block; }
 .jp-root .jp-ofr-load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: #fff; border-radius: 18px; color: var(--muted, #6B7280); font-weight: 600; }
 .jp-root .jp-ofr.jp-ready .jp-ofr-load { display: none; }
@@ -990,4 +990,48 @@ body.jp-tdrag { user-select: none; -webkit-user-select: none; }
     border-color: #F07A1A !important; box-shadow: 0 0 0 3px rgba(240, 122, 26, .15) !important; outline: none;
 }
 #karigar_issue_form .metal-tab-btn.active { border-color: #F07A1A !important; }
+
+/* ===== NEW ADDITION (pipeline design, v6b): popup filters / paging / menu counts like the design ===== */
+.jp-root .jp-pst.jp-del { background: #1F2937; color: #fff; }
+.jp-root #jp-dcount { display: none !important; }
+.jp-root .jp-adm-h .jp-ic { width: 22px; height: 22px; border-radius: 7px; display: inline-grid; place-items: center; background: #FFF1E4; color: var(--orange-dark); margin-right: 8px; vertical-align: middle; }
+.jp-root .jp-adm-h .jp-ic svg { width: 13px; height: 13px; }
+.jp-root .jp-adm-it em[hidden] { display: none; }
+.jp-root .jp-dv-pg:empty { display: none; }
+.jp-root .jp-dv-cust input { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
+.jp-root .jp-ofr { transition: height .2s ease; }
+.jp-root .jp-fbar { align-items: center; }
+.jp-root .jp-fbar .jp-flbl { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+@media (max-width: 620px) {
+    .jp-root .jp-overlay.jp-ov-order { padding: 0 !important; }
+    .jp-root .jp-ov-order .jp-ofr { flex-shrink: 0; max-width: none; width: 100vw !important; height: 100% !important; }
+}
+
+/* ===================== NEW ADDITION (v9): Delete order popup + menu forms (Purchase remaining) ===================== */
+.jp-root .jp-menu .jp-menu-form { margin: 0; }
+.jp-root .jp-menu .jp-menu-form button { display: flex; align-items: center; }
+.jp-root .jp-modal.jp-dlm { max-width: 520px; display: flex; flex-direction: column; overflow: hidden; }
+.jp-root .jp-dlm .jp-modal-h h3 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.jp-root .jp-dl-stg { font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 999px; background: #F3F4F6; color: var(--muted, #6B7280); }
+.jp-root .jp-dl-stg.jp-dl-order { background: var(--orange-soft, #FFE7D1); color: var(--orange-dark, #D9620A); }
+.jp-root .jp-dl-stg.jp-dl-karigar { background: #EDE9FE; color: #6D28D9; }
+.jp-root .jp-dl-stg.jp-dl-billing { background: #DCFCE7; color: #15803D; }
+.jp-root .jp-dl-b { overflow: auto; min-height: 0; flex: 1 1 auto; }
+.jp-root .jp-dl-lead { font-size: 12.5px; color: var(--muted, #6B7280); margin: 0 0 10px; }
+.jp-root .jp-dl-lead b { color: var(--text, #1F2937); }
+.jp-root .jp-dl-sec { border: 1px solid var(--line, #ECEEF2); border-radius: 10px; padding: 9px 11px; margin-bottom: 8px; background: #fff; }
+.jp-root .jp-dl-sec h6 { margin: 0 0 6px; font-size: 12.5px; font-weight: 800; color: var(--text, #1F2937); display: flex; align-items: center; gap: 6px; }
+.jp-root .jp-dl-sec h6 em { margin-left: auto; font-style: normal; font-size: 11px; font-weight: 700; color: var(--muted, #6B7280); }
+.jp-root .jp-dl-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12.5px; padding: 2px 0; }
+.jp-root .jp-dl-row span { color: var(--muted, #6B7280); min-width: 0; }
+.jp-root .jp-dl-row b { font-weight: 800; white-space: nowrap; color: var(--text, #1F2937); }
+.jp-root .jp-dl-row b.jp-g { color: var(--green, #16A34A); }
+.jp-root .jp-dl-row b.jp-o { color: var(--orange-dark, #D9620A); }
+.jp-root .jp-dl-row b.jp-r { color: var(--red, #DC2626); }
+.jp-root .jp-dl-go { display: flex; align-items: center; gap: 6px; margin-top: 7px; padding: 6px 9px; border-radius: 8px; background: #FFF7F0; border: 1px solid var(--orange, #F07A1A); font-size: 12px; font-weight: 800; color: var(--text, #1F2937); }
+.jp-root .jp-dl-sum { border: 1px dashed var(--orange, #F07A1A); background: #FFF7F0; border-radius: 10px; padding: 9px 11px; }
+.jp-root .jp-dl-sum h6 { margin: 0 0 5px; font-size: 12px; font-weight: 800; color: var(--orange-dark, #D9620A); }
+.jp-root .jp-dl-sum ul { margin: 0; padding-left: 16px; font-size: 12px; color: var(--text, #1F2937); }
+.jp-root .jp-dl-sum li { padding: 1px 0; }
+@media (max-width: 620px) { .jp-root .jp-modal.jp-dlm { max-width: none; } .jp-root .jp-dlm .jp-modal-f .jp-b { flex: 1 1 0; } }
 </style>

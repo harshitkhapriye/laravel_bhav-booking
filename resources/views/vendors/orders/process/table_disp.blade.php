@@ -156,6 +156,18 @@
                     <div class="jp-menu">
                         <a class="btn-view-order" href="javascript:void(0);" data-id="{{ $parentOrder->id }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-eye"></use></svg></span>View detail</a>
                         <a href="{{ route('vendor.orders.assign.print', $issue->id) }}" target="_blank"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-print"></use></svg></span>Print receipt</a>
+                        {{-- NEW ADDITION (pipeline design): items of this order not given to any karigar yet (status pending)
+                             can be assigned from here. All orders column shows only fully pending orders,
+                             so the rest of a partly assigned order is assigned here. Same old openAssignModal(). --}}
+                        @php
+                            $jpLeft = $parentOrder->items->where('status', 'pending');
+                            $jpLeftNet = (float) $jpLeft->sum(fn($it) => (float) $it->net_wt * ($it->qty ?: 1));
+                            $jpLeftWg = (float) $jpLeft->sum(fn($it) => (float) ($it->wastage_per ?? 0) * ($it->qty ?: 1));
+                        @endphp
+                        @if($jpLeft->count() > 0)
+                            <a href="javascript:void(0);" class="jp-assign-left"
+                                onclick="openAssignModal({{ $parentOrder->id }}, '{{ $parentOrder->order_unique }}', '{{ addslashes($jpLeft->first()->product_name ?? '') }}', {{ (float) $jpLeft->sum(fn($it) => (float) $it->gross_wt * ($it->qty ?: 1)) }}, {{ (float) $jpLeft->sum(fn($it) => (float) $it->less_wt * ($it->qty ?: 1)) }}, {{ $jpLeftNet }}, {{ $jpLeftNet > 0 ? round($jpLeftWg / $jpLeftNet * 100, 2) : 0 }}, {{ $jpLeftWg }}, {{ (float) $jpLeft->sum(fn($it) => (float) $it->fine_wt * ($it->qty ?: 1)) }}, '{{ $jpLeft->first()->touch ?? '' }}')"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-tool"></use></svg></span>Assign remaining ({{ $jpLeft->count() }})</a>
+                        @endif
                         {{-- NEW ADDITION (pipeline design): same menu as the design (old Edit / Delete routes, Change status popup) --}}
                         @if($jpCanEdit)
                             <a class="jp-open-order" href="{{ route('vendor.orders.edit', $parentOrder->id) }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-pencil"></use></svg></span>Edit order</a>
@@ -163,7 +175,9 @@
                         <button type="button" class="jp-cs-open" data-id="{{ $parentOrder->id }}"><span class="jp-ic"><svg viewBox="0 0 24 24"><use href="#ji-refresh"></use></svg></span>Change status</button>
                         @if($jpCanEdit)
                             <a class="jp-del btn-delete-order" href="javascript:void(0);" data-toggle="modal" data-target="#confirmDeleteModal"
-                                data-delete-url="{{ route('vendor.orders.destroy', $parentOrder->id) }}"><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span>Delete</a>
+                                data-delete-url="{{ route('vendor.orders.destroy', $parentOrder->id) }}"
+                                {{-- NEW ADDITION (v9): delete impact data for the "Delete order?" popup --}}
+                                @include('vendors.orders.board.del_info', ['jpDelOrder' => $parentOrder])><span class="jp-ic jp-t-r"><svg viewBox="0 0 24 24"><use href="#ji-trash"></use></svg></span>Delete</a>
                         @endif
                     </div>
                     <div class="jp-mid">
@@ -180,9 +194,9 @@
                                 <span class="jp-pc jp-p">Received {{ $receivedCount }}/{{ $itemCount }}</span>
                             @endif
                             @if($daysLeft < 0)
-                                <span class="jp-due-c jp-late">{{ abs($daysLeft) }} din overdue</span>
+                                <span class="jp-due-c jp-late">{{ abs($daysLeft) }} days overdue</span>
                             @elseif($daysLeft <= 3)
-                                <span class="jp-due-c jp-soon">{{ $daysLeft == 0 ? 'Aaj delivery' : $daysLeft . ' din baaki' }}</span>
+                                <span class="jp-due-c jp-soon">{{ $daysLeft == 0 ? 'Due today' : $daysLeft . ' days left' }}</span>
                             @endif
                         </div>
                     </div>
@@ -201,7 +215,7 @@
         </tr>
     @endforeach
 @else
-    <tr class="jp-empty"><td colspan="10"><div class="jp-empty-in">Abhi karigar ke paas koi order nahi</div></td></tr>
+    <tr class="jp-empty"><td colspan="10"><div class="jp-empty-in">No orders with karigars right now</div></td></tr>
 @endif
 </tbody>
 @if(count($processOrders) > 0)
